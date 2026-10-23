@@ -1,0 +1,60 @@
+package request
+
+import (
+	"errors"
+	"regexp"
+	"strings"
+	"unicode/utf8"
+)
+
+// Регэкспы совпадают с CHECK-ограничениями в миграциях,
+// чтобы не отдавать 500 там, где должен быть 400.
+var loginRegexp = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,32}$`)
+
+func runesBetween(s string, min, max int) bool {
+	n := utf8.RuneCountInString(strings.TrimSpace(s))
+	return n >= min && n <= max
+}
+
+func (r LoginRequest) Validate() error {
+	if strings.TrimSpace(r.Login) == "" {
+		return errors.New("login is required")
+	}
+	if r.Password == "" {
+		return errors.New("password is required")
+	}
+	return nil
+}
+
+func (r CreateUserRequest) Validate() error {
+	if !runesBetween(r.FullName, 3, 64) {
+		return errors.New("full_name must be 3-64 characters")
+	}
+	if !loginRegexp.MatchString(r.Login) {
+		return errors.New("login must be 3-32 chars: letters, digits, . _ -")
+	}
+	if utf8.RuneCountInString(r.Password) < 8 {
+		return errors.New("password must be at least 8 characters")
+	}
+	// bcrypt молча обрезает вход до 72 байт — не даём хранить обрезанный пароль.
+	if len(r.Password) > 72 {
+		return errors.New("password must be at most 72 bytes")
+	}
+	if r.Role != "admin" && r.Role != "user" {
+		return errors.New("role must be admin or user")
+	}
+	return nil
+}
+
+func (r UserUpdateRequest) Validate() error {
+	if r.Login == nil && r.FullName == nil {
+		return errors.New("at least one field must be provided")
+	}
+	if r.Login != nil && !loginRegexp.MatchString(*r.Login) {
+		return errors.New("login must be 3-32 chars: letters, digits, . _ -")
+	}
+	if r.FullName != nil && !runesBetween(*r.FullName, 3, 64) {
+		return errors.New("full_name must be 3-64 characters")
+	}
+	return nil
+}

@@ -1,0 +1,24 @@
+# Binaries
+*.exe
+*.test
+*.out
+coverage.*
+/backend/apiserver
+apiserver
+
+# Go workspace
+go.work
+go.work.sum
+
+# env: секреты не в репозиторий, пример остаётся
+.env
+.env.*
+!.env.example
+
+# Editor/IDE
+.idea/
+.vscode/
+.DS_Store
+
+# Материалы кейса
+case-*.pdf

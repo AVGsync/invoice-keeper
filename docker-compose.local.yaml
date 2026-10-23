@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16.15-alpine3.24
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-invoice_keeper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-invoice_local_password}
+      POSTGRES_DB: ${POSTGRES_DB:-invoice_keeper}
+    ports:
+      - "${LOCAL_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-local-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-invoice_keeper} -d ${POSTGRES_DB:-invoice_keeper}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [app-local]
+
+  migrate:
+    image: migrate/migrate:v4.18.3
+    restart: "no"
+    volumes:
+      - ./backend/migrations:/migrations
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://${POSTGRES_USER:-invoice_keeper}:${POSTGRES_PASSWORD:-invoice_local_password}@postgres:5432/${POSTGRES_DB:-invoice_keeper}?sslmode=disable"
+      - "up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [app-local]
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ENV: local
+      DEBUG: "true"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      BIND_ADDR: "8080"
+    ports:
+      - "${LOCAL_API_PORT:-8080}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/api/v1/ping | grep -q pong"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [app-local]
+
+volumes:
+  postgres-local-data:
+
+networks:
+  app-local:
+    driver: bridge
