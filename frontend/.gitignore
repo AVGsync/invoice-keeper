@@ -1,0 +1,61 @@
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Coding assistance
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.mcp.json
+AGENTS.md
+.opencode/
+opencode.json
+opencode.jsonc
+.codex/
+.gemini/
+GEMINI.md
+.cursor/
+.cursorrules
+.cursorignore
+.windsurf/
+.windsurfrules
+.codeium/
+.github/copilot-instructions.md
+.aider*
+.continue/
+.cline/
+.clinerules
+.roo/
+.roomodes
+.kilocode/
+.amazonq/
+.kiro/
+.junie/
+.augment/
+.tabnine/
+.zed/
+
+# Markdown
+*.md
+!README.md
