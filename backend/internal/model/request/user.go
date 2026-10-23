@@ -7,22 +7,24 @@ type CreateUserRequest struct {
 	Login string `json:"login" validate:"required,min=3,max=64" example:"ivan.petrov"`
 	// Пароль, минимум 8 символов. Роль не передаётся: создаётся всегда обычный пользователь.
 	Password string `json:"password" validate:"required,min=8" example:"Str0ngPass!2026"`
-	// Персона из GET /personas. Необязательно: без неё пользователь создаётся без персоны.
-	PersonaID *string `json:"persona_id,omitempty" format:"uuid" example:"7c9e6679-7425-40de-944b-e07fc1f90ae7"`
+	// Персона (должность) из `GET /personas`. Необязательно: без поля пользователь
+	// создаётся без персоны. Несуществующий id → `400 persona not found`.
+	PersonaID *string `json:"persona_id,omitempty" format:"uuid" example:"223f4e8e-98ea-4e50-9fb7-a9ea8984b2f1"`
 }
 
 type CreatePersonaRequest struct {
-	// Название, 1–64 символа, уникально без учёта регистра.
-	Name string `json:"name" example:"Бухгалтер"`
-	// Описание, до 255 символов.
-	Description *string `json:"description,omitempty" example:"Оплачивает аренду и подписки"`
+	// Название, 1–64 символа (пробелы по краям обрезаются), уникально без учёта регистра.
+	Name string `json:"name" validate:"required" minLength:"1" maxLength:"64" example:"Бухгалтер"`
+	// Описание, до 255 символов. Необязательно; пустая строка сохраняется как `null`.
+	Description *string `json:"description,omitempty" maxLength:"255" example:"Оплачивает аренду и подписки"`
 }
 
 type UpdatePersonaRequest struct {
-	// Новое название. Если поле не передано, текущее значение не меняется.
-	Name *string `json:"name,omitempty" example:"Главный бухгалтер"`
-	// Новое описание. Если поле не передано, текущее значение не меняется.
-	Description *string `json:"description,omitempty" example:"Оплачивает аренду, подписки и налоги"`
+	// Новое название, 1–64 символа. Если поле не передано, текущее значение не меняется.
+	Name *string `json:"name,omitempty" minLength:"1" maxLength:"64" example:"Главный бухгалтер"`
+	// Новое описание, до 255 символов. Если поле не передано, не меняется;
+	// пустая строка `""` удаляет описание.
+	Description *string `json:"description,omitempty" maxLength:"255" example:"Оплачивает аренду, подписки и налоги"`
 }
 
 type LoginRequest struct {

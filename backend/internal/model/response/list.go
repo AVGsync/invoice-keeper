@@ -8,6 +8,8 @@ type UserListResponse struct {
 }
 
 type PersonaListResponse struct {
+	// Персоны, отсортированные по названию (без учёта регистра).
 	Items []model.Persona `json:"items"`
-	Total int             `json:"total"`
+	// Сколько всего персон.
+	Total int `json:"total" example:"1"`
 }

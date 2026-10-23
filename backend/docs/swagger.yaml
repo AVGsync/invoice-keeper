@@ -3,48 +3,90 @@ definitions:
   model.Persona:
     properties:
       created_at:
+        description: Когда создана.
+        example: "2026-10-23T20:05:31Z"
         type: string
       description:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      users_count:
-        type: integer
-    type: object
-  model.PersonaRef:
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-    type: object
-  model.User:
-    properties:
-      created_at:
-        type: string
-      full_name:
-        type: string
-      id:
-        type: string
-      login:
-        type: string
-      persona:
-        $ref: '#/definitions/model.PersonaRef'
-      role:
-        type: string
-    type: object
-  request.CreatePersonaRequest:
-    properties:
-      description:
-        description: Описание, до 255 символов.
+        description: Описание, до 255 символов; `null`, если не задано.
         example: Оплачивает аренду и подписки
+        type: string
+        x-nullable: true
+      id:
+        description: Идентификатор персоны.
+        example: 223f4e8e-98ea-4e50-9fb7-a9ea8984b2f1
+        format: uuid
         type: string
       name:
         description: Название, 1–64 символа, уникально без учёта регистра.
         example: Бухгалтер
         type: string
+      users_count:
+        description: Сколько пользователей с этой персоной.
+        example: 1
+        type: integer
+    type: object
+  model.PersonaRef:
+    properties:
+      id:
+        description: Идентификатор персоны.
+        example: 223f4e8e-98ea-4e50-9fb7-a9ea8984b2f1
+        format: uuid
+        type: string
+      name:
+        description: Название персоны.
+        example: Бухгалтер
+        type: string
+    type: object
+  model.User:
+    properties:
+      created_at:
+        description: Когда создан.
+        example: "2026-10-23T20:05:31Z"
+        type: string
+      full_name:
+        description: Полное имя.
+        example: Ольга Иванова
+        type: string
+      id:
+        description: Идентификатор пользователя.
+        example: 9a191dfa-5e71-47aa-bcb2-ed5e9c071830
+        format: uuid
+        type: string
+      login:
+        description: Логин для входа.
+        example: olga
+        type: string
+      persona:
+        allOf:
+        - $ref: '#/definitions/model.PersonaRef'
+        description: Персона (должность) пользователя; `null`, если не назначена или
+          была удалена.
+        x-nullable: true
+      role:
+        description: 'Роль: `admin` — администратор из .env, `user` — обычный пользователь.'
+        enum:
+        - admin
+        - user
+        example: user
+        type: string
+    type: object
+  request.CreatePersonaRequest:
+    properties:
+      description:
+        description: Описание, до 255 символов. Необязательно; пустая строка сохраняется
+          как `null`.
+        example: Оплачивает аренду и подписки
+        maxLength: 255
+        type: string
+      name:
+        description: Название, 1–64 символа (пробелы по краям обрезаются), уникально
+          без учёта регистра.
+        example: Бухгалтер
+        maxLength: 64
+        minLength: 1
+        type: string
+    required:
+    - name
     type: object
   request.CreateUserRequest:
     properties:
@@ -67,9 +109,10 @@ definitions:
         minLength: 8
         type: string
       persona_id:
-        description: 'Персона из GET /personas. Необязательно: без неё пользователь
-          создаётся без персоны.'
-        example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+        description: |-
+          Персона (должность) из `GET /personas`. Необязательно: без поля пользователь
+          создаётся без персоны. Несуществующий id → `400 persona not found`.
+        example: 223f4e8e-98ea-4e50-9fb7-a9ea8984b2f1
         format: uuid
         type: string
     required:
@@ -96,12 +139,18 @@ definitions:
   request.UpdatePersonaRequest:
     properties:
       description:
-        description: Новое описание. Если поле не передано, текущее значение не меняется.
+        description: |-
+          Новое описание, до 255 символов. Если поле не передано, не меняется;
+          пустая строка `""` удаляет описание.
         example: Оплачивает аренду, подписки и налоги
+        maxLength: 255
         type: string
       name:
-        description: Новое название. Если поле не передано, текущее значение не меняется.
+        description: Новое название, 1–64 символа. Если поле не передано, текущее
+          значение не меняется.
         example: Главный бухгалтер
+        maxLength: 64
+        minLength: 1
         type: string
     type: object
   request.UserUpdateRequest:
@@ -123,10 +172,13 @@ definitions:
   response.PersonaListResponse:
     properties:
       items:
+        description: Персоны, отсортированные по названию (без учёта регистра).
         items:
           $ref: '#/definitions/model.Persona'
         type: array
       total:
+        description: Сколько всего персон.
+        example: 1
         type: integer
     type: object
   response.UserListResponse:
@@ -209,6 +261,7 @@ paths:
       description: |-
         Возвращает пользователя, которому принадлежит текущий access-токен. Frontend использует `id` как идентификатор текущего пользователя, `role` — для показа admin-only действий, `full_name` — для подписи интерфейса. Идентификатор пользователя из query/body не принимается и не может подменить пользователя из JWT.
         Веб-панель обычно аутентифицируется HttpOnly cookie `AccessToken`; Bearer также поддерживается. Пароль и refresh token в ответ не входят. Если access token отсутствует/просрочен, middleware завершает запрос до handler. После изменения роли или удаления пользователя клиенту следует перечитать профиль либо выполнить повторный login.
+        Поле `persona` — персона (должность) пользователя `{id, name}` или `null`; на права не влияет.
       operationId: authMe
       produces:
       - application/json
@@ -268,9 +321,30 @@ paths:
   /personas:
     get:
       description: |-
-        Справочник персон (должностей), которые администратор назначает пользователям
-        при создании. Персона на права не влияет — права задаёт только роль.
-        `users_count` — сколько пользователей с этой персоной. Доступно только роли `admin`.
+        Возвращает весь справочник персон без пагинации, отсортированный по названию
+        (без учёта регистра). Используется в форме создания пользователя: администратор
+        выбирает персону из этого списка и передаёт её `id` в `persona_id`
+        (`POST /users`).
+
+        Персона — это должность или зона ответственности (Бухгалтер, Руководитель, DevOps).
+        На права доступа она **не влияет**: права задаёт только роль (`admin` / `user`).
+
+        Поля элемента:
+        - `id` — UUID персоны;
+        - `name` — название;
+        - `description` — описание или `null`;
+        - `users_count` — сколько пользователей с этой персоной (удобно показать
+        перед удалением);
+        - `created_at` — когда создана.
+
+        Доступно только роли `admin`.
+
+        Коды ответов:
+        - `200` — объект со списком в `items` и количеством в `total` (пустой справочник —
+        `items: []`, `total: 0`);
+        - `401 unauthorized` — нет или просрочен access-токен (middleware Auth);
+        - `403 forbidden` — роль не `admin` (middleware IsAdmin);
+        - `500 failed to get personas` — ошибка БД.
       produces:
       - application/json
       responses:
@@ -300,8 +374,24 @@ paths:
       consumes:
       - application/json
       description: |-
-        Добавляет персону в справочник. Название 1–64 символа, уникально без учёта
-        регистра; описание до 255 символов. Доступно только роли `admin`.
+        Добавляет персону в справочник. После этого её можно назначать новым
+        пользователям через `persona_id` в `POST /users`. Доступно только роли `admin`.
+
+        Требования к телу (иначе `400` с текстом ошибки):
+        - `name`: обязательно, 1–64 символа; пробелы по краям обрезаются;
+        - `description`: необязательно, до 255 символов; пустая строка сохраняется как `null`.
+
+        Название уникально **без учёта регистра**: «Бухгалтер» и « бухгалтер » —
+        одна и та же персона, повтор вернёт `409`.
+
+        Коды ответов:
+        - `201` — персона создана, в теле — созданная персона (`users_count: 0`);
+        - `400 invalid request body` — тело не парсится как JSON;
+        - `400 name must be 1-64 characters` / `400 description must be at most 255 characters`
+        — не прошла валидация;
+        - `401 unauthorized` / `403 forbidden` — из middleware Auth/IsAdmin;
+        - `409 persona with this name already exists` — такое название уже есть;
+        - `500 failed to create persona` — прочая ошибка БД.
       parameters:
       - description: Название и описание
         in: body
@@ -345,8 +435,19 @@ paths:
   /personas/{id}:
     delete:
       description: |-
-        Удаляет персону из справочника. Пользователи с этой персоной не удаляются —
-        у них персона становится пустой (`persona: null`). Доступно только роли `admin`.
+        Удаляет персону из справочника. Доступно только роли `admin`.
+
+        Пользователи с этой персоной **не удаляются** и не блокируются: у них персона
+        становится пустой (`persona: null` в `GET /users` и `GET /auth/me`). Права
+        пользователей не меняются — персона на них не влияет. Сколько пользователей
+        затронет удаление, видно в `users_count` из `GET /personas`.
+
+        Коды ответов:
+        - `204` — персона удалена (тело пустое);
+        - `400 invalid persona id` — `id` в пути не UUID;
+        - `401 unauthorized` / `403 forbidden` — из middleware Auth/IsAdmin;
+        - `404 persona not found` — персоны с таким `id` нет (в т.ч. уже удалена);
+        - `500 failed to delete persona` — ошибка БД.
       parameters:
       - description: ID персоны (UUID)
         in: path
@@ -388,8 +489,25 @@ paths:
       consumes:
       - application/json
       description: |-
-        Частичное обновление: название и/или описание (хотя бы одно поле).
-        Пустое описание удаляет его. Доступно только роли `admin`.
+        Частичное (PATCH) обновление персоны: название и/или описание. Пользователи,
+        которым назначена персона, сразу видят новое название (`GET /users`,
+        `GET /auth/me`) — персона хранится ссылкой, а не копией. Доступно только роли `admin`.
+
+        Тело — только изменяемые поля (оба необязательны, но хотя бы одно обязательно):
+        - `name`: если передано — 1–64 символа, пробелы по краям обрезаются;
+        - `description`: если передано — до 255 символов; пустая строка `""` удаляет описание
+        (станет `null`); если не передано — не меняется.
+
+        Коды ответов:
+        - `200` — персона обновлена, в теле — актуальная персона;
+        - `400 invalid persona id` — `id` в пути не UUID;
+        - `400 invalid request body` — тело не парсится; либо текст ошибки валидации
+        (в т.ч. `at least one field must be provided`, если не передано ни одно поле);
+        - `401 unauthorized` / `403 forbidden` — из middleware Auth/IsAdmin;
+        - `404 persona not found` — персоны с таким `id` нет;
+        - `409 persona with this name already exists` — новое название занято
+        другой персоной (без учёта регистра);
+        - `500 failed to update persona` — прочая ошибка БД.
       parameters:
       - description: ID персоны (UUID)
         in: path
@@ -461,6 +579,8 @@ paths:
         Возвращает всех пользователей (обычных пользователей и администраторов) без пагинации.
         Доступно только роли `admin`. Поле `password_hash` в ответ не попадает
         (скрыто на уровне сериализации).
+        У каждого пользователя есть поле `persona` — назначенная персона `{id, name}`
+        или `null`, если персона не назначена или была удалена.
 
         Коды ответов:
         - `200` — объект с массивом пользователей в `items` и общим количеством в `total`;
@@ -689,3 +809,16 @@ securityDefinitions:
     name: AccessToken
     type: apiKey
 swagger: "2.0"
+tags:
+- description: Служебные эндпоинты (проверка доступности).
+  name: Система
+- description: Вход, выход, обновление токенов и текущий пользователь.
+  name: Auth
+- description: Управление пользователями — только администратор. Учётка администратора
+    задаётся в .env и через API не меняется.
+  name: Admin
+- description: Справочник персон — должностей или зон ответственности (Бухгалтер,
+    Руководитель, DevOps). Ведёт администратор; при создании пользователя персона
+    выбирается из этого списка (`persona_id` в `POST /users`). На права доступа не
+    влияет — права задаёт роль.
+  name: Personas

@@ -278,6 +278,8 @@ func (h *UserHandler) CreateUser() http.HandlerFunc {
 // @Description  Возвращает всех пользователей (обычных пользователей и администраторов) без пагинации.
 // @Description  Доступно только роли `admin`. Поле `password_hash` в ответ не попадает
 // @Description  (скрыто на уровне сериализации).
+// @Description  У каждого пользователя есть поле `persona` — назначенная персона `{id, name}`
+// @Description  или `null`, если персона не назначена или была удалена.
 // @Description
 // @Description  Коды ответов:
 // @Description  - `200` — объект с массивом пользователей в `items` и общим количеством в `total`;
@@ -437,6 +439,7 @@ func (h *UserHandler) UpdateUserByID() http.HandlerFunc {
 // @Summary      Профиль текущего пользователя
 // @Description  Возвращает пользователя, которому принадлежит текущий access-токен. Frontend использует `id` как идентификатор текущего пользователя, `role` — для показа admin-only действий, `full_name` — для подписи интерфейса. Идентификатор пользователя из query/body не принимается и не может подменить пользователя из JWT.
 // @Description  Веб-панель обычно аутентифицируется HttpOnly cookie `AccessToken`; Bearer также поддерживается. Пароль и refresh token в ответ не входят. Если access token отсутствует/просрочен, middleware завершает запрос до handler. После изменения роли или удаления пользователя клиенту следует перечитать профиль либо выполнить повторный login.
+// @Description  Поле `persona` — персона (должность) пользователя `{id, name}` или `null`; на права не влияет.
 // @ID           authMe
 // @Tags         Auth
 // @Produce      json

@@ -58,9 +58,30 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 // GetAllPersonas godoc
 //
 // @Summary      Список персон
-// @Description  Справочник персон (должностей), которые администратор назначает пользователям
-// @Description  при создании. Персона на права не влияет — права задаёт только роль.
-// @Description  `users_count` — сколько пользователей с этой персоной. Доступно только роли `admin`.
+// @Description  Возвращает весь справочник персон без пагинации, отсортированный по названию
+// @Description  (без учёта регистра). Используется в форме создания пользователя: администратор
+// @Description  выбирает персону из этого списка и передаёт её `id` в `persona_id`
+// @Description  (`POST /users`).
+// @Description
+// @Description  Персона — это должность или зона ответственности (Бухгалтер, Руководитель, DevOps).
+// @Description  На права доступа она **не влияет**: права задаёт только роль (`admin` / `user`).
+// @Description
+// @Description  Поля элемента:
+// @Description  - `id` — UUID персоны;
+// @Description  - `name` — название;
+// @Description  - `description` — описание или `null`;
+// @Description  - `users_count` — сколько пользователей с этой персоной (удобно показать
+// @Description    перед удалением);
+// @Description  - `created_at` — когда создана.
+// @Description
+// @Description  Доступно только роли `admin`.
+// @Description
+// @Description  Коды ответов:
+// @Description  - `200` — объект со списком в `items` и количеством в `total` (пустой справочник —
+// @Description    `items: []`, `total: 0`);
+// @Description  - `401 unauthorized` — нет или просрочен access-токен (middleware Auth);
+// @Description  - `403 forbidden` — роль не `admin` (middleware IsAdmin);
+// @Description  - `500 failed to get personas` — ошибка БД.
 // @Tags         Personas
 // @Produce      json
 // @Security     CookieAuth
@@ -84,8 +105,24 @@ func (h *PersonaHandler) GetAllPersonas() http.HandlerFunc {
 // CreatePersona godoc
 //
 // @Summary      Создание персоны
-// @Description  Добавляет персону в справочник. Название 1–64 символа, уникально без учёта
-// @Description  регистра; описание до 255 символов. Доступно только роли `admin`.
+// @Description  Добавляет персону в справочник. После этого её можно назначать новым
+// @Description  пользователям через `persona_id` в `POST /users`. Доступно только роли `admin`.
+// @Description
+// @Description  Требования к телу (иначе `400` с текстом ошибки):
+// @Description  - `name`: обязательно, 1–64 символа; пробелы по краям обрезаются;
+// @Description  - `description`: необязательно, до 255 символов; пустая строка сохраняется как `null`.
+// @Description
+// @Description  Название уникально **без учёта регистра**: «Бухгалтер» и « бухгалтер » —
+// @Description  одна и та же персона, повтор вернёт `409`.
+// @Description
+// @Description  Коды ответов:
+// @Description  - `201` — персона создана, в теле — созданная персона (`users_count: 0`);
+// @Description  - `400 invalid request body` — тело не парсится как JSON;
+// @Description  - `400 name must be 1-64 characters` / `400 description must be at most 255 characters`
+// @Description    — не прошла валидация;
+// @Description  - `401 unauthorized` / `403 forbidden` — из middleware Auth/IsAdmin;
+// @Description  - `409 persona with this name already exists` — такое название уже есть;
+// @Description  - `500 failed to create persona` — прочая ошибка БД.
 // @Tags         Personas
 // @Accept       json
 // @Produce      json
@@ -123,8 +160,25 @@ func (h *PersonaHandler) CreatePersona() http.HandlerFunc {
 // UpdatePersona godoc
 //
 // @Summary      Изменение персоны
-// @Description  Частичное обновление: название и/или описание (хотя бы одно поле).
-// @Description  Пустое описание удаляет его. Доступно только роли `admin`.
+// @Description  Частичное (PATCH) обновление персоны: название и/или описание. Пользователи,
+// @Description  которым назначена персона, сразу видят новое название (`GET /users`,
+// @Description  `GET /auth/me`) — персона хранится ссылкой, а не копией. Доступно только роли `admin`.
+// @Description
+// @Description  Тело — только изменяемые поля (оба необязательны, но хотя бы одно обязательно):
+// @Description  - `name`: если передано — 1–64 символа, пробелы по краям обрезаются;
+// @Description  - `description`: если передано — до 255 символов; пустая строка `""` удаляет описание
+// @Description    (станет `null`); если не передано — не меняется.
+// @Description
+// @Description  Коды ответов:
+// @Description  - `200` — персона обновлена, в теле — актуальная персона;
+// @Description  - `400 invalid persona id` — `id` в пути не UUID;
+// @Description  - `400 invalid request body` — тело не парсится; либо текст ошибки валидации
+// @Description    (в т.ч. `at least one field must be provided`, если не передано ни одно поле);
+// @Description  - `401 unauthorized` / `403 forbidden` — из middleware Auth/IsAdmin;
+// @Description  - `404 persona not found` — персоны с таким `id` нет;
+// @Description  - `409 persona with this name already exists` — новое название занято
+// @Description    другой персоной (без учёта регистра);
+// @Description  - `500 failed to update persona` — прочая ошибка БД.
 // @Tags         Personas
 // @Accept       json
 // @Produce      json
@@ -169,8 +223,19 @@ func (h *PersonaHandler) UpdatePersona() http.HandlerFunc {
 // DeletePersona godoc
 //
 // @Summary      Удаление персоны
-// @Description  Удаляет персону из справочника. Пользователи с этой персоной не удаляются —
-// @Description  у них персона становится пустой (`persona: null`). Доступно только роли `admin`.
+// @Description  Удаляет персону из справочника. Доступно только роли `admin`.
+// @Description
+// @Description  Пользователи с этой персоной **не удаляются** и не блокируются: у них персона
+// @Description  становится пустой (`persona: null` в `GET /users` и `GET /auth/me`). Права
+// @Description  пользователей не меняются — персона на них не влияет. Сколько пользователей
+// @Description  затронет удаление, видно в `users_count` из `GET /personas`.
+// @Description
+// @Description  Коды ответов:
+// @Description  - `204` — персона удалена (тело пустое);
+// @Description  - `400 invalid persona id` — `id` в пути не UUID;
+// @Description  - `401 unauthorized` / `403 forbidden` — из middleware Auth/IsAdmin;
+// @Description  - `404 persona not found` — персоны с таким `id` нет (в т.ч. уже удалена);
+// @Description  - `500 failed to delete persona` — ошибка БД.
 // @Tags         Personas
 // @Produce      plain
 // @Security     CookieAuth
