@@ -4,7 +4,7 @@ export
 COMPOSE_LOCAL := docker compose -f docker-compose.local.yaml
 MIGRATION_DSN := postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)?sslmode=disable
 
-.PHONY: run build up down logs ps migrate-create migrate-up migrate-down migrate-version test vet
+.PHONY: run build up down logs ps migrate-create migrate-up migrate-down migrate-version test vet swagger
 
 run:
 	@cd backend && go run ./cmd/apiserver
@@ -45,5 +45,9 @@ test:
 
 vet:
 	@cd backend && go vet ./...
+
+# Перегенерация backend/docs (swagger.yaml/json) из аннотаций хендлеров.
+swagger:
+	@cd backend && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init -g cmd/apiserver/main.go -o docs
 
 .DEFAULT_GOAL := run

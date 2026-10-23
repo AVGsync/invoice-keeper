@@ -9,6 +9,17 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/app/apiserver"
 )
 
+// @title                       Invoice Keeper API
+// @version                     1.0
+// @description                 Напоминания о регулярных платежах.
+// @BasePath                    /api/v1
+// @securityDefinitions.apikey  BearerAuth
+// @in                          header
+// @name                        Authorization
+// @description                 "Bearer <access token>"
+// @securityDefinitions.apikey  CookieAuth
+// @in                          cookie
+// @name                        AccessToken
 func main() {
 	config, err := apiserver.NewConfig()
 	if err != nil {

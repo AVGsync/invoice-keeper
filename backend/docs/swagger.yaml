@@ -1,0 +1,455 @@
+basePath: /api/v1
+definitions:
+  model.User:
+    properties:
+      created_at:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      login:
+        type: string
+      role:
+        type: string
+    type: object
+  request.CreateUserRequest:
+    properties:
+      full_name:
+        description: Полное имя пользователя, отображается в профиле.
+        example: Иван Петров
+        maxLength: 64
+        minLength: 3
+        type: string
+      login:
+        description: Уникальный логин, используется для входа.
+        example: ivan.petrov
+        maxLength: 64
+        minLength: 3
+        type: string
+      password:
+        description: 'Пароль, минимум 8 символов. Роль не передаётся: создаётся всегда
+          обычный пользователь.'
+        example: Str0ngPass!2026
+        minLength: 8
+        type: string
+    required:
+    - full_name
+    - login
+    - password
+    type: object
+  request.LoginRequest:
+    properties:
+      login:
+        description: Логин зарегистрированного пользователя.
+        example: ivan.petrov
+        maxLength: 64
+        minLength: 3
+        type: string
+      password:
+        description: Пароль пользователя.
+        example: Str0ngPass!2026
+        type: string
+    required:
+    - login
+    - password
+    type: object
+  request.UserUpdateRequest:
+    properties:
+      full_name:
+        description: Новое полное имя. Если поле не передано, текущее значение не
+          меняется.
+        example: Иван Сергеевич Петров
+        maxLength: 64
+        minLength: 3
+        type: string
+      login:
+        description: Новый логин. Если поле не передано, текущее значение не меняется.
+        example: ivan.new
+        maxLength: 64
+        minLength: 3
+        type: string
+    type: object
+  response.UserListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/model.User'
+        type: array
+      total:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: Напоминания о регулярных платежах.
+  title: Invoice Keeper API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Проверяет логин и пароль пользователя. При успехе выставляет две
+        HttpOnly-куки: `AccessToken` (TTL 1 час) и `RefreshToken` (TTL 7 дней),
+        обе с флагами `Secure` и `SameSite=Strict`. Тело успешного ответа пустое —
+        токены передаются только через Set-Cookie.
+
+        Порядок проверок и коды ответов:
+        1. тело не парсится как JSON → `400 invalid request body`;
+        2. не прошла валидация (пустой login или password) → `400` с текстом ошибки;
+        3. пользователь не найден ИЛИ неверный пароль → `401 invalid credentials`.
+        В целях защиты от перебора все ошибки аутентификации отдаются одинаково (401),
+        без различия «нет такого логина» / «неверный пароль».
+      parameters:
+      - description: Логин и пароль
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/request.LoginRequest'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Вход выполнен, куки AccessToken и RefreshToken установлены
+        "400":
+          description: Невалидное тело запроса или значения полей
+          schema:
+            type: string
+        "401":
+          description: Неверные учётные данные
+          schema:
+            type: string
+      summary: Авторизация пользователя
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      description: |-
+        Отзывает refresh-токен, взятый из HttpOnly-куки `RefreshToken`, и удаляет
+        обе куки `AccessToken` и `RefreshToken` (Set-Cookie с MaxAge=-1).
+
+        Операция идемпотентна и всегда возвращает `204`:
+        - куки нет или она пустая → просто чистим куки, БД не трогаем;
+        - токен уже отозван / не найден в БД → ошибка отзыва логируется,
+        но наружу не отдаётся (клиент всё равно считается вышедшим).
+        Действующий access-токен для вызова не требуется. Access-токен stateless —
+        сервер его не хранит, поэтому до истечения TTL он технически валиден;
+        клиент обязан удалить его сам (здесь мы лишь стираем куку).
+      produces:
+      - text/plain
+      responses:
+        "204":
+          description: Выход выполнен, куки очищены (или выходить уже нечем)
+      summary: Выход пользователя из системы
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      description: |-
+        Возвращает пользователя, которому принадлежит текущий access-токен. Frontend использует `id` как идентификатор текущего пользователя, `role` — для показа admin-only действий, `full_name` — для подписи интерфейса. Идентификатор пользователя из query/body не принимается и не может подменить пользователя из JWT.
+        Веб-панель обычно аутентифицируется HttpOnly cookie `AccessToken`; Bearer также поддерживается. Пароль и refresh token в ответ не входят. Если access token отсутствует/просрочен, middleware завершает запрос до handler. После изменения роли или удаления пользователя клиенту следует перечитать профиль либо выполнить повторный login.
+      operationId: authMe
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Пользователь
+          schema:
+            $ref: '#/definitions/model.User'
+        "401":
+          description: Не авторизован
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Профиль текущего пользователя
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      description: |-
+        Обновляет пару токенов по refresh-токену из HttpOnly-куки `RefreshToken`.
+        Действующий access-токен НЕ требуется (он как раз истёк) — личность
+        подтверждается самим refresh-токеном.
+
+        Порядок проверок и коды ответов:
+        1. куки `RefreshToken` нет → `401 no refresh token`;
+        2. токен невалиден: не найден в БД, отозван (`revoked_at`), истёк
+        (`expires_at`) или не проходит проверку подписи → `401 invalid refresh token`;
+        3. пользователь из токена не найден в БД → `401 user not found`;
+        4. не удалось выпустить новую пару токенов → `500 failed to generate new tokens`.
+
+        При успехе выполняется ротация: выпускается новая пара, СНАЧАЛА сохраняется
+        новый refresh-токен, затем отзывается старый (одноразовость refresh-токена).
+        Обновлённые `AccessToken` и `RefreshToken` возвращаются через Set-Cookie,
+        тело ответа пустое.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Токены обновлены, новые куки установлены
+        "401":
+          description: Refresh-токен отсутствует, невалиден, истёк или отозван
+          schema:
+            type: string
+        "500":
+          description: Не удалось выпустить новые токены
+          schema:
+            type: string
+      summary: Обновление токенов (ротация)
+      tags:
+      - Auth
+  /ping:
+    get:
+      description: |-
+        Лёгкий liveness-пробник: подтверждает, что HTTP-сервер поднят и роутинг
+        работает. НЕ проверяет доступность PostgreSQL и внешних сервисов —
+        всегда отвечает `200 pong`, если процесс жив. Аутентификация не требуется.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: pong
+          schema:
+            type: string
+      summary: Проверка доступности API-сервера
+      tags:
+      - Система
+  /users:
+    get:
+      description: |-
+        Возвращает всех пользователей (обычных пользователей и администраторов) без пагинации.
+        Доступно только роли `admin`. Поле `password_hash` в ответ не попадает
+        (скрыто на уровне сериализации).
+
+        Коды ответов:
+        - `200` — объект с массивом пользователей в `items` и общим количеством в `total`;
+        - `401 unauthorized` — нет/просрочен access-токен;
+        - `403 forbidden` — роль не `admin`;
+        - `500 failed to get users` — ошибка БД.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список пользователей с total
+          schema:
+            $ref: '#/definitions/response.UserListResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            type: string
+        "403":
+          description: Недостаточно прав (требуется роль admin)
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Список пользователей
+      tags:
+      - Admin
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создаёт нового пользователя с ролью `user`. Роль не передаётся: администратор
+        задаётся только в .env и через API не создаётся. Пароль хэшируется на сервере
+        (bcrypt), `login` должен быть уникальным. Доступно только роли `admin`.
+
+        Требования к телу (иначе `400` с текстом ошибки):
+        - `full_name`: 3–64 символа;
+        - `login`: 3–32 символа, только `[a-zA-Z0-9_.-]`;
+        - `password`: 8–72 байта (верхняя граница — ограничение bcrypt).
+
+        Коды ответов:
+        - `201` — пользователь создан (тело пустое);
+        - `400 invalid request body` — тело не парсится; либо текст ошибки валидации;
+        - `401 unauthorized` — нет/просрочен access-токен (middleware Auth);
+        - `403 forbidden` — роль не `admin` (middleware IsAdmin);
+        - `409 user with this login already exists` — нарушение уникальности login;
+        - `500 failed to create user` — прочая ошибка БД.
+      parameters:
+      - description: Данные создаваемого пользователя
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateUserRequest'
+      produces:
+      - text/plain
+      responses:
+        "201":
+          description: Пользователь создан
+        "400":
+          description: Невалидное тело запроса или значения полей
+          schema:
+            type: string
+        "401":
+          description: Не авторизован
+          schema:
+            type: string
+        "403":
+          description: Недостаточно прав (требуется роль admin)
+          schema:
+            type: string
+        "409":
+          description: Пользователь с таким login уже существует
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Создание обычного пользователя
+      tags:
+      - Admin
+  /users/{id}:
+    delete:
+      description: |-
+        Удаляет обычного пользователя по идентификатору (path-параметр `id`).
+        Доступно только роли `admin`.
+
+        Защитные проверки и коды ответов:
+        - `id` не UUID → `400 invalid user id`;
+        - пользователь с таким `id` не найден → `404 user not found`;
+        - удаляемый — администратор (в т.ч. собственная учётка) →
+        `403 admin account is managed via .env`;
+        - на пользователя ссылаются другие записи → `409`;
+        - `401 unauthorized` / `403 forbidden` — из middleware Auth/IsAdmin;
+        - прочая ошибка БД → `500 failed to delete user`;
+        - `200` — пользователь удалён.
+      parameters:
+      - description: ID пользователя (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Пользователь удалён
+        "400":
+          description: id не является UUID
+          schema:
+            type: string
+        "401":
+          description: Не авторизован
+          schema:
+            type: string
+        "403":
+          description: Недостаточно прав или попытка удалить администратора
+          schema:
+            type: string
+        "404":
+          description: Пользователь не найден
+          schema:
+            type: string
+        "409":
+          description: На пользователя ссылаются другие записи
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Удаление пользователя
+      tags:
+      - Admin
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Частичное (PATCH) обновление данных обычного пользователя: ФИО и/или логин.
+        Роль и пароль этим методом не меняются. Учётку администратора менять нельзя —
+        она задаётся в .env. Доступно только роли `admin`.
+
+        Тело — только изменяемые поля (оба опциональны, но хотя бы одно обязательно):
+        - `full_name`: если передан — 3–64 символа;
+        - `login`: если передан — 3–32 символа, только `[a-zA-Z0-9_.-]`.
+
+        Коды ответов:
+        - `200` — пользователь обновлён;
+        - `400 invalid user id` — `id` не UUID;
+        - `400 invalid request body` — тело не парсится; либо текст ошибки валидации
+        (в т.ч. `at least one field must be provided`, если оба поля пусты);
+        - `401 unauthorized` / `403 forbidden` — из middleware Auth/IsAdmin;
+        - `403 admin account is managed via .env` — попытка изменить администратора;
+        - `404 user not found` — пользователя с таким `id` нет;
+        - `409 user with this login already exists` — логин занят;
+        - `500 failed to update user` — ошибка БД.
+      parameters:
+      - description: ID пользователя (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Обновляемые поля
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/request.UserUpdateRequest'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Пользователь обновлён
+        "400":
+          description: id не UUID или невалидное тело запроса
+          schema:
+            type: string
+        "401":
+          description: Не авторизован
+          schema:
+            type: string
+        "403":
+          description: Недостаточно прав или попытка изменить администратора
+          schema:
+            type: string
+        "404":
+          description: Пользователь не найден
+          schema:
+            type: string
+        "409":
+          description: Логин уже занят
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Обновление пользователя
+      tags:
+      - Admin
+securityDefinitions:
+  BearerAuth:
+    description: '"Bearer <access token>"'
+    in: header
+    name: Authorization
+    type: apiKey
+  CookieAuth:
+    in: cookie
+    name: AccessToken
+    type: apiKey
+swagger: "2.0"

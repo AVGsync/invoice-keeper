@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	// Регистрирует сгенерированную swag спецификацию (make swagger).
+	_ "github.com/AVGsync/invoice-keeper/backend/docs"
 	"github.com/AVGsync/invoice-keeper/backend/internal/infrastructure/security"
 	"github.com/AVGsync/invoice-keeper/backend/internal/repository/postgres"
 	"github.com/AVGsync/invoice-keeper/backend/internal/service"
@@ -18,6 +20,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/middleware"
 
 	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 // Лимит размера тела запроса для JSON-эндпоинтов.
@@ -146,6 +149,14 @@ func (s *APIServer) configureRouter() {
 		r.Use(middleware.Trace)
 
 		r.Get("/ping", ping)
+
+		// Swagger UI и спецификация наружу только при DEBUG=true.
+		if s.config.Debug {
+			r.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, r.URL.Path+"/index.html", http.StatusMovedPermanently)
+			})
+			r.Get("/docs/*", httpSwagger.Handler(httpSwagger.URL("doc.json")))
+		}
 
 		r.Route("/auth", func(r chi.Router) {
 			// Жёсткий лимит по IP против брутфорса логина/refresh. Значения — под тюнинг.
