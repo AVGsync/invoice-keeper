@@ -5,9 +5,8 @@ type CreateUserRequest struct {
 	FullName string `json:"full_name" validate:"required,min=3,max=64" example:"Иван Петров"`
 	// Уникальный логин, используется для входа.
 	Login string `json:"login" validate:"required,min=3,max=64" example:"ivan.petrov"`
-	// Пароль, минимум 8 символов.
+	// Пароль, минимум 8 символов. Роль не передаётся: создаётся всегда обычный пользователь.
 	Password string `json:"password" validate:"required,min=8" example:"Str0ngPass!2026"`
-	Role     string `json:"role" validate:"required,oneof=admin user" example:"user"`
 }
 
 type LoginRequest struct {

@@ -40,9 +40,6 @@ func (r CreateUserRequest) Validate() error {
 	if len(r.Password) > 72 {
 		return errors.New("password must be at most 72 bytes")
 	}
-	if r.Role != "admin" && r.Role != "user" {
-		return errors.New("role must be admin or user")
-	}
 	return nil
 }
 

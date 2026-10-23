@@ -55,8 +55,8 @@ func (rw *responseWriter) Unwrap() http.ResponseWriter {
 	return rw.ResponseWriter
 }
 
-// Hijack keeps WebSocket upgrades working through the tracing wrapper. Gorilla
-// WebSocket requires the concrete response writer to implement http.Hijacker.
+// Hijack пробрасывает http.Hijacker сквозь обёртку трассировки, чтобы
+// соединения, которым нужен перехват (апгрейд протокола), не ломались.
 func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := rw.ResponseWriter.(http.Hijacker)
 	if !ok {
@@ -112,7 +112,7 @@ func (m *Middleware) Trace(next http.Handler) http.Handler {
 
 // MaxBytes возвращает middleware, ограничивающий размер тела запроса значением limit
 // (в байтах), чтобы клиент не смог прислать сколь угодно большое тело и исчерпать память.
-// Разные маршруты используют разные лимиты: JSON — небольшой, загрузка файлов — больше.
+// Разные маршруты могут использовать разные лимиты.
 func (m *Middleware) MaxBytes(limit int64) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -160,8 +160,8 @@ func (m *Middleware) Auth(next http.Handler) http.Handler {
 	})
 }
 
-// AuthJSON is the order/cart/chat counterpart of Auth. It preserves the
-// existing authentication behavior but uses the module's JSON error contract.
+// AuthJSON — вариант Auth с JSON-ошибками (api.WriteError) вместо plain text.
+// Логика аутентификации та же.
 func (m *Middleware) AuthJSON(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := extractToken(r, "AccessToken")
@@ -218,11 +218,11 @@ func (m *Middleware) IsAdmin(next http.Handler) http.Handler {
 	})
 }
 
-func (m *Middleware) IsUserCRM(next http.Handler) http.Handler {
+func (m *Middleware) IsUserOrAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok || (claims.Role != "admin" && claims.Role != "user") {
-			slog.Debug("not a CRM user", "path", r.URL.Path)
+			slog.Debug("not a user or admin", "path", r.URL.Path)
 			forbidden(w)
 			return
 		}
@@ -230,7 +230,7 @@ func (m *Middleware) IsUserCRM(next http.Handler) http.Handler {
 	})
 }
 
-func (m *Middleware) IsUserCRMJSON(next http.Handler) http.Handler {
+func (m *Middleware) IsUserOrAdminJSON(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())
 		if !ok || (claims.Role != "admin" && claims.Role != "user") {
@@ -256,7 +256,7 @@ func (m *Middleware) CORS(next http.Handler) http.Handler {
 
 		if r.Method == http.MethodOptions {
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Idempotency-Key, X-Request-ID")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
 			w.Header().Set("Access-Control-Max-Age", "600")
 			w.WriteHeader(http.StatusNoContent)
 			return

@@ -55,7 +55,7 @@ func (m *Middleware) rateLimit(requests int, window time.Duration, keyFunc httpr
 }
 
 // LimitByIP ограничивает по реальному IP клиента. Применяется к неаутентифицированным
-// эндпоинтам (логин, регистрация, публичная заявка) для защиты от брутфорса и спама.
+// эндпоинтам (логин, обновление токенов) для защиты от брутфорса и спама.
 func (m *Middleware) LimitByIP(requests int, window time.Duration) func(http.Handler) http.Handler {
 	return m.rateLimit(requests, window, keyByClientIP)
 }

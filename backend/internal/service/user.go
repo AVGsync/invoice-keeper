@@ -15,6 +15,10 @@ import (
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
+// Через API заводятся только обычные пользователи: администратор задаётся
+// в .env (см. AdminAccount) и через панель не управляется.
+const userRole = "user"
+
 type UserRepository interface {
 	GetUserByLogin(login string, ctx context.Context) (model.User, error)
 	AddRefreshToken(tokenHash string, expiresAt time.Time, createdAt time.Time, revokedAt *time.Time, ctx context.Context) error
@@ -23,7 +27,6 @@ type UserRepository interface {
 	RevokeRefreshToken(tokenHash string, ctx context.Context) error
 	CreateUser(user model.User, ctx context.Context) error
 	GetAllUsers(ctx context.Context) ([]model.User, error)
-	CountUsersByRole(role string, ctx context.Context) (int, error)
 	DeleteUserByID(id string, ctx context.Context) error
 	UpdateUser(user model.User, ctx context.Context) error
 }
@@ -45,13 +48,15 @@ type UserService struct {
 	repository UserRepository
 	hasher     Hasher
 	jwtManager JWTManager
+	refreshTTL time.Duration
 }
 
-func NewUserService(repository UserRepository, hasher Hasher, jwtManager JWTManager) *UserService {
+func NewUserService(repository UserRepository, hasher Hasher, jwtManager JWTManager, refreshTTL time.Duration) *UserService {
 	return &UserService{
 		repository: repository,
 		hasher:     hasher,
 		jwtManager: jwtManager,
+		refreshTTL: refreshTTL,
 	}
 }
 
@@ -86,7 +91,7 @@ func (s *UserService) AuthenticateUser(req request.LoginRequest, ctx context.Con
 
 	err = s.repository.AddRefreshToken(
 		hashRefresh,
-		time.Now().Add(7*24*time.Hour),
+		time.Now().Add(s.refreshTTL),
 		time.Now(),
 		nil,
 		ctx,
@@ -157,7 +162,7 @@ func (s *UserService) GenerateAccessRefreshTokens(refreshToken model.RefreshToke
 	// у пользователя останется рабочий новый токен, а не пустой набор.
 	err = s.repository.AddRefreshToken(
 		hashRefresh,
-		time.Now().Add(7*24*time.Hour),
+		time.Now().Add(s.refreshTTL),
 		time.Now(),
 		nil,
 		context.Background(),
@@ -203,7 +208,7 @@ func (s *UserService) CreateUser(user request.CreateUserRequest, ctx context.Con
 		FullName:     user.FullName,
 		Login:        user.Login,
 		PasswordHash: passwordHash,
-		Role:         user.Role,
+		Role:         userRole,
 	}
 
 	err = s.repository.CreateUser(newUser, ctx)
@@ -242,16 +247,9 @@ func (s *UserService) DeleteUserByID(id string, ctx context.Context) error {
 		return fmt.Errorf("user service: delete user by id: %w", err)
 	}
 
-	// Нельзя удалить последнего администратора — иначе некому управлять CRM.
-	if user.Role == "admin" {
-		count, err := s.repository.CountUsersByRole("admin", ctx)
-		if err != nil {
-			slog.Error("user service: delete user by id: failed to count admins", "error", err)
-			return fmt.Errorf("user service: delete user by id: %w", err)
-		}
-		if count <= 1 {
-			return model.ErrLastAdmin
-		}
+	// Учётка администратора задаётся в .env и через панель не управляется.
+	if user.Role == adminRole {
+		return model.ErrAdminImmutable
 	}
 
 	if err := s.repository.DeleteUserByID(id, ctx); err != nil {
@@ -273,8 +271,14 @@ func (s *UserService) GetUserByID(id string, ctx context.Context) (model.User, e
 func (s *UserService) UpdateUserByID(ctx context.Context, userID string, req request.UserUpdateRequest) error {
 	user, err := s.repository.GetUserByID(userID, ctx)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return model.ErrUserNotFound
+		}
 		slog.Error("user service: update user by id: failed to get user", "error", err)
 		return fmt.Errorf("user service: update user by id: %w", err)
+	}
+	if user.Role == adminRole {
+		return model.ErrAdminImmutable
 	}
 
 	if req.FullName != nil {

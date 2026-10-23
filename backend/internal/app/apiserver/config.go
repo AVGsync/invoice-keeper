@@ -48,7 +48,7 @@ func (c *Config) Validate() error {
 	if !loginPattern.MatchString(c.AdminLogin) {
 		return fmt.Errorf("ADMIN_LOGIN must be 3-32 characters of [a-zA-Z0-9_.-]")
 	}
-	// Требование к длине то же, что у пароля сотрудника в CRM (min=8).
+	// Требование к длине то же, что у пароля пользователя (CreateUserRequest, min=8).
 	if c.AdminPassword != "" && len(c.AdminPassword) < 8 {
 		return fmt.Errorf("ADMIN_PASSWORD must be at least 8 characters")
 	}
@@ -80,8 +80,7 @@ func NewConfig() (*Config, error) {
 
 	// envconfig режет список по запятой без TrimSpace, поэтому запись вида
 	// "https://a.tld, https://b.tld" давала origin с ведущим пробелом: он не
-	// совпадал ни с одним заголовком Origin, и CORS вместе с WebSocket
-	// handshake молча отклоняли все домены, кроме первого в списке.
+	// совпадал ни с одним заголовком Origin, и CORS молча отклонял все домены, кроме первого в списке.
 	origins := make([]string, 0, len(cfg.AllowedOrigins))
 	for _, origin := range cfg.AllowedOrigins {
 		if trimmed := strings.TrimSpace(origin); trimmed != "" {

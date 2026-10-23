@@ -14,11 +14,11 @@ var ErrLoginTaken = errors.New("login already taken")
 var ErrUserNotFound = errors.New("user not found")
 
 // ErrUserInUse запрещает удалять пользователя, на которого ссылаются другие записи.
-// active partner-manager binding.
 var ErrUserInUse = errors.New("user is referenced and cannot be deleted")
 
-// ErrLastAdmin запрещает удалить последнего администратора (иначе потеря доступа к CRM).
-var ErrLastAdmin = errors.New("cannot delete the last admin")
+// ErrAdminImmutable запрещает менять и удалять администратора через API:
+// его учётка задаётся только в .env.
+var ErrAdminImmutable = errors.New("admin account is managed via .env")
 
 type User struct {
 	ID           string    `json:"id"`

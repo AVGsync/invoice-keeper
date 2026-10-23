@@ -58,9 +58,8 @@ func (j *JWTManager) GenerateRefresh(userID string, role string) (string, error)
 		RegisteredClaims: jwt.RegisteredClaims{
 			// jti делает каждый токен уникальным. Без него iat/exp с точностью
 			// до секунды были единственным, что отличало токены одного
-			// пользователя: вход и refresh в ту же секунду (CRM проверяет
-			// сессию сразу при загрузке страницы, приложение — при старте)
-			// выдавали побайтно тот же refresh-токен, его хеш уже лежал в
+			// пользователя: вход и refresh в ту же секунду (панель проверяет
+			// сессию сразу при загрузке страницы) выдавали побайтно тот же refresh-токен, его хеш уже лежал в
 			// refresh_tokens, и вставка падала на UNIQUE (token_hash) — 500
 			// «failed to add new refresh token» вместо новой пары токенов.
 			ID:        uuid.NewString(),

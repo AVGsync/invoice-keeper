@@ -6,11 +6,15 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/request"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/response"
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/middleware"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 type UserUseCase interface {
@@ -27,19 +31,58 @@ type UserUseCase interface {
 }
 
 type UserHandler struct {
-	useCase UserUseCase
+	useCase    UserUseCase
+	accessTTL  time.Duration
+	refreshTTL time.Duration
 }
 
-func NewUserHandler(useCase UserUseCase) *UserHandler {
+func NewUserHandler(useCase UserUseCase, accessTTL, refreshTTL time.Duration) *UserHandler {
 	return &UserHandler{
-		useCase: useCase,
+		useCase:    useCase,
+		accessTTL:  accessTTL,
+		refreshTTL: refreshTTL,
 	}
+}
+
+// setAuthCookies выставляет пару токенов HttpOnly-куками; срок жизни кук
+// совпадает с TTL токенов из конфига (TTL_ACCESS_TOKEN / TTL_REFRESH_TOKEN).
+func (h *UserHandler) setAuthCookies(w http.ResponseWriter, access, refresh string) {
+	setAuthCookie(w, "AccessToken", access, int(h.accessTTL.Seconds()))
+	setAuthCookie(w, "RefreshToken", refresh, int(h.refreshTTL.Seconds()))
+}
+
+func clearAuthCookies(w http.ResponseWriter) {
+	setAuthCookie(w, "AccessToken", "", -1)
+	setAuthCookie(w, "RefreshToken", "", -1)
+}
+
+func setAuthCookie(w http.ResponseWriter, name, value string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     name,
+		Value:    value,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+		MaxAge:   maxAge,
+	})
+}
+
+// userIDParam достаёт id пользователя из пути. Не-UUID отсекаем сразу:
+// иначе Postgres ответит ошибкой приведения типа и клиент получит 500.
+func userIDParam(w http.ResponseWriter, r *http.Request) (string, bool) {
+	id := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(id); err != nil {
+		http.Error(w, "invalid user id", http.StatusBadRequest)
+		return "", false
+	}
+	return id, true
 }
 
 // Login godoc
 //
-// @Summary      Авторизация сотрудника CRM
-// @Description  Проверяет логин и пароль сотрудника CRM. При успехе выставляет две
+// @Summary      Авторизация пользователя
+// @Description  Проверяет логин и пароль пользователя. При успехе выставляет две
 // @Description  HttpOnly-куки: `AccessToken` (TTL 1 час) и `RefreshToken` (TTL 7 дней),
 // @Description  обе с флагами `Secure` и `SameSite=Strict`. Тело успешного ответа пустое —
 // @Description  токены передаются только через Set-Cookie.
@@ -50,14 +93,14 @@ func NewUserHandler(useCase UserUseCase) *UserHandler {
 // @Description  3. пользователь не найден ИЛИ неверный пароль → `401 invalid credentials`.
 // @Description  В целях защиты от перебора все ошибки аутентификации отдаются одинаково (401),
 // @Description  без различия «нет такого логина» / «неверный пароль».
-// @Tags         CRM Auth
+// @Tags         Auth
 // @Accept       json
 // @Produce      plain
 // @Param        login  body      request.LoginRequest  true  "Логин и пароль"
 // @Success      200    "Вход выполнен, куки AccessToken и RefreshToken установлены"
 // @Failure      400    {string}  string  "Невалидное тело запроса или значения полей"
 // @Failure      401    {string}  string  "Неверные учётные данные"
-// @Router       /crm/auth/login [post]
+// @Router       /auth/login [post]
 func (h *UserHandler) Login() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req request.LoginRequest
@@ -76,47 +119,28 @@ func (h *UserHandler) Login() http.HandlerFunc {
 			return
 		}
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     "AccessToken",
-			Value:    tokenAccess,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			Path:     "/",
-			MaxAge:   3600, // 1 hour
-		})
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     "RefreshToken",
-			Value:    tokenRefresh,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			Path:     "/",
-			MaxAge:   3600 * 24 * 7, // 7 days
-		})
-
+		h.setAuthCookies(w, tokenAccess, tokenRefresh)
 		w.WriteHeader(http.StatusOK)
 	}
 }
 
 // Logout godoc
 //
-// @Summary      Выход сотрудника из CRM
+// @Summary      Выход пользователя из системы
 // @Description  Отзывает refresh-токен, взятый из HttpOnly-куки `RefreshToken`, и удаляет
 // @Description  обе куки `AccessToken` и `RefreshToken` (Set-Cookie с MaxAge=-1).
 // @Description
 // @Description  Операция идемпотентна и всегда возвращает `204`:
 // @Description  - куки нет или она пустая → просто чистим куки, БД не трогаем;
-// @Description  - токен уже отозван / не найден в БД → ошибка отзова логируется,
+// @Description  - токен уже отозван / не найден в БД → ошибка отзыва логируется,
 // @Description    но наружу не отдаётся (клиент всё равно считается вышедшим).
 // @Description  Действующий access-токен для вызова не требуется. Access-токен stateless —
 // @Description  сервер его не хранит, поэтому до истечения TTL он технически валиден;
 // @Description  клиент обязан удалить его сам (здесь мы лишь стираем куку).
-// @Tags         CRM Auth
+// @Tags         Auth
 // @Produce      plain
 // @Success      204  "Выход выполнен, куки очищены (или выходить уже нечем)"
-// @Router       /crm/auth/logout [post]
+// @Router       /auth/logout [post]
 func (h *UserHandler) Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie("RefreshToken"); err == nil && c.Value != "" {
@@ -125,33 +149,14 @@ func (h *UserHandler) Logout() http.HandlerFunc {
 				slog.Warn("logout: revoke failed", "error", err)
 			}
 		}
-		http.SetCookie(w, &http.Cookie{
-			Name:     "AccessToken",
-			Value:    "",
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			Path:     "/",
-			MaxAge:   -1,
-		})
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     "RefreshToken",
-			Value:    "",
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			Path:     "/",
-			MaxAge:   -1,
-		})
-
+		clearAuthCookies(w)
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
 // RefreshToken godoc
 //
-// @Summary      Обновление токенов CRM (ротация)
+// @Summary      Обновление токенов (ротация)
 // @Description  Обновляет пару токенов по refresh-токену из HttpOnly-куки `RefreshToken`.
 // @Description  Действующий access-токен НЕ требуется (он как раз истёк) — личность
 // @Description  подтверждается самим refresh-токеном.
@@ -167,12 +172,12 @@ func (h *UserHandler) Logout() http.HandlerFunc {
 // @Description  новый refresh-токен, затем отзывается старый (одноразовость refresh-токена).
 // @Description  Обновлённые `AccessToken` и `RefreshToken` возвращаются через Set-Cookie,
 // @Description  тело ответа пустое.
-// @Tags         CRM Auth
+// @Tags         Auth
 // @Produce      plain
 // @Success      200  "Токены обновлены, новые куки установлены"
 // @Failure      401  {string}  string  "Refresh-токен отсутствует, невалиден, истёк или отозван"
 // @Failure      500  {string}  string  "Не удалось выпустить новые токены"
-// @Router       /crm/auth/refresh [post]
+// @Router       /auth/refresh [post]
 func (h *UserHandler) RefreshToken() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Обновление не требует валидного access-токена (он как раз истёк):
@@ -200,39 +205,21 @@ func (h *UserHandler) RefreshToken() http.HandlerFunc {
 			return
 		}
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     "AccessToken",
-			Value:    access,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			Path:     "/",
-			MaxAge:   3600, // 1 hour
-		})
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     "RefreshToken",
-			Value:    refresh,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			Path:     "/",
-			MaxAge:   3600 * 24 * 7, // 7 days
-		})
+		h.setAuthCookies(w, access, refresh)
 	}
 }
 
 // CreateUser godoc
 //
-// @Summary      Создание сотрудника CRM
-// @Description  Создаёт нового сотрудника CRM. Пароль хэшируется на сервере (bcrypt),
-// @Description  `login` должен быть уникальным. Доступно только роли `admin`.
+// @Summary      Создание обычного пользователя
+// @Description  Создаёт нового пользователя с ролью `user`. Роль не передаётся: администратор
+// @Description  задаётся только в .env и через API не создаётся. Пароль хэшируется на сервере
+// @Description  (bcrypt), `login` должен быть уникальным. Доступно только роли `admin`.
 // @Description
 // @Description  Требования к телу (иначе `400` с текстом ошибки):
 // @Description  - `full_name`: 3–64 символа;
 // @Description  - `login`: 3–32 символа, только `[a-zA-Z0-9_.-]`;
-// @Description  - `password`: 8–72 байта (верхняя граница — ограничение bcrypt);
-// @Description  - `role`: строго `admin` или `user`.
+// @Description  - `password`: 8–72 байта (верхняя граница — ограничение bcrypt).
 // @Description
 // @Description  Коды ответов:
 // @Description  - `201` — пользователь создан (тело пустое);
@@ -241,7 +228,7 @@ func (h *UserHandler) RefreshToken() http.HandlerFunc {
 // @Description  - `403 forbidden` — роль не `admin` (middleware IsAdmin);
 // @Description  - `409 user with this login already exists` — нарушение уникальности login;
 // @Description  - `500 failed to create user` — прочая ошибка БД.
-// @Tags         CRM Admin
+// @Tags         Admin
 // @Accept       json
 // @Produce      plain
 // @Security     CookieAuth
@@ -253,7 +240,7 @@ func (h *UserHandler) RefreshToken() http.HandlerFunc {
 // @Failure      403   {string}  string  "Недостаточно прав (требуется роль admin)"
 // @Failure      409   {string}  string  "Пользователь с таким login уже существует"
 // @Failure      500   {string}  string  "Внутренняя ошибка сервера"
-// @Router       /crm/admin/user/create [post]
+// @Router       /users [post]
 func (h *UserHandler) CreateUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var user request.CreateUserRequest
@@ -282,8 +269,8 @@ func (h *UserHandler) CreateUser() http.HandlerFunc {
 
 // GetAllUsers godoc
 //
-// @Summary      Список сотрудников CRM
-// @Description  Возвращает всех сотрудников CRM (менеджеров и администраторов) без пагинации.
+// @Summary      Список пользователей
+// @Description  Возвращает всех пользователей (обычных пользователей и администраторов) без пагинации.
 // @Description  Доступно только роли `admin`. Поле `password_hash` в ответ не попадает
 // @Description  (скрыто на уровне сериализации).
 // @Description
@@ -292,7 +279,7 @@ func (h *UserHandler) CreateUser() http.HandlerFunc {
 // @Description  - `401 unauthorized` — нет/просрочен access-токен;
 // @Description  - `403 forbidden` — роль не `admin`;
 // @Description  - `500 failed to get users` — ошибка БД.
-// @Tags         CRM Admin
+// @Tags         Admin
 // @Produce      json
 // @Security     CookieAuth
 // @Security     BearerAuth
@@ -300,7 +287,7 @@ func (h *UserHandler) CreateUser() http.HandlerFunc {
 // @Failure      401  {string}  string      "Не авторизован"
 // @Failure      403  {string}  string      "Недостаточно прав (требуется роль admin)"
 // @Failure      500  {string}  string      "Внутренняя ошибка сервера"
-// @Router       /crm/admin/user/all [get]
+// @Router       /users [get]
 func (h *UserHandler) GetAllUsers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		users, err := h.useCase.GetAllUsersWithTotal(r.Context())
@@ -316,44 +303,36 @@ func (h *UserHandler) GetAllUsers() http.HandlerFunc {
 
 // DeleteUserByID godoc
 //
-// @Summary      Удаление сотрудника CRM
-// @Description  Удаляет сотрудника CRM по идентификатору (query-параметр `id`).
+// @Summary      Удаление пользователя
+// @Description  Удаляет обычного пользователя по идентификатору (path-параметр `id`).
 // @Description  Доступно только роли `admin`.
 // @Description
 // @Description  Защитные проверки и коды ответов:
-// @Description  - `id` не передан → `400 missing user id`;
-// @Description  - попытка удалить собственную учётку (`id` == id из токена) →
-// @Description    `400 cannot delete your own account`;
+// @Description  - `id` не UUID → `400 invalid user id`;
 // @Description  - пользователь с таким `id` не найден → `404 user not found`;
-// @Description  - удаляемый — единственный оставшийся администратор →
-// @Description    `409 cannot delete the last admin` (защита от потери доступа к CRM);
+// @Description  - удаляемый — администратор (в т.ч. собственная учётка) →
+// @Description    `403 admin account is managed via .env`;
+// @Description  - на пользователя ссылаются другие записи → `409`;
 // @Description  - `401 unauthorized` / `403 forbidden` — из middleware Auth/IsAdmin;
 // @Description  - прочая ошибка БД → `500 failed to delete user`;
 // @Description  - `200` — пользователь удалён.
-// @Tags         CRM Admin
+// @Tags         Admin
 // @Produce      plain
 // @Security     CookieAuth
 // @Security     BearerAuth
-// @Param        id   query     string  true  "ID пользователя (UUID)"
+// @Param        id   path      string  true  "ID пользователя (UUID)"
 // @Success      200  "Пользователь удалён"
-// @Failure      400  {string}  string  "Не передан id или попытка удалить самого себя"
+// @Failure      400  {string}  string  "id не является UUID"
 // @Failure      401  {string}  string  "Не авторизован"
-// @Failure      403  {string}  string  "Недостаточно прав (требуется роль admin)"
+// @Failure      403  {string}  string  "Недостаточно прав или попытка удалить администратора"
 // @Failure      404  {string}  string  "Пользователь не найден"
-// @Failure      409  {string}  string  "Нельзя удалить последнего администратора или пользователя из истории заказов"
+// @Failure      409  {string}  string  "На пользователя ссылаются другие записи"
 // @Failure      500  {string}  string  "Внутренняя ошибка сервера"
-// @Router       /crm/admin/user/delete [delete]
+// @Router       /users/{id} [delete]
 func (h *UserHandler) DeleteUserByID() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
-		if id == "" {
-			http.Error(w, "missing user id", http.StatusBadRequest)
-			return
-		}
-
-		// Запрещаем удалять собственную учётку, чтобы админ не заблокировал сам себя.
-		if claims, ok := middleware.ClaimsFromContext(r.Context()); ok && claims.UserID == id {
-			http.Error(w, "cannot delete your own account", http.StatusBadRequest)
+		id, ok := userIDParam(w, r)
+		if !ok {
 			return
 		}
 
@@ -362,8 +341,8 @@ func (h *UserHandler) DeleteUserByID() http.HandlerFunc {
 			switch {
 			case errors.Is(err, model.ErrUserNotFound):
 				http.Error(w, "user not found", http.StatusNotFound)
-			case errors.Is(err, model.ErrLastAdmin):
-				http.Error(w, "cannot delete the last admin", http.StatusConflict)
+			case errors.Is(err, model.ErrAdminImmutable):
+				http.Error(w, model.ErrAdminImmutable.Error(), http.StatusForbidden)
 			case errors.Is(err, model.ErrUserInUse):
 				http.Error(w, "user is referenced and cannot be deleted", http.StatusConflict)
 			default:
@@ -378,9 +357,10 @@ func (h *UserHandler) DeleteUserByID() http.HandlerFunc {
 
 // UpdateUserByID godoc
 //
-// @Summary      Обновление сотрудника CRM
-// @Description  Частичное (PATCH) обновление данных сотрудника: ФИО и/или логин.
-// @Description  Роль и пароль этим методом не меняются. Доступно только роли `admin`.
+// @Summary      Обновление пользователя
+// @Description  Частичное (PATCH) обновление данных обычного пользователя: ФИО и/или логин.
+// @Description  Роль и пароль этим методом не меняются. Учётку администратора менять нельзя —
+// @Description  она задаётся в .env. Доступно только роли `admin`.
 // @Description
 // @Description  Тело — только изменяемые поля (оба опциональны, но хотя бы одно обязательно):
 // @Description  - `full_name`: если передан — 3–64 символа;
@@ -388,30 +368,33 @@ func (h *UserHandler) DeleteUserByID() http.HandlerFunc {
 // @Description
 // @Description  Коды ответов:
 // @Description  - `200` — пользователь обновлён;
-// @Description  - `400 missing user id` — не передан query-параметр `id`;
+// @Description  - `400 invalid user id` — `id` не UUID;
 // @Description  - `400 invalid request body` — тело не парсится; либо текст ошибки валидации
 // @Description    (в т.ч. `at least one field must be provided`, если оба поля пусты);
 // @Description  - `401 unauthorized` / `403 forbidden` — из middleware Auth/IsAdmin;
-// @Description  - `500 failed to update user` — пользователь не найден ИЛИ ошибка БД
-// @Description    (отдельный 404 на несуществующий id сейчас не выделяется).
-// @Tags         CRM Admin
+// @Description  - `403 admin account is managed via .env` — попытка изменить администратора;
+// @Description  - `404 user not found` — пользователя с таким `id` нет;
+// @Description  - `409 user with this login already exists` — логин занят;
+// @Description  - `500 failed to update user` — ошибка БД.
+// @Tags         Admin
 // @Accept       json
 // @Produce      plain
 // @Security     CookieAuth
 // @Security     BearerAuth
-// @Param        id    query     string                      true  "ID пользователя (UUID)"
+// @Param        id    path      string                      true  "ID пользователя (UUID)"
 // @Param        user  body      request.UserUpdateRequest   true  "Обновляемые поля"
 // @Success      200   "Пользователь обновлён"
-// @Failure      400   {string}  string  "Не передан id или невалидное тело запроса"
+// @Failure      400   {string}  string  "id не UUID или невалидное тело запроса"
 // @Failure      401   {string}  string  "Не авторизован"
-// @Failure      403   {string}  string  "Недостаточно прав (требуется роль admin)"
-// @Failure      500   {string}  string  "Пользователь не найден или внутренняя ошибка сервера"
-// @Router       /crm/admin/user/update [patch]
+// @Failure      403   {string}  string  "Недостаточно прав или попытка изменить администратора"
+// @Failure      404   {string}  string  "Пользователь не найден"
+// @Failure      409   {string}  string  "Логин уже занят"
+// @Failure      500   {string}  string  "Внутренняя ошибка сервера"
+// @Router       /users/{id} [patch]
 func (h *UserHandler) UpdateUserByID() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
-		if id == "" {
-			http.Error(w, "missing user id", http.StatusBadRequest)
+		id, ok := userIDParam(w, r)
+		if !ok {
 			return
 		}
 
@@ -427,7 +410,16 @@ func (h *UserHandler) UpdateUserByID() http.HandlerFunc {
 
 		err := h.useCase.UpdateUserByID(r.Context(), id, req)
 		if err != nil {
-			http.Error(w, "failed to update user", http.StatusInternalServerError)
+			switch {
+			case errors.Is(err, model.ErrUserNotFound):
+				http.Error(w, "user not found", http.StatusNotFound)
+			case errors.Is(err, model.ErrAdminImmutable):
+				http.Error(w, model.ErrAdminImmutable.Error(), http.StatusForbidden)
+			case errors.Is(err, model.ErrLoginTaken):
+				http.Error(w, "user with this login already exists", http.StatusConflict)
+			default:
+				http.Error(w, "failed to update user", http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -435,20 +427,20 @@ func (h *UserHandler) UpdateUserByID() http.HandlerFunc {
 	}
 }
 
-// GetMe godoc
+// Me godoc
 //
-// @Summary      Профиль текущего сотрудника CRM
-// @Description  Возвращает сотрудника, которому принадлежит текущий access-токен. Frontend использует `id` как actor/manager ID, `role` — для показа admin-only действий, `full_name` — для подписи интерфейса. Идентификатор пользователя из query/body не принимается и не может подменить JWT actor.
-// @Description  Browser CRM обычно аутентифицируется HttpOnly cookie `AccessToken`; Bearer также поддерживается. Пароль и refresh token в ответ не входят. Если access token отсутствует/просрочен, middleware завершает запрос до handler. После изменения роли или удаления пользователя клиенту следует перечитать профиль либо выполнить повторный login.
-// @ID           crmMe
-// @Tags         CRM
+// @Summary      Профиль текущего пользователя
+// @Description  Возвращает пользователя, которому принадлежит текущий access-токен. Frontend использует `id` как идентификатор текущего пользователя, `role` — для показа admin-only действий, `full_name` — для подписи интерфейса. Идентификатор пользователя из query/body не принимается и не может подменить пользователя из JWT.
+// @Description  Веб-панель обычно аутентифицируется HttpOnly cookie `AccessToken`; Bearer также поддерживается. Пароль и refresh token в ответ не входят. Если access token отсутствует/просрочен, middleware завершает запрос до handler. После изменения роли или удаления пользователя клиенту следует перечитать профиль либо выполнить повторный login.
+// @ID           authMe
+// @Tags         Auth
 // @Produce      json
 // @Security     CookieAuth
 // @Security     BearerAuth
 // @Success      200  {object}  model.User  "Пользователь"
 // @Failure      401  {string}  string      "Не авторизован"
 // @Failure      500  {string}  string      "Внутренняя ошибка сервера"
-// @Router       /crm/me [get]
+// @Router       /auth/me [get]
 func (h *UserHandler) Me() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := middleware.ClaimsFromContext(r.Context())

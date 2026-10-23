@@ -118,7 +118,7 @@ func (s *APIServer) configureDB() error {
 }
 
 // ensureAdminAccount приводит учётку администратора к ADMIN_LOGIN и
-// ADMIN_PASSWORD из окружения. Делается до старта HTTP: если войти в CRM
+// ADMIN_PASSWORD из окружения. Делается до старта HTTP: если войти в панель
 // некому, поднимать сервер незачем.
 func (s *APIServer) ensureAdminAccount() error {
 	admin, err := service.NewAdminAccount(s.db.User(), security.NewHasher())
@@ -132,10 +132,12 @@ func (s *APIServer) ensureAdminAccount() error {
 
 func (s *APIServer) configureRouter() {
 	hasher := security.NewHasher()
-	jwtManager := security.NewJWTManager(s.config.JWTAccessSecret, s.config.JWTRefreshSecret, time.Duration(s.config.TTLAccessToken)*time.Second, time.Duration(s.config.TTLRefreshToken)*time.Second)
+	accessTTL := time.Duration(s.config.TTLAccessToken) * time.Second
+	refreshTTL := time.Duration(s.config.TTLRefreshToken) * time.Second
+	jwtManager := security.NewJWTManager(s.config.JWTAccessSecret, s.config.JWTRefreshSecret, accessTTL, refreshTTL)
 
-	userService := service.NewUserService(s.db.User(), hasher, jwtManager)
-	userHandler := handler.NewUserHandler(userService)
+	userService := service.NewUserService(s.db.User(), hasher, jwtManager, refreshTTL)
+	userHandler := handler.NewUserHandler(userService, accessTTL, refreshTTL)
 
 	middleware := middleware.NewMiddleware(jwtManager, s.config.AllowedOrigins)
 
@@ -158,20 +160,19 @@ func (s *APIServer) configureRouter() {
 			r.Use(api.RequestIDMiddleware)
 			r.Use(middleware.Auth)
 			r.Use(middleware.LimitByUser(120, time.Minute))
-			r.Use(middleware.IsUserCRM)
+			r.Use(middleware.IsUserOrAdmin)
 
-			r.Get("/me", userHandler.Me())
+			r.Get("/auth/me", userHandler.Me())
 
-			r.Route("/admin", func(r chi.Router) {
+			// Управление пользователями — только администратор.
+			r.Route("/users", func(r chi.Router) {
 				r.Use(middleware.IsAdmin)
 				r.Use(middleware.MaxBytes(defaultMaxRequestBody))
 
-				r.Route("/user", func(r chi.Router) {
-					r.Post("/create", userHandler.CreateUser())
-					r.Get("/all", userHandler.GetAllUsers())
-					r.Delete("/delete", userHandler.DeleteUserByID())
-					r.Patch("/update", userHandler.UpdateUserByID())
-				})
+				r.Get("/", userHandler.GetAllUsers())
+				r.Post("/", userHandler.CreateUser())
+				r.Patch("/{id}", userHandler.UpdateUserByID())
+				r.Delete("/{id}", userHandler.DeleteUserByID())
 			})
 		})
 	})

@@ -38,7 +38,7 @@ func (r *UserRepository) GetUserByLogin(login string, ctx context.Context) (mode
 func (r *UserRepository) GetUserByID(id string, ctx context.Context) (model.User, error) {
 	var user model.User
 	err := r.database.db.QueryRowContext(ctx, `
-		SELECT id, full_name, login, password_hash, role
+		SELECT id, full_name, login, password_hash, role, created_at
 		FROM users
 		WHERE id = $1
 	`, id).Scan(
@@ -47,6 +47,7 @@ func (r *UserRepository) GetUserByID(id string, ctx context.Context) (model.User
 		&user.Login,
 		&user.PasswordHash,
 		&user.Role,
+		&user.CreatedAt,
 	)
 	if err != nil {
 		return user, fmt.Errorf("user repository: get user by ID: %w", err)
@@ -189,6 +190,10 @@ func (r *UserRepository) UpdateUser(user model.User, ctx context.Context) error 
 		WHERE id = $5
 	`, user.FullName, user.Login, user.PasswordHash, user.Role, user.ID)
 	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return model.ErrLoginTaken
+		}
 		return fmt.Errorf("user repository: update user: %w", err)
 	}
 	return nil
