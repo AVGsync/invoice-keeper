@@ -20,13 +20,36 @@ var ErrUserInUse = errors.New("user is referenced and cannot be deleted")
 // его учётка задаётся только в .env.
 var ErrAdminImmutable = errors.New("admin account is managed via .env")
 
+// ErrPersonaNotFound — персоны с указанным id нет (в том числе при создании пользователя).
+var ErrPersonaNotFound = errors.New("persona not found")
+
+// ErrPersonaNameTaken — персона с таким названием уже есть (без учёта регистра).
+var ErrPersonaNameTaken = errors.New("persona with this name already exists")
+
 type User struct {
-	ID           string    `json:"id"`
-	FullName     string    `json:"full_name"`
-	Login        string    `json:"login"`
-	PasswordHash string    `json:"-"`
-	Role         string    `json:"role"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           string      `json:"id"`
+	FullName     string      `json:"full_name"`
+	Login        string      `json:"login"`
+	PasswordHash string      `json:"-"`
+	Role         string      `json:"role"`
+	Persona      *PersonaRef `json:"persona"`
+	CreatedAt    time.Time   `json:"created_at"`
+}
+
+// Persona — должность или зона ответственности пользователя (Бухгалтер, DevOps).
+// На права не влияет: права задаёт только Role.
+type Persona struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	UsersCount  int       `json:"users_count"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// PersonaRef — персона в составе пользователя; null, если не назначена.
+type PersonaRef struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type RefreshToken struct {

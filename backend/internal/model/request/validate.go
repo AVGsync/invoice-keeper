@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/google/uuid"
 )
 
 // Регэкспы совпадают с CHECK-ограничениями в миграциях,
@@ -39,6 +41,34 @@ func (r CreateUserRequest) Validate() error {
 	// bcrypt молча обрезает вход до 72 байт — не даём хранить обрезанный пароль.
 	if len(r.Password) > 72 {
 		return errors.New("password must be at most 72 bytes")
+	}
+	if r.PersonaID != nil {
+		if _, err := uuid.Parse(*r.PersonaID); err != nil {
+			return errors.New("persona_id must be a UUID")
+		}
+	}
+	return nil
+}
+
+func (r CreatePersonaRequest) Validate() error {
+	if !runesBetween(r.Name, 1, 64) {
+		return errors.New("name must be 1-64 characters")
+	}
+	if r.Description != nil && utf8.RuneCountInString(strings.TrimSpace(*r.Description)) > 255 {
+		return errors.New("description must be at most 255 characters")
+	}
+	return nil
+}
+
+func (r UpdatePersonaRequest) Validate() error {
+	if r.Name == nil && r.Description == nil {
+		return errors.New("at least one field must be provided")
+	}
+	if r.Name != nil && !runesBetween(*r.Name, 1, 64) {
+		return errors.New("name must be 1-64 characters")
+	}
+	if r.Description != nil && utf8.RuneCountInString(strings.TrimSpace(*r.Description)) > 255 {
+		return errors.New("description must be at most 255 characters")
 	}
 	return nil
 }

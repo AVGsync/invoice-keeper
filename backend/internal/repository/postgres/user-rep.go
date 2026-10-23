@@ -16,19 +16,38 @@ type UserRepository struct {
 	database *DB
 }
 
-func (r *UserRepository) GetUserByLogin(login string, ctx context.Context) (model.User, error) {
-	var user model.User
-	err := r.database.db.QueryRowContext(ctx, `
-		SELECT id, full_name, login, password_hash, role
-		FROM users
-		WHERE login = $1
-	`, login).Scan(
+// userSelect — пользователь вместе с назначенной персоной (LEFT JOIN: персоны может не быть).
+const userSelect = `
+	SELECT u.id, u.full_name, u.login, u.password_hash, u.role, u.created_at, p.id, p.name
+	FROM users u
+	LEFT JOIN personas p ON p.id = u.persona_id`
+
+func scanUser(row interface{ Scan(dest ...any) error }) (model.User, error) {
+	var (
+		user        model.User
+		personaID   *string
+		personaName *string
+	)
+	err := row.Scan(
 		&user.ID,
 		&user.FullName,
 		&user.Login,
 		&user.PasswordHash,
 		&user.Role,
+		&user.CreatedAt,
+		&personaID,
+		&personaName,
 	)
+	if err == nil && personaID != nil && personaName != nil {
+		user.Persona = &model.PersonaRef{ID: *personaID, Name: *personaName}
+	}
+	return user, err
+}
+
+func (r *UserRepository) GetUserByLogin(login string, ctx context.Context) (model.User, error) {
+	user, err := scanUser(r.database.db.QueryRowContext(ctx, userSelect+`
+		WHERE u.login = $1
+	`, login))
 	if err != nil {
 		return user, fmt.Errorf("user repository: get user by login: %w", err)
 	}
@@ -36,19 +55,9 @@ func (r *UserRepository) GetUserByLogin(login string, ctx context.Context) (mode
 }
 
 func (r *UserRepository) GetUserByID(id string, ctx context.Context) (model.User, error) {
-	var user model.User
-	err := r.database.db.QueryRowContext(ctx, `
-		SELECT id, full_name, login, password_hash, role, created_at
-		FROM users
-		WHERE id = $1
-	`, id).Scan(
-		&user.ID,
-		&user.FullName,
-		&user.Login,
-		&user.PasswordHash,
-		&user.Role,
-		&user.CreatedAt,
-	)
+	user, err := scanUser(r.database.db.QueryRowContext(ctx, userSelect+`
+		WHERE u.id = $1
+	`, id))
 	if err != nil {
 		return user, fmt.Errorf("user repository: get user by ID: %w", err)
 	}
@@ -98,16 +107,26 @@ func (r *UserRepository) RevokeRefreshToken(tokenHash string, ctx context.Contex
 }
 
 func (r *UserRepository) CreateUser(user model.User, ctx context.Context) error {
+	var personaID *string
+	if user.Persona != nil {
+		personaID = &user.Persona.ID
+	}
+
 	var id string
 	err := r.database.db.QueryRowContext(ctx, `
-		INSERT INTO users (full_name, login, password_hash, role)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (full_name, login, password_hash, role, persona_id)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
-	`, user.FullName, user.Login, user.PasswordHash, user.Role).Scan(&id)
+	`, user.FullName, user.Login, user.PasswordHash, user.Role, personaID).Scan(&id)
 	if err != nil {
 		var pqErr *pq.Error
-		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return model.ErrLoginTaken
+		if errors.As(err, &pqErr) {
+			switch pqErr.Code {
+			case "23505":
+				return model.ErrLoginTaken
+			case "23503": // persona_id ссылается на несуществующую персону
+				return model.ErrPersonaNotFound
+			}
 		}
 		return fmt.Errorf("user repository: create user: %w", err)
 	}
@@ -115,9 +134,8 @@ func (r *UserRepository) CreateUser(user model.User, ctx context.Context) error 
 }
 
 func (r *UserRepository) GetAllUsers(ctx context.Context) ([]model.User, error) {
-	rows, err := r.database.db.QueryContext(ctx, `
-		SELECT id, full_name, login, password_hash, role, created_at
-		FROM users
+	rows, err := r.database.db.QueryContext(ctx, userSelect+`
+		ORDER BY u.created_at, u.login
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("user repository: get all users: %w", err)
@@ -126,15 +144,7 @@ func (r *UserRepository) GetAllUsers(ctx context.Context) ([]model.User, error) 
 
 	users := []model.User{}
 	for rows.Next() {
-		var user model.User
-		err := rows.Scan(
-			&user.ID,
-			&user.FullName,
-			&user.Login,
-			&user.PasswordHash,
-			&user.Role,
-			&user.CreatedAt,
-		)
+		user, err := scanUser(rows)
 		if err != nil {
 			return nil, fmt.Errorf("user repository: get all users: %w", err)
 		}

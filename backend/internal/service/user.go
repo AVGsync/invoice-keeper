@@ -210,6 +210,10 @@ func (s *UserService) CreateUser(user request.CreateUserRequest, ctx context.Con
 		PasswordHash: passwordHash,
 		Role:         userRole,
 	}
+	// Существование персоны проверяет внешний ключ в БД (→ model.ErrPersonaNotFound).
+	if user.PersonaID != nil {
+		newUser.Persona = &model.PersonaRef{ID: *user.PersonaID}
+	}
 
 	err = s.repository.CreateUser(newUser, ctx)
 	if err != nil {

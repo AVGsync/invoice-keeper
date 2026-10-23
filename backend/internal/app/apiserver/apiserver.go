@@ -142,6 +142,9 @@ func (s *APIServer) configureRouter() {
 	userService := service.NewUserService(s.db.User(), hasher, jwtManager, refreshTTL)
 	userHandler := handler.NewUserHandler(userService, accessTTL, refreshTTL)
 
+	personaService := service.NewPersonaService(s.db.Persona())
+	personaHandler := handler.NewPersonaHandler(personaService)
+
 	middleware := middleware.NewMiddleware(jwtManager, s.config.AllowedOrigins)
 
 	s.router.Route("/api/v1", func(r chi.Router) {
@@ -184,6 +187,17 @@ func (s *APIServer) configureRouter() {
 				r.Post("/", userHandler.CreateUser())
 				r.Patch("/{id}", userHandler.UpdateUserByID())
 				r.Delete("/{id}", userHandler.DeleteUserByID())
+			})
+
+			// Справочник персон для назначения пользователям — только администратор.
+			r.Route("/personas", func(r chi.Router) {
+				r.Use(middleware.IsAdmin)
+				r.Use(middleware.MaxBytes(defaultMaxRequestBody))
+
+				r.Get("/", personaHandler.GetAllPersonas())
+				r.Post("/", personaHandler.CreatePersona())
+				r.Patch("/{id}", personaHandler.UpdatePersona())
+				r.Delete("/{id}", personaHandler.DeletePersona())
 			})
 		})
 	})

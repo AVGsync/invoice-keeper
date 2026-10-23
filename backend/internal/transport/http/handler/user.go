@@ -219,11 +219,13 @@ func (h *UserHandler) RefreshToken() http.HandlerFunc {
 // @Description  Требования к телу (иначе `400` с текстом ошибки):
 // @Description  - `full_name`: 3–64 символа;
 // @Description  - `login`: 3–32 символа, только `[a-zA-Z0-9_.-]`;
-// @Description  - `password`: 8–72 байта (верхняя граница — ограничение bcrypt).
+// @Description  - `password`: 8–72 байта (верхняя граница — ограничение bcrypt);
+// @Description  - `persona_id`: необязательно, UUID персоны из `GET /personas`.
 // @Description
 // @Description  Коды ответов:
 // @Description  - `201` — пользователь создан (тело пустое);
 // @Description  - `400 invalid request body` — тело не парсится; либо текст ошибки валидации;
+// @Description  - `400 persona not found` — персоны с таким `persona_id` нет;
 // @Description  - `401 unauthorized` — нет/просрочен access-токен (middleware Auth);
 // @Description  - `403 forbidden` — роль не `admin` (middleware IsAdmin);
 // @Description  - `409 user with this login already exists` — нарушение уникальности login;
@@ -235,7 +237,7 @@ func (h *UserHandler) RefreshToken() http.HandlerFunc {
 // @Security     BearerAuth
 // @Param        user  body      request.CreateUserRequest  true  "Данные создаваемого пользователя"
 // @Success      201   "Пользователь создан"
-// @Failure      400   {string}  string  "Невалидное тело запроса или значения полей"
+// @Failure      400   {string}  string  "Невалидное тело запроса, значения полей или несуществующая персона"
 // @Failure      401   {string}  string  "Не авторизован"
 // @Failure      403   {string}  string  "Недостаточно прав (требуется роль admin)"
 // @Failure      409   {string}  string  "Пользователь с таким login уже существует"
@@ -255,11 +257,14 @@ func (h *UserHandler) CreateUser() http.HandlerFunc {
 
 		err := h.useCase.CreateUser(user, r.Context())
 		if err != nil {
-			if errors.Is(err, model.ErrLoginTaken) {
+			switch {
+			case errors.Is(err, model.ErrLoginTaken):
 				http.Error(w, "user with this login already exists", http.StatusConflict)
-				return
+			case errors.Is(err, model.ErrPersonaNotFound):
+				http.Error(w, "persona not found", http.StatusBadRequest)
+			default:
+				http.Error(w, "failed to create user", http.StatusInternalServerError)
 			}
-			http.Error(w, "failed to create user", http.StatusInternalServerError)
 			return
 		}
 

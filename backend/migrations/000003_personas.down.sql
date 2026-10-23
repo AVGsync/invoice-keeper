@@ -1,0 +1,2 @@
+ALTER TABLE users DROP COLUMN IF EXISTS persona_id;
+DROP TABLE IF EXISTS personas;

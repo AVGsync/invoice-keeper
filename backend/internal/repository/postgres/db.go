@@ -42,3 +42,7 @@ func (d *DB) Close() {
 func (d *DB) User() *UserRepository {
 	return &UserRepository{database: d}
 }
+
+func (d *DB) Persona() *PersonaRepository {
+	return &PersonaRepository{database: d}
+}

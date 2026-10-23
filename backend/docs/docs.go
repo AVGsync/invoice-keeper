@@ -145,6 +145,269 @@ const docTemplate = `{
                 }
             }
         },
+        "/personas": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Справочник персон (должностей), которые администратор назначает пользователям\nпри создании. Персона на права не влияет — права задаёт только роль.\n` + "`" + `users_count` + "`" + ` — сколько пользователей с этой персоной. Доступно только роли ` + "`" + `admin` + "`" + `.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Personas"
+                ],
+                "summary": "Список персон",
+                "responses": {
+                    "200": {
+                        "description": "Список персон с total",
+                        "schema": {
+                            "$ref": "#/definitions/response.PersonaListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав (требуется роль admin)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Добавляет персону в справочник. Название 1–64 символа, уникально без учёта\nрегистра; описание до 255 символов. Доступно только роли ` + "`" + `admin` + "`" + `.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Personas"
+                ],
+                "summary": "Создание персоны",
+                "parameters": [
+                    {
+                        "description": "Название и описание",
+                        "name": "persona",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.CreatePersonaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Созданная персона",
+                        "schema": {
+                            "$ref": "#/definitions/model.Persona"
+                        }
+                    },
+                    "400": {
+                        "description": "Невалидное тело запроса или значения полей",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав (требуется роль admin)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Персона с таким названием уже есть",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/personas/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаляет персону из справочника. Пользователи с этой персоной не удаляются —\nу них персона становится пустой (` + "`" + `persona: null` + "`" + `). Доступно только роли ` + "`" + `admin` + "`" + `.",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Personas"
+                ],
+                "summary": "Удаление персоны",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID персоны (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Персона удалена"
+                    },
+                    "400": {
+                        "description": "id не UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав (требуется роль admin)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Персона не найдена",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Частичное обновление: название и/или описание (хотя бы одно поле).\nПустое описание удаляет его. Доступно только роли ` + "`" + `admin` + "`" + `.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Personas"
+                ],
+                "summary": "Изменение персоны",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID персоны (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Изменяемые поля",
+                        "name": "persona",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdatePersonaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Обновлённая персона",
+                        "schema": {
+                            "$ref": "#/definitions/model.Persona"
+                        }
+                    },
+                    "400": {
+                        "description": "id не UUID или невалидное тело запроса",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав (требуется роль admin)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Персона не найдена",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Персона с таким названием уже есть",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/ping": {
             "get": {
                 "description": "Лёгкий liveness-пробник: подтверждает, что HTTP-сервер поднят и роутинг\nработает. НЕ проверяет доступность PostgreSQL и внешних сервисов —\nвсегда отвечает ` + "`" + `200 pong` + "`" + `, если процесс жив. Аутентификация не требуется.",
@@ -219,7 +482,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Создаёт нового пользователя с ролью ` + "`" + `user` + "`" + `. Роль не передаётся: администратор\nзадаётся только в .env и через API не создаётся. Пароль хэшируется на сервере\n(bcrypt), ` + "`" + `login` + "`" + ` должен быть уникальным. Доступно только роли ` + "`" + `admin` + "`" + `.\n\nТребования к телу (иначе ` + "`" + `400` + "`" + ` с текстом ошибки):\n- ` + "`" + `full_name` + "`" + `: 3–64 символа;\n- ` + "`" + `login` + "`" + `: 3–32 символа, только ` + "`" + `[a-zA-Z0-9_.-]` + "`" + `;\n- ` + "`" + `password` + "`" + `: 8–72 байта (верхняя граница — ограничение bcrypt).\n\nКоды ответов:\n- ` + "`" + `201` + "`" + ` — пользователь создан (тело пустое);\n- ` + "`" + `400 invalid request body` + "`" + ` — тело не парсится; либо текст ошибки валидации;\n- ` + "`" + `401 unauthorized` + "`" + ` — нет/просрочен access-токен (middleware Auth);\n- ` + "`" + `403 forbidden` + "`" + ` — роль не ` + "`" + `admin` + "`" + ` (middleware IsAdmin);\n- ` + "`" + `409 user with this login already exists` + "`" + ` — нарушение уникальности login;\n- ` + "`" + `500 failed to create user` + "`" + ` — прочая ошибка БД.",
+                "description": "Создаёт нового пользователя с ролью ` + "`" + `user` + "`" + `. Роль не передаётся: администратор\nзадаётся только в .env и через API не создаётся. Пароль хэшируется на сервере\n(bcrypt), ` + "`" + `login` + "`" + ` должен быть уникальным. Доступно только роли ` + "`" + `admin` + "`" + `.\n\nТребования к телу (иначе ` + "`" + `400` + "`" + ` с текстом ошибки):\n- ` + "`" + `full_name` + "`" + `: 3–64 символа;\n- ` + "`" + `login` + "`" + `: 3–32 символа, только ` + "`" + `[a-zA-Z0-9_.-]` + "`" + `;\n- ` + "`" + `password` + "`" + `: 8–72 байта (верхняя граница — ограничение bcrypt);\n- ` + "`" + `persona_id` + "`" + `: необязательно, UUID персоны из ` + "`" + `GET /personas` + "`" + `.\n\nКоды ответов:\n- ` + "`" + `201` + "`" + ` — пользователь создан (тело пустое);\n- ` + "`" + `400 invalid request body` + "`" + ` — тело не парсится; либо текст ошибки валидации;\n- ` + "`" + `400 persona not found` + "`" + ` — персоны с таким ` + "`" + `persona_id` + "`" + ` нет;\n- ` + "`" + `401 unauthorized` + "`" + ` — нет/просрочен access-токен (middleware Auth);\n- ` + "`" + `403 forbidden` + "`" + ` — роль не ` + "`" + `admin` + "`" + ` (middleware IsAdmin);\n- ` + "`" + `409 user with this login already exists` + "`" + ` — нарушение уникальности login;\n- ` + "`" + `500 failed to create user` + "`" + ` — прочая ошибка БД.",
                 "consumes": [
                     "application/json"
                 ],
@@ -246,7 +509,7 @@ const docTemplate = `{
                         "description": "Пользователь создан"
                     },
                     "400": {
-                        "description": "Невалидное тело запроса или значения полей",
+                        "description": "Невалидное тело запроса, значения полей или несуществующая персона",
                         "schema": {
                             "type": "string"
                         }
@@ -430,6 +693,37 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "model.Persona": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "users_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.PersonaRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "model.User": {
             "type": "object",
             "properties": {
@@ -445,8 +739,26 @@ const docTemplate = `{
                 "login": {
                     "type": "string"
                 },
+                "persona": {
+                    "$ref": "#/definitions/model.PersonaRef"
+                },
                 "role": {
                     "type": "string"
+                }
+            }
+        },
+        "request.CreatePersonaRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "Описание, до 255 символов.",
+                    "type": "string",
+                    "example": "Оплачивает аренду и подписки"
+                },
+                "name": {
+                    "description": "Название, 1–64 символа, уникально без учёта регистра.",
+                    "type": "string",
+                    "example": "Бухгалтер"
                 }
             }
         },
@@ -477,6 +789,12 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 8,
                     "example": "Str0ngPass!2026"
+                },
+                "persona_id": {
+                    "description": "Персона из GET /personas. Необязательно: без неё пользователь создаётся без персоны.",
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
                 }
             }
         },
@@ -501,6 +819,21 @@ const docTemplate = `{
                 }
             }
         },
+        "request.UpdatePersonaRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "Новое описание. Если поле не передано, текущее значение не меняется.",
+                    "type": "string",
+                    "example": "Оплачивает аренду, подписки и налоги"
+                },
+                "name": {
+                    "description": "Новое название. Если поле не передано, текущее значение не меняется.",
+                    "type": "string",
+                    "example": "Главный бухгалтер"
+                }
+            }
+        },
         "request.UserUpdateRequest": {
             "type": "object",
             "properties": {
@@ -517,6 +850,20 @@ const docTemplate = `{
                     "maxLength": 64,
                     "minLength": 3,
                     "example": "ivan.new"
+                }
+            }
+        },
+        "response.PersonaListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Persona"
+                    }
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
