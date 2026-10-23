@@ -26,3 +26,4 @@ case-*.pdf
 /certs/
 /letsencrypt/
 /certbot-www/
+/docs
