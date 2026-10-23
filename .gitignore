@@ -22,3 +22,8 @@ go.work.sum
 
 # Материалы кейса
 case-*.pdf
+
+# TLS: сертификаты и состояние certbot (scripts/cert.sh)
+/certs/
+/letsencrypt/
+/certbot-www/

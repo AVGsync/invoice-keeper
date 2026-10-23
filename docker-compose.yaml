@@ -1,0 +1,86 @@
+# Продовый стек: образы тянутся из GHCR, ничего не собирается на сервере.
+#   cp .env.example .env   # заполнить секреты
+#   docker compose pull && docker compose up -d
+# Другой владелец/тег: IMAGE_PREFIX=ghcr.io/<owner>/invoice-keeper IMAGE_TAG=<sha>
+services:
+  postgres:
+    image: postgres:16.15-alpine3.24
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [app]
+
+  migrate:
+    image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-migrations:${IMAGE_TAG:-latest}
+    restart: "no"
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+      - "up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [app]
+
+  backend:
+    image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      BIND_ADDR: "8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/api/v1/ping | grep -q pong"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [app]
+
+  frontend:
+    image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [app]
+
+  nginx:
+    image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nginx:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # fullchain.pem и key.pem: scripts/cert.sh issue (или свои файлы)
+      - ./certs:/etc/nginx/certs:ro
+      # webroot для продления сертификата без остановки nginx
+      - ./certbot-www:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+    networks: [app]
+
+volumes:
+  postgres-data:
+
+networks:
+  app:
+    driver: bridge
