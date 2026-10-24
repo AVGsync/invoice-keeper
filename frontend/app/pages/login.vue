@@ -80,16 +80,17 @@ async function submit() {
 .title {
   margin-left: -2px;
   white-space: nowrap;
-  font-size: 64px;
-  line-height: 84px;
-  letter-spacing: -0.02em;
+  font-size: 44px;
+  line-height: 56px;
+  letter-spacing: -0.03em;
 }
 
 .title em {
   margin-left: 6px;
-  font-size: 22px;
+  font-size: 20px;
+  font-weight: 400;
   letter-spacing: 0;
-  color: var(--accent-ink);
+  color: var(--ink-3);
 }
 
 .subtitle {
@@ -111,7 +112,7 @@ async function submit() {
 
 .footer {
   margin-top: auto;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -119,6 +120,7 @@ async function submit() {
   display: flex;
   justify-content: center;
   padding-top: 196px;
-  background: var(--muted-bg);
+  background: var(--subtle);
+  border-left: 1px solid var(--line);
 }
 </style>

@@ -18,45 +18,59 @@ function select(period: Period) {
   withTransition(() => { selected.value = period })
 }
 
-const weekdays = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
+const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
-const short = { pending: 'ЖДЁТ', paid: 'ОПЛ.', late: 'ОПЛ.', overdue: 'ПРОСР.' }
+// as many weeks as the month touches (5 or 6), starting from the monday before the 1st
+const weeks = computed(() => {
+  const shift = (new Date(props.year, props.month, 1).getDay() + 6) % 7
+  const days = new Date(props.year, props.month + 1, 0).getDate()
+  return Math.ceil((shift + days) / 7)
+})
 
-function label(period: Period) {
-  const extra = period.status === 'late' ? ` ${period.overdue?.replace(' дн.', '')}` : ''
-  return `${period.who.initials} · ${short[period.status]}${extra}`
-}
-
-// 5 weeks starting from the monday before the 1st
-const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => ({
-  ...cell,
-  key: cell.iso,
-  day: String(cell.day).padStart(2, '0'),
-  today: cell.inMonth && cell.day === props.today,
-  period: cell.inMonth ? props.periods.find(p => fromRu(p.due) === cell.iso) : undefined,
-})))
+const cells = computed(() => monthCells(props.year, props.month, weeks.value).map((cell) => {
+  const onDay = cell.inMonth ? props.periods.filter(p => fromRu(p.due) === cell.iso) : []
+  return {
+    ...cell,
+    key: cell.iso,
+    day: String(cell.day).padStart(2, '0'),
+    today: cell.inMonth && cell.day === props.today,
+    // three names fit in a cell, the rest of the day is one "ещё N" line
+    shown: onDay.slice(0, onDay.length > 3 ? 2 : 3),
+    hidden: onDay.slice(onDay.length > 3 ? 2 : 3),
+  }
+}))
 </script>
 
 <template>
-  <div class="card grid">
-    <span v-for="name in weekdays" :key="name" class="weekday mono" :class="{ off: name === 'СБ' || name === 'ВС' }">
+  <div class="grid" :style="{ '--weeks': weeks }">
+    <span v-for="name in weekdays" :key="name" class="weekday" :class="{ off: name === 'Сб' || name === 'Вс' }">
       {{ name }}
     </span>
 
     <div v-for="cell in cells" :key="cell.key" class="cell" :class="{ weekend: cell.weekend }">
-      <span v-if="cell.today" class="today mono"><span class="circle">{{ cell.day }}</span>СЕГОДНЯ</span>
+      <span v-if="cell.today" class="today"><span class="circle">{{ cell.day }}</span>сегодня</span>
       <span v-else class="day mono" :class="{ other: !cell.inMonth }">{{ cell.day }}</span>
 
+      <!-- only the name here, amount and the rest are in the side panel -->
       <button
-        v-if="cell.period"
+        v-for="period in cell.shown"
+        :key="period.id"
         type="button"
         class="payment"
-        :class="[cell.period.status, { selected: selected === cell.period }]"
-        @click="select(cell.period)"
+        :class="[period.status, { selected: selected?.id === period.id }]"
+        :title="`${period.title} · ${period.amount}`"
+        @click="select(period)"
       >
-        <span class="title">{{ cell.period.title }}</span>
-        <span class="amount mono">{{ cell.period.amount }}</span>
-        <span class="who mono">{{ label(cell.period) }}</span>
+        <span class="dot" /><span class="name">{{ period.title }}</span>
+      </button>
+      <button
+        v-if="cell.hidden.length"
+        type="button"
+        class="more"
+        :title="cell.hidden.map(period => period.title).join(', ')"
+        @click="select(cell.hidden[0]!)"
+      >
+        ещё {{ cell.hidden.length }}
       </button>
     </div>
   </div>
@@ -66,29 +80,30 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
 .grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: 30px repeat(5, 136px);
-  overflow: hidden;
+  grid-template-rows: 30px repeat(var(--weeks), 124px);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 .weekday {
-  padding: 8px 12px;
-  background: var(--subtle);
+  padding: 7px 12px;
   border-bottom: 1px solid var(--line);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--ink-2);
+  color: var(--ink-3);
 }
 
 .weekday.off {
   color: var(--ink-3);
+  opacity: 0.7;
 }
 
 .cell {
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  padding: 12px 6px 6px;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 6px 6px;
   border-top: 1px solid var(--line);
   border-left: 1px solid var(--line);
 }
@@ -103,10 +118,11 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
 }
 
 .cell.weekend {
-  background: color-mix(in srgb, var(--subtle) 60%, transparent);
+  background: color-mix(in srgb, var(--subtle) 50%, transparent);
 }
 
 .day {
+  margin-bottom: 4px;
   padding-left: 6px;
   font-size: 13px;
   font-weight: 500;
@@ -122,8 +138,8 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
   align-items: center;
   gap: 6px;
   margin: -4px 0 -5px;
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--accent-ink);
 }
 
@@ -140,57 +156,60 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
   text-align: center;
 }
 
-.payment {
+.payment,
+.more {
   display: flex;
-  flex-direction: column;
-  height: 78px;
-  padding: 8px 8px 8px 11px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--ink-3);
-  border-radius: 6px;
-  overflow: hidden;
-  text-align: left;
-}
-
-.payment.selected {
-  border-color: var(--accent-ink);
-  border-left-color: var(--ink-3);
-}
-
-.payment.paid { border-left-color: var(--green); }
-.payment.late { border-left-color: var(--amber); }
-.payment.overdue {
-  background: var(--red-bg);
-  border-left-color: var(--red);
-}
-
-/* long names stop after 2 lines so amount and status always fit in the card */
-.title {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
   font-size: 12px;
   font-weight: 500;
-  line-height: 16px;
-}
-
-.amount {
-  margin-top: auto;
-  font-size: 11px;
-  font-weight: 500;
+  text-align: left;
   white-space: nowrap;
+  transition: border-color 0.2s ease, transform 0.35s var(--ease-out), filter 0.2s ease;
 }
 
-.who {
-  margin-top: 2px;
-  font-size: 9px;
-  letter-spacing: 0.06em;
+.payment:hover {
+  transform: translateX(2px);
+  filter: brightness(1.08);
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* same colours as the status badges */
+.payment.pending { background: var(--accent-bg); color: var(--accent-ink); }
+.payment.paid { background: var(--green-bg); color: var(--green); }
+.payment.late { background: var(--amber-bg); color: var(--amber); }
+.payment.overdue { background: var(--red-bg); color: var(--red); }
+.payment.ended { background: var(--subtle); color: var(--ink-3); }
+
+.payment.selected {
+  border-color: currentColor;
+}
+
+.more {
+  background: none;
   color: var(--ink-3);
+  font-weight: 400;
 }
 
-.paid .who { color: var(--green); }
-.late .who { color: var(--amber); }
-.overdue .who { color: var(--red); }
+.more:hover {
+  color: var(--ink);
+}
 </style>

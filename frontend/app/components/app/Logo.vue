@@ -4,7 +4,7 @@ import logo from '~/logo.svg'
 
 <template>
   <span class="logo">
-    <img :src="logo" class="mark" width="18" height="18" alt="">
+    <img :src="logo" class="mark" width="26" height="26" alt="">
     <span class="name">Invoice Keeper</span>
   </span>
 </template>
@@ -13,7 +13,7 @@ import logo from '~/logo.svg'
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .mark {
@@ -21,8 +21,8 @@ import logo from '~/logo.svg'
 }
 
 .name {
-  font-family: var(--display);
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 </style>

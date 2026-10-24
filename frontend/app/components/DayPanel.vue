@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { Period } from '~/utils/demo'
 
-defineProps<{ kicker: string, title: string, period: Period }>()
-defineEmits<{ mark: [] }>()
+// canMark: false hides the button (somebody else's payment, for a user)
+// others: the rest of that day's payments, a click shows one of them here
+withDefaults(defineProps<{ kicker: string, title: string, period: Period, others?: Period[], canMark?: boolean }>(), { canMark: true, others: () => [] })
+defineEmits<{ mark: [], pick: [period: Period] }>()
 </script>
 
 <template>
-  <section class="card day">
+  <section class="day">
     <p class="kicker accent">{{ kicker }}</p>
     <h2 class="title display">{{ title }}</h2>
 
@@ -23,11 +25,23 @@ defineEmits<{ mark: [] }>()
       <span class="persona mono">{{ period.who.persona }}</span>
     </div>
 
-    <UiStatus :status="period.status" :label="period.reminded ? `Ожидает · напомнили ${period.reminded}` : undefined" />
+    <UiStatus
+      :status="period.status"
+      :label="period.paidAt ? `Оплачено ${period.paidAt}` : period.reminded ? `Ожидает · напомнили ${period.reminded}` : undefined"
+    />
 
-    <UiButton v-if="!period.paidAt" variant="primary" size="lg" block soon @click="$emit('mark')">
+    <UiButton v-if="!period.paidAt && period.status !== 'ended' && canMark" variant="primary" size="lg" block @click="$emit('mark')">
       Отметить оплату
     </UiButton>
+
+    <div v-if="others.length" class="others">
+      <p class="kicker">Ещё в этот день</p>
+      <button v-for="other in others" :key="other.id" type="button" class="other" @click="$emit('pick', other)">
+        <span class="dot" :class="other.status" />
+        <span class="other-name">{{ other.title }}</span>
+        <span class="mono">{{ other.amount }}</span>
+      </button>
+    </div>
   </section>
 </template>
 
@@ -37,18 +51,72 @@ defineEmits<{ mark: [] }>()
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 17px 20px 23px;
+  padding: 4px 0 20px;
+  border-bottom: 1px solid var(--line);
 }
+
+.others {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.others .kicker {
+  margin-bottom: 6px;
+}
+
+.other {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  margin: 0 -8px;
+  padding: 0 8px;
+  background: none;
+  border: 0;
+  border-radius: 9999px;
+  font-size: 13px;
+  text-align: left;
+  transition: background-color 0.2s ease;
+}
+
+.other:hover {
+  background: var(--subtle);
+}
+
+.other-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.dot.pending { background: var(--accent-ink); }
+.dot.paid { background: var(--green); }
+.dot.late { background: var(--amber); }
+.dot.overdue { background: var(--red); }
+.dot.ended { background: var(--ink-3); }
 
 .accent {
   color: var(--accent-ink);
 }
 
 .title {
-  margin: -16px 0 -2px;
+  margin: -12px 0 -2px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
-  font-size: 30px;
+  font-size: 20px;
+  line-height: 28px;
 }
 
 .row {
@@ -59,7 +127,7 @@ defineEmits<{ mark: [] }>()
 
 .name {
   display: block;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -69,12 +137,12 @@ defineEmits<{ mark: [] }>()
 }
 
 .amount {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
 }
 
 .persona {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 </style>

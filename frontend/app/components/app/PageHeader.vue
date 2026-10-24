@@ -20,25 +20,23 @@ withDefaults(defineProps<{ title: string, subtitle?: string }>(), { subtitle: ''
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding-top: 14px;
-  margin-bottom: 19px;
+  padding-top: 24px;
+  margin-bottom: 24px;
 }
 
 .title {
-  margin-left: -2px;
-  font-size: 38px;
-  line-height: 50px;
-  letter-spacing: -0.01em;
+  font-size: 24px;
+  line-height: 32px;
 }
 
 .subtitle {
-  font-size: 13px;
+  margin-top: 2px;
+  font-size: 14px;
   color: var(--ink-3);
 }
 
 .actions {
   display: flex;
-  gap: 12px;
-  margin-top: 12px;
+  gap: 8px;
 }
 </style>

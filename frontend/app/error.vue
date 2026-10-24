@@ -51,15 +51,15 @@ function goHome() {
 }
 
 .code {
-  font-size: 140px;
+  font-size: 96px;
   line-height: 1;
   letter-spacing: -0.04em;
-  color: var(--accent-ink);
+  color: var(--ink-3);
 }
 
 .title {
-  font-size: 28px;
-  line-height: 36px;
+  font-size: 24px;
+  line-height: 32px;
 }
 
 .text {

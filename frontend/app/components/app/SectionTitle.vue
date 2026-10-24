@@ -4,7 +4,6 @@ defineProps<{ index?: string, title: string, hint?: string }>()
 
 <template>
   <div class="section">
-    <span v-if="index" class="index mono">{{ index }}</span>
     <h2 class="title display">{{ title }}</h2>
     <span v-if="hint" class="hint">{{ hint }}</span>
     <slot />
@@ -19,20 +18,15 @@ defineProps<{ index?: string, title: string, hint?: string }>()
   gap: 12px;
 }
 
-.index {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--accent-ink);
-}
-
 .title {
-  font-size: 23px;
-  line-height: 30px;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: -0.01em;
 }
 
 /* sits on the title's baseline, not its middle */
 .hint {
-  margin: 6px 0 0 6px;
+  margin-top: 2px;
   font-size: 13px;
   color: var(--ink-3);
 }

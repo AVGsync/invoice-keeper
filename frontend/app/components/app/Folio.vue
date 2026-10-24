@@ -1,7 +1,18 @@
+<script setup lang="ts">
+const { isDemo, loadedAt } = usePayments()
+
+const updated = computed(() => {
+  if (isDemo.value) return 'Демо-данные'
+  if (!loadedAt.value) return ''
+  const time = loadedAt.value.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return `Обновлено ${time.replace(',', '')} МСК`
+})
+</script>
+
 <template>
   <footer class="folio kicker">
     <span>Invoice Keeper · Ведомость платежей</span>
-    <span>Обновлено 24.10.2026 09:41 МСК · стр. 1/1</span>
+    <span>{{ updated }}</span>
   </footer>
 </template>
 
@@ -10,7 +21,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: auto;
-  padding: 24px 0 15px;
-  letter-spacing: 0.08em;
+  padding: 32px 0 16px;
+  font-weight: 400;
 }
 </style>

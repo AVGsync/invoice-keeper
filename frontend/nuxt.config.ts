@@ -1,10 +1,15 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
+  // the panel only works logged in and login cookies live in the browser,
+  // so pages render there; server rendering only caused mismatches (T23)
+  ssr: false,
   devtools: { enabled: true },
   modules: ['@nuxt/eslint'],
   css: ['~/assets/css/main.css'],
   app: {
+    // enter-only fade (main.css .page-*): the old page leaves at once
+    pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       htmlAttrs: { lang: 'ru' },
       title: 'Invoice Keeper',
@@ -15,7 +20,7 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geologica:slnt,wght@-12..0,400..600&family=Unbounded:wght@400;500;600&display=swap',
+          href: 'https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap',
         },
       ],
     },

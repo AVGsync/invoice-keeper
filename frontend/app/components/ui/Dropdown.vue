@@ -39,7 +39,7 @@ function pick(value: string) {
         <span v-if="prefix" class="prefix">{{ prefix }}</span>
         <span :class="{ muted: !current && !prefix, value: prefix }">{{ current?.label ?? placeholder }}</span>
       </span>
-      <span class="muted">{{ open ? '▴' : '▾' }}</span>
+      <UiIcon name="down" :size="14" class="caret" :class="{ flip: open }" />
     </button>
 
     <Transition name="menu">
@@ -77,10 +77,10 @@ function pick(value: string) {
   gap: 8px;
   width: 100%;
   height: 40px;
-  padding: 0 12px;
+  padding: 0 14px 0 16px;
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: 9999px;
   text-align: left;
 }
 
@@ -97,6 +97,15 @@ function pick(value: string) {
   font-size: 13px;
 }
 
+.caret {
+  color: var(--ink-3);
+  transition: transform 0.35s var(--ease-out);
+}
+
+.caret.flip {
+  transform: rotate(180deg);
+}
+
 .prefix {
   margin-right: 8px;
   color: var(--ink-3);
@@ -107,7 +116,8 @@ function pick(value: string) {
 }
 
 .control.open {
-  border-color: var(--accent-ink);
+  border-color: var(--ink-2);
+  box-shadow: 0 0 0 3px var(--subtle);
 }
 
 /* at least as wide as the control, wider if an option needs it */
@@ -121,7 +131,8 @@ function pick(value: string) {
   padding: 4px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
 }
 
 .option {
@@ -134,8 +145,12 @@ function pick(value: string) {
   padding: 0 10px;
   background: none;
   border: 0;
-  border-radius: 5px;
+  border-radius: 9999px;
   text-align: left;
+}
+
+.option:hover {
+  background: var(--subtle);
 }
 
 .option.active {

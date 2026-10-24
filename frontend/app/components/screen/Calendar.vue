@@ -3,12 +3,28 @@ import type { Period } from '~/utils/demo'
 
 const { withTransition } = useViewTransition()
 
-// 'YYYY-MM' shown in the grid, starts on the demo's current month
-const demoMonth = demoToday.slice(0, 7)
-const month = ref(demoMonth)
+const payments = usePayments()
+onMounted(payments.load)
+
+// 'YYYY-MM' shown in the grid, starts on the current month
+const thisMonth = computed(() => payments.today.value.slice(0, 7))
+const month = ref(thisMonth.value)
 const shown = computed(() => parseMonthKey(month.value))
 
-const selected = ref<Period | undefined>(periods.find(period => period.title === 'Сервер VPS'))
+// kept as an id: after a reload the list has new objects for the same payments
+const selectedId = ref<string>()
+const selected = computed<Period | undefined>({
+  get: () => payments.periods.value.find(period => period.id === selectedId.value),
+  set: (period) => { selectedId.value = period?.id },
+})
+
+// opens on the nearest unpaid payment, once the list is there
+watchEffect(() => {
+  if (selectedId.value) return
+  const next = payments.periods.value.find(period => !period.paidAt && period.status !== 'ended'
+    && fromRu(period.due) >= payments.today.value && fromRu(period.due).startsWith(month.value))
+  selectedId.value = next?.id
+})
 
 // another month: the picked day isn't on screen anymore, so the side panel goes too
 const monthModel = computed({
@@ -20,7 +36,11 @@ const monthModel = computed({
 })
 
 function goToday() {
-  monthModel.value = demoMonth
+  monthModel.value = thisMonth.value
+}
+
+function mark(period: Period) {
+  payments.markPaid(period, payments.today.value).catch(() => {})
 }
 
 const selectedIso = computed(() => (selected.value ? fromRu(selected.value.due) : ''))
@@ -28,7 +48,13 @@ const day = computed(() => Number(selectedIso.value.slice(8, 10)))
 const weekday = computed(() => (selectedIso.value ? new Date(selectedIso.value).toLocaleDateString('ru-RU', { weekday: 'long' }) : ''))
 
 // «Итоги октября» for the shown month
-const monthTotals = computed(() => totalsOn(lastDayOf(month.value), periods.filter(period => fromRu(period.due).startsWith(month.value))))
+const monthPeriods = computed(() => payments.periods.value.filter(period => fromRu(period.due).startsWith(month.value)))
+const monthTotals = computed(() => totalsOn(lastDayOf(month.value), monthPeriods.value))
+
+// the margin note follows what's actually overdue
+const overdueNow = computed(() => payments.periods.value.filter(period => period.status === 'overdue'))
+// the selected day's other payments, listed under the selected one
+const sameDay = computed(() => payments.periods.value.filter(period => period.due === selected.value?.due && period.id !== selected.value?.id))
 const kicker = computed(() => [weekday.value, selected.value?.relative].filter(Boolean).join(' · '))
 </script>
 
@@ -37,7 +63,7 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
     <AppPageHeader title="Календарь" subtitle="Сроки оплат по дням — с отметкой статуса" />
 
     <div class="toolbar">
-      <UiMonthPicker v-model="monthModel" variant="title" :current="demoMonth" />
+      <UiMonthPicker v-model="monthModel" variant="title" :current="thisMonth" />
       <UiButton class="today" @click="goToday">Сегодня</UiButton>
       <span class="legend">
         <UiStatus status="pending" label="ожидает" />
@@ -52,16 +78,27 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
         v-model:selected="selected"
         :year="shown.year"
         :month="shown.month"
-        :today="month === demoMonth ? Number(demoToday.slice(8)) : 0"
-        :periods="periods"
+        :today="month === thisMonth ? Number(payments.today.value.slice(8)) : 0"
+        :periods="payments.periods.value"
       />
 
       <div class="side">
-        <DayPanel v-if="selected" :kicker="kicker" :title="`${day} ${monthNamesGenitive[shown.month]}`" :period="selected" />
+        <DayPanel
+          v-if="selected"
+          :kicker="kicker"
+          :title="`${day} ${monthNamesGenitive[shown.month]}`"
+          :period="selected"
+          :others="sameDay"
+          :can-mark="payments.canMark(selected)"
+          @mark="mark(selected)"
+          @pick="period => (selected = period)"
+        />
         <MonthTotals :title="`Итоги ${monthNamesGenitive[shown.month]}`" :totals="monthTotals" />
-        <div class="note">
-          <p class="italic margin">Отметка на полях:<br>аренда за 18-е ещё не оплачена.</p>
-          <UiStamp color="red" large class="stamp">1 ПРОСРОЧЕН</UiStamp>
+        <div v-if="overdueNow.length" class="note">
+          <p class="italic margin">
+            Отметка на полях:<br>{{ overdueNow[0]!.title.toLowerCase() }} за {{ Number(overdueNow[0]!.due.slice(0, 2)) }}-е ещё не оплачена.
+          </p>
+          <UiStatus status="overdue" :label="`${overdueNow.length} просрочен${overdueNow.length > 1 ? 'о' : ''}`" />
         </div>
       </div>
     </div>
@@ -88,10 +125,12 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
   margin-left: 14px;
 }
 
+/* legend shows just the coloured dot and word, without the badge fill */
 .legend :deep(.status) {
-  font-size: 12px;
+  height: auto;
+  padding: 0;
+  background: none;
   font-weight: 400;
-  color: var(--ink-2);
 }
 
 .layout {
@@ -100,10 +139,13 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
   gap: 16px;
 }
 
+/* a column of its own next to the grid, split off by a hairline like a table's */
 .side {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding-left: 20px;
+  border-left: 1px solid var(--line);
 }
 
 .note {
@@ -117,9 +159,5 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
   font-size: 13px;
   line-height: 18px;
   color: var(--ink-2);
-}
-
-.stamp {
-  font-size: 11px;
 }
 </style>

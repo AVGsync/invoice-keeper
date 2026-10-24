@@ -71,10 +71,10 @@ function onBlur() {
 .input {
   width: 100%;
   height: 40px;
-  padding: 0 12px;
+  padding: 0 16px;
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: 9999px;
   font-size: 14px;
   outline: none;
 }
@@ -84,7 +84,8 @@ function onBlur() {
 }
 
 .input:focus {
-  border-color: var(--accent);
+  border-color: var(--ink-2);
+  box-shadow: 0 0 0 3px var(--subtle);
 }
 
 .input::placeholder {
@@ -93,7 +94,7 @@ function onBlur() {
 
 .suffix {
   position: absolute;
-  right: 12px;
+  right: 16px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--ink-3);
@@ -102,7 +103,7 @@ function onBlur() {
 
 .eye {
   position: absolute;
-  right: 6px;
+  right: 10px;
   top: 50%;
   display: flex;
   padding: 6px;

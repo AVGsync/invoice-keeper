@@ -25,7 +25,6 @@ withDefaults(defineProps<{
   border-radius: 50%;
   /* letters scale with the circle (see fontSize above) and never spill out */
   line-height: 1;
-  letter-spacing: -0.02em;
   background: var(--muted-bg);
   color: var(--ink-2);
   font-weight: 500;
