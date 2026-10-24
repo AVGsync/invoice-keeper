@@ -123,8 +123,13 @@ const lines = [
 .note.soft { color: var(--ink-2); }
 .note.muted { color: var(--ink-3); }
 
+/* a printed slip: its labels stay in mono caps */
 .kicker {
   margin-bottom: 9px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .receipt :deep(.row) {

@@ -38,21 +38,23 @@ withDefaults(defineProps<{ total: CurrencyTotal, label?: string }>(), { label: '
 .currency {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 19px 22px 20px;
+  gap: 6px;
+  padding: 20px;
 }
 
 .head {
   display: flex;
   align-items: baseline;
-  gap: 16px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .code {
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.06em;
 }
 
 .name {
@@ -67,27 +69,44 @@ withDefaults(defineProps<{ total: CurrencyTotal, label?: string }>(), { label: '
 }
 
 .label {
-  font-size: 12px;
-  color: var(--ink-2);
+  font-size: 13px;
+  color: var(--ink-3);
 }
 
 .sum {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 500;
-  letter-spacing: -0.02em;
+  line-height: 34px;
+  letter-spacing: -0.03em;
 }
 
 .track {
   height: 4px;
-  margin: 8px 0 14px;
-  border-radius: 2px;
+  margin: 6px 0 14px;
+  border-radius: 9999px;
   background: var(--subtle);
 }
 
 .paid {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 9999px;
   background: var(--accent);
+  transform-origin: left;
+  animation: fill 1.1s var(--ease-out) 0.25s backwards;
+  transition: width 0.6s var(--ease-out);
+}
+
+@keyframes fill {
+  from { transform: scaleX(0); }
+}
+
+.currency {
+  transition: border-color 0.25s ease, transform 0.35s var(--ease-out);
+}
+
+.currency:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
 }
 
 .overdue {

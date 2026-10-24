@@ -1,4 +1,4 @@
-<!-- 12 months of one year to pick from, ‹ › change the year. used by UiMonthPicker and UiDatePicker -->
+<!-- 12 months of one year to pick from, arrows change the year. used by UiMonthPicker and UiDatePicker -->
 <script setup lang="ts">
 type Month = { year: number, month: number }
 
@@ -22,9 +22,9 @@ const is = (month: Month | undefined, index: number) => month?.year === shownYea
 <template>
   <div class="month-grid">
     <div class="head">
-      <button type="button" class="arrow" aria-label="Предыдущий год" @click="shownYear--">‹</button>
+      <button type="button" class="arrow" aria-label="Предыдущий год" @click="shownYear--"><UiIcon name="left" :size="15" /></button>
       <span class="year mono">{{ shownYear }}</span>
-      <button type="button" class="arrow" aria-label="Следующий год" @click="shownYear++">›</button>
+      <button type="button" class="arrow" aria-label="Следующий год" @click="shownYear++"><UiIcon name="right" :size="15" /></button>
     </div>
 
     <div class="grid">
@@ -55,12 +55,19 @@ const is = (month: Month | undefined, index: number) => month?.year === shownYea
   font-weight: 500;
 }
 
+.arrow:hover {
+  background: var(--subtle);
+  color: var(--ink);
+}
+
 .arrow {
+  display: inline-grid;
+  place-items: center;
   width: 28px;
   height: 28px;
   background: none;
   border: 0;
-  border-radius: 4px;
+  border-radius: 9999px;
   font-size: 15px;
   color: var(--ink-2);
 }
@@ -75,7 +82,7 @@ const is = (month: Month | undefined, index: number) => month?.year === shownYea
   height: 36px;
   background: none;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 9999px;
   font-size: 13px;
 }
 

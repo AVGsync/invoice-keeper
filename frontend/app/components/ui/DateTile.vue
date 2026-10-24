@@ -18,18 +18,18 @@ defineProps<{ month: string, day: string }>()
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   text-align: center;
 }
 
 .month {
-  height: 14px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  line-height: 14px;
+  height: 16px;
+  padding-top: 4px;
+  color: var(--ink-3);
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 12px;
 }
 
 .day {
@@ -37,8 +37,7 @@ defineProps<{ month: string, day: string }>()
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
-  letter-spacing: -0.02em;
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{ title: string, text: string, amount: string }>()
+withDefaults(defineProps<{ title: string, text: string, amount: string, canMark?: boolean }>(), { canMark: true })
 defineEmits<{ mark: [] }>()
 </script>
 
@@ -9,7 +9,7 @@ defineEmits<{ mark: [] }>()
     <strong class="title">{{ title }}</strong>
     <span class="text">{{ text }}</span>
     <span class="amount mono">{{ amount }}</span>
-    <UiButton soon @click="$emit('mark')">Отметить оплату</UiButton>
+    <UiButton v-if="canMark" @click="$emit('mark')">Отметить оплату</UiButton>
   </div>
 </template>
 
@@ -18,10 +18,11 @@ defineEmits<{ mark: [] }>()
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 52px;
-  padding: 0 14px 0 18px;
-  background: var(--red-bg);
-  border-radius: 8px;
+  height: 56px;
+  padding: 0 12px 0 18px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--red) 35%, var(--line));
+  border-radius: 9999px;
 }
 
 .dot {
@@ -32,7 +33,7 @@ defineEmits<{ mark: [] }>()
 }
 
 .title {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--red);
 }
 

@@ -1,25 +1,40 @@
-/* colors and fonts from the figma board */
+/* colours and type follow DESIGN.md: neutral greys, 1px borders instead of shadows,
+   one blue for links and active states, colour otherwise only for payment status.
+   this is the dark theme; the light one is further down (data-theme="light") */
 :root {
-    --bg: #1a1a1a;
-    --surface: #262626;
-    --subtle: #404040;
-    --muted-bg: #303030;
-    --line: #737373;
-    --line-strong: #737373;
+    --bg: #0a0a0a;
+    --surface: #0a0a0a;
+    /* sidebar */
+    --side: #111111;
+    /* hover fills, segmented controls, empty bar tracks */
+    --subtle: #171717;
+    --muted-bg: #1f1f1f;
+    --line: #262626;
+    --line-strong: #404040;
 
-    --ink: white;
-    --ink-2: #b3b1ac;
-    --ink-3: #9a9893;
+    --ink: #fafafa;
+    --ink-2: #a3a3a3;
+    --ink-3: #8a8a8a;
 
-    --accent: #2f1fff;
-    /* accent used as text: the fill blue is too dark to read on a dark background.
-       in a light theme this can just be the same as --accent */
-    --accent-ink: #8c86ff;
-    /* status colours, light enough to read on the dark surfaces */
-    --red: #f0705c;
-    --red-bg: #2c0b06;
-    --green: #4cc27a;
-    --amber: #e8a33d;
+    --accent: #3b82f6;
+    /* accent used as text: lighter than the fill so it reads on the dark background */
+    --accent-ink: #60a5fa;
+    --accent-bg: #172036;
+    /* the one filled button per screen */
+    --primary: #fafafa;
+    --on-primary: #0a0a0a;
+
+    /* status colours, each with a faint wash for its badge */
+    --red: #f87171;
+    --red-bg: #2a1212;
+    --green: #4ade80;
+    --green-bg: #0f2418;
+    --amber: #fbbf24;
+    --amber-bg: #2a1f0a;
+
+    /* only floating things (menus, popovers, modals) get a shadow */
+    --shadow-pop: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+    --shadow-button: 0 1px 2px rgb(0 0 0 / 0.3);
 
     /* the login receipt is always white paper, whatever the theme */
     --paper: #ffffff;
@@ -31,10 +46,13 @@
     --paper-red: #c4321c;
     --paper-green: #1e7a3e;
 
-    --sans: "Geologica", system-ui, sans-serif;
+    --sans: "Inter", system-ui, sans-serif;
+    /* amounts, dates, codes */
     --mono: "Geist Mono", ui-monospace, monospace;
-    /* titles and the logo text */
-    --display: "Unbounded", system-ui, sans-serif;
+    /* titles: same family, heavier and tighter */
+    --display: var(--sans);
+
+    color-scheme: dark;
 }
 
 *,
@@ -50,7 +68,8 @@ body {
     color: var(--ink);
     font-family: var(--sans);
     font-size: 14px;
-    line-height: 1.3;
+    line-height: 1.43;
+    -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -82,14 +101,15 @@ p {
 
 .display {
     font-family: var(--display);
-    font-weight: 400;
+    font-weight: 600;
+    letter-spacing: -0.02em;
 }
 
-/* slanted geologica for the few accents: login subtitle, receipt caption, calendar note */
+/* the few quieter asides: login subtitle, receipt caption, calendar note */
 .italic {
-    font-family: var(--sans);
-    font-style: oblique 12deg;
+    font-style: normal;
     font-weight: 400;
+    color: var(--ink-2);
 }
 
 .muted {
@@ -104,20 +124,25 @@ p {
     text-align: right;
 }
 
-/* white box with a thin border, used for cards, tables, panels */
+/* flat box with a 1px border, used for cards, tables, panels. no shadow */
 .card {
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: 12px;
 }
 
-/* small caps line like "ИТОГО ЗА МЕСЯЦ" */
+/* small label above a block, like "Итого за месяц" */
 .kicker {
-    font-family: var(--mono);
-    font-size: 10px;
-    line-height: 13px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16px;
+    color: var(--ink-3);
+}
+
+/* table header row: plain text over a hairline, no fill */
+.thead {
+    font-size: 12px;
+    font-weight: 500;
     color: var(--ink-3);
 }
 
@@ -127,37 +152,102 @@ p {
 }
 
 /* ---- animations ----
-   <Transition name="menu">  dropdowns, calendars, popovers: quick fade + small slide
-   <Transition name="modal"> modals: backdrop fades, window rises a little */
-.menu-enter-active,
+   <Transition name="menu">  dropdowns, calendars, popovers: fade, slight scale from the top edge
+   <Transition name="modal"> modals: backdrop blurs in, window springs up
+   <Transition name="page">  (nuxt.config) a new page fades up out of a soft blur
+   .rise                     rows and cards come up one after another, delay from --i */
+:root {
+    /* fast start, long soft landing */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    /* overshoots a touch and settles */
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.menu-enter-active {
+    transition: opacity 0.2s ease, transform 0.35s var(--ease-out);
+}
+
 .menu-leave-active {
-    transition: opacity 0.14s ease, transform 0.14s ease;
+    transition: opacity 0.12s ease, transform 0.12s ease;
 }
 
 .menu-enter-from,
 .menu-leave-to {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(-6px) scale(0.97);
+    transform-origin: top center;
 }
 
 .modal-enter-active,
 .modal-leave-active {
-    transition: opacity 0.18s ease;
+    transition: opacity 0.25s ease, backdrop-filter 0.25s ease;
 }
 
-.modal-enter-active .modal,
+.modal-enter-active .modal {
+    transition: transform 0.45s var(--ease-out), opacity 0.25s ease;
+}
+
 .modal-leave-active .modal {
-    transition: transform 0.18s ease;
+    transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
 .modal-enter-from,
 .modal-leave-to {
     opacity: 0;
+    backdrop-filter: blur(0);
 }
 
-.modal-enter-from .modal,
+.modal-enter-from .modal {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+}
+
 .modal-leave-to .modal {
-    transform: translateY(8px) scale(0.98);
+    opacity: 0;
+    transform: scale(0.98);
+}
+
+/* only the entering page animates: the old one leaves at once, so there is never
+   a moment with two pages on screen */
+.page-enter-active {
+    transition: opacity 0.4s ease, transform 0.55s var(--ease-out), filter 0.4s ease;
+}
+
+.page-enter-from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(4px);
+}
+
+.rise {
+    /* backwards: nothing lingers on the element once it has landed */
+    animation: rise 0.6s var(--ease-out) backwards;
+    animation-delay: calc(min(var(--i, 0), 12) * 40ms);
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+/* buttons sink a little under the finger (UiButton gets the transform transition itself) */
+.btn:not(:disabled):active {
+    transform: scale(0.97);
+}
+
+/* theme change (usePrefs.switchTheme): the whole page is uncovered as one picture */
+.theme-switch * {
+    view-transition-name: none !important;
+}
+
+::view-transition-old(root) {
+    z-index: 0;
+}
+
+::view-transition-new(root) {
+    z-index: 1;
 }
 
 /* people who asked their system for less motion get none */
@@ -202,16 +292,13 @@ p {
     position: absolute;
     top: -8px;
     right: -6px;
-    padding: 1px 5px;
-    border-radius: 6px;
+    padding: 1px 6px;
+    border-radius: 9999px;
     background: var(--amber);
     color: var(--bg);
-    font-family: var(--mono);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 600;
-    line-height: 12px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    line-height: 13px;
     pointer-events: none;
 }
 
@@ -224,4 +311,52 @@ p {
 
 .soon.text-action::after {
     content: none;
+}
+
+/* ---- personal settings (usePrefs) ---- */
+
+/* light theme: DESIGN.md as written, white canvas with #e5e5e5 hairlines */
+:root[data-theme="light"] {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --side: #fafafa;
+    --subtle: #f5f5f5;
+    --muted-bg: #f0f0f0;
+    --line: #e5e5e5;
+    --line-strong: #d4d4d4;
+
+    --ink: #171717;
+    --ink-2: #525252;
+    --ink-3: #737373;
+
+    --accent: #2563eb;
+    --accent-ink: #2563eb;
+    --accent-bg: #dbeafe;
+    --primary: #0a0a0a;
+    --on-primary: #ffffff;
+
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --green: #15803d;
+    --green-bg: #dcfce7;
+    --amber: #b45309;
+    --amber-bg: #fef3c7;
+
+    --shadow-pop: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+    --shadow-button: 0 1px 2px rgb(0 0 0 / 0.05);
+
+    color-scheme: light;
+}
+
+/* less motion, switched on in Настройки: same as the system setting */
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+}
+
+/* dyslexia-friendly font for text and titles, numbers stay monospaced */
+:root[data-font="readable"] {
+    --sans: "Andika", "Inter", system-ui, sans-serif;
 }

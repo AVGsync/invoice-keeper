@@ -1,11 +1,19 @@
 <script setup lang="ts">
+import type { Template } from '~/utils/demo'
+
 const { isAdmin } = useRole()
 const showNewPayment = ref(false)
 
 // stopped payments stay in history but are hidden unless asked for
 const showStopped = ref(false)
-const stoppedCount = templates.filter(item => item.ended).length
-const shown = computed(() => templates.filter(item => showStopped.value || !item.ended))
+const payments = usePayments()
+onMounted(payments.load)
+const stoppedCount = computed(() => payments.templates.value.filter(item => item.ended).length)
+const shown = computed(() => payments.templates.value.filter(item => showStopped.value || !item.ended))
+
+function stop(template: Template) {
+  payments.stop(template).catch(() => {})
+}
 </script>
 
 <template>
@@ -25,7 +33,14 @@ const shown = computed(() => templates.filter(item => showStopped.value || !item
       <UiSwitch v-model="showStopped">Показать прекращённые <span class="mono muted">{{ stoppedCount }}</span></UiSwitch>
     </div>
 
-    <RecurringTable :templates="shown" />
+    <UiState v-if="payments.pending.value" class="state">Загружаем платежи…</UiState>
+    <UiState v-else-if="payments.loadError.value" kind="error" class="state" @retry="payments.load">
+      Не удалось загрузить: {{ payments.loadError.value }}
+    </UiState>
+    <UiState v-else-if="!shown.length" class="state">
+      {{ isAdmin ? 'Регулярных платежей пока нет. Добавьте первый — «Новый платёж».' : 'Регулярных платежей пока нет.' }}
+    </UiState>
+    <RecurringTable v-else :templates="shown" @stop="stop" />
 
     <p v-if="!isAdmin" class="read-only">
       <span class="dot" />
@@ -63,5 +78,10 @@ const shown = computed(() => templates.filter(item => showStopped.value || !item
 
 .new {
   width: 160px;
+}
+
+.state {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 </style>

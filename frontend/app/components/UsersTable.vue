@@ -6,7 +6,7 @@ defineEmits<{ edit: [user: User] }>()
 </script>
 
 <template>
-  <div class="card table">
+  <div class="table">
     <div class="row head">
       <span>Пользователь</span>
       <span>Роль</span>
@@ -30,7 +30,7 @@ defineEmits<{ edit: [user: User] }>()
       </div>
     </template>
 
-    <div v-for="user in (loading ? [] : users)" :key="user.id" class="row">
+    <div v-for="(user, i) in (loading ? [] : users)" :key="user.id" class="row rise" :style="{ '--i': i }">
       <span>
         <span class="name">{{ user.full_name }}</span>
         <span class="login mono">{{ user.login }}</span>
@@ -52,8 +52,16 @@ defineEmits<{ edit: [user: User] }>()
 </template>
 
 <style scoped>
+/* no box around it: rows run the full width, separated by hairlines */
 .table {
+  flex: 1;
+  margin: 0 -12px;
+  border-bottom: 1px solid var(--line);
   font-size: 13px;
+}
+
+.row:not(.head):hover {
+  background: var(--subtle);
 }
 
 .row {
@@ -61,19 +69,18 @@ defineEmits<{ edit: [user: User] }>()
   grid-template-columns: 210px 80px 140px 102px 72px 74px 1fr;
   align-items: center;
   height: 60px;
-  padding: 0 20px;
+  padding: 0 12px;
   border-top: 1px solid var(--line);
   white-space: nowrap;
 }
 
+/* header: plain small text, the hairline under it does the separating */
 .row.head {
   height: 40px;
   border-top: 0;
-  border-radius: 10px 10px 0 0;
-  background: var(--subtle);
   font-size: 12px;
   font-weight: 500;
-  color: var(--ink-2);
+  color: var(--ink-3);
 }
 
 .stack {
@@ -96,8 +103,8 @@ defineEmits<{ edit: [user: User] }>()
 .role {
   display: inline-block;
   height: 22px;
-  padding: 0 8px;
-  border-radius: 4px;
+  padding: 0 9px;
+  border-radius: 9999px;
   font-size: 11px;
   font-weight: 500;
   line-height: 22px;
