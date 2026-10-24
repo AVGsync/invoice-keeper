@@ -3,6 +3,7 @@ FROM node:22.23.2-alpine3.24 AS builder
 WORKDIR /app
 # postinstall (nuxt prepare) нужны исходники конфигов, поэтому копируем их до npm ci.
 COPY package.json package-lock.json nuxt.config.ts tsconfig.json ./
+RUN npm install -g npm@12.2.0
 RUN npm ci
 
 COPY app ./app
