@@ -54,3 +54,7 @@ func (d *DB) Payment() *PaymentRepository {
 func (d *DB) RecurrentPayment() *RecurrentPaymentRepository {
 	return &RecurrentPaymentRepository{database: d}
 }
+
+func (d *DB) Notifications() *NotificationsRepository {
+	return &NotificationsRepository{database: d}
+}

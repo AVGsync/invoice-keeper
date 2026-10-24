@@ -13,6 +13,7 @@ import (
 	// Регистрирует сгенерированную swag спецификацию (make swagger).
 	_ "github.com/AVGsync/invoice-keeper/backend/docs"
 	"github.com/AVGsync/invoice-keeper/backend/internal/infrastructure/security"
+	"github.com/AVGsync/invoice-keeper/backend/internal/notifications"
 	"github.com/AVGsync/invoice-keeper/backend/internal/repository/postgres"
 	"github.com/AVGsync/invoice-keeper/backend/internal/service"
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/api"
@@ -31,6 +32,7 @@ type APIServer struct {
 	logger *slog.Logger
 	router *chi.Mux
 	db     *postgres.DB
+	mailer *notifications.SMTPMailer
 }
 
 func New(config *Config) (*APIServer, error) {
@@ -39,10 +41,25 @@ func New(config *Config) (*APIServer, error) {
 		return nil, fmt.Errorf("apiserver: configure logger: %w", err)
 	}
 
+	mailer, err := notifications.NewSMTPMailer(
+		notifications.SMTPConfig{
+			Host:     config.SMTPHost,
+			Port:     config.SMTPPort,
+			Username: config.SMTPUsername,
+			Password: config.SMTPPassword,
+			From:     config.SMTPFrom,
+		},
+		logger,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("initialize SMTP mailer: %w", err)
+	}
+
 	return &APIServer{
 		config: config,
 		logger: logger,
 		router: chi.NewRouter(),
+		mailer: mailer,
 	}, nil
 }
 
@@ -146,6 +163,9 @@ func (s *APIServer) configureRouter() {
 	recPaymentService := service.NewRecurrentPaymentService(s.db.RecurrentPayment())
 	paymentHandler := handler.NewPaymentHandler(recPaymentService, paymentService)
 
+	notificationsService := service.NewNotificationsService(s.db.Notifications())
+	notificationsHandler := handler.NewNotificationsHandler(notificationsService)
+
 	personaService := service.NewPersonaService(s.db.Persona())
 	personaHandler := handler.NewPersonaHandler(personaService)
 
@@ -217,6 +237,17 @@ func (s *APIServer) configureRouter() {
 				r.Get("/", paymentHandler.GetPaymentOccurrences())
 				r.Get("/{id}", paymentHandler.GetPaymentOccurrence())
 				r.Patch("/{id}", paymentHandler.PatchPaymentOccurrence())
+			})
+
+			r.Route("/notifications/settings", func(r chi.Router) {
+				r.Use(middleware.IsUserOrAdmin)
+				r.Use(middleware.MaxBytes(defaultMaxRequestBody))
+
+				r.Get("/", notificationsHandler.GetSettings())
+				r.Put("/", notificationsHandler.UpdateSettings())
+				r.Patch("/", notificationsHandler.PatchSettings())
+				r.Post("/", notificationsHandler.CreateSettings())
+				r.Delete("/", notificationsHandler.DeleteSettings())
 			})
 
 			// Справочник персон для назначения пользователям — только администратор.

@@ -13,6 +13,9 @@ var ErrLoginTaken = errors.New("login already taken")
 // ErrUserNotFound возвращается, когда пользователь с указанным id не найден.
 var ErrUserNotFound = errors.New("user not found")
 
+// ErrNotificationSettingsNotFound возвращается, когда настройки уведомлений пользователя не найдены.
+var ErrNotificationSettingsNotFound = errors.New("user notification settings not found")
+
 // ErrUserInUse запрещает удалять пользователя, на которого ссылаются другие записи.
 var ErrUserInUse = errors.New("user is referenced and cannot be deleted")
 
@@ -99,4 +102,16 @@ type Payment struct {
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type UserNotificationSettings struct {
+	UserID        string    `json:"user_id"`
+	Email         string    `json:"email"`
+	EmailVerified bool      `json:"email_verified"`
+	EmailEnabled  bool      `json:"email_enabled"`
+	DaysBeforeDue int       `json:"days_before_due"`
+	SendTime      string    `json:"send_time"`
+	Timezone      string    `json:"timezone"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }

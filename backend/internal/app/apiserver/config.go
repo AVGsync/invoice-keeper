@@ -15,20 +15,29 @@ import (
 var loginPattern = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,32}$`)
 
 type Config struct {
-	Environment      string   `envconfig:"APP_ENV" default:"local"`
-	BindAddr         string   `envconfig:"BIND_ADDR" default:"8080"`
-	LogLevel         string   `envconfig:"LOG_LEVEL" default:"info"`
-	Debug            bool     `envconfig:"DEBUG" default:"false"`
-	JWTAccessSecret  string   `envconfig:"JWT_ACCESS_SECRET" required:"true"`
-	JWTRefreshSecret string   `envconfig:"JWT_REFRESH_SECRET" required:"true"`
-	TTLAccessToken   int64    `envconfig:"TTL_ACCESS_TOKEN" default:"3600"`
-	TTLRefreshToken  int64    `envconfig:"TTL_REFRESH_TOKEN" default:"604800"`
-	PostgresUser     string   `envconfig:"POSTGRES_USER" default:"postgres"`
-	PostgresPassword string   `envconfig:"POSTGRES_PASSWORD" default:"postgres"`
-	PostgresHost     string   `envconfig:"POSTGRES_HOST" default:"localhost"`
-	PostgresPort     string   `envconfig:"POSTGRES_PORT" default:"5432"`
-	PostgresDB       string   `envconfig:"POSTGRES_DB" default:"invoice_keeper"`
-	AllowedOrigins   []string `envconfig:"ALLOWED_ORIGINS" default:"http://localhost:3000,http://localhost:8080"`
+	Environment      string `envconfig:"APP_ENV" default:"local"`
+	BindAddr         string `envconfig:"BIND_ADDR" default:"8080"`
+	LogLevel         string `envconfig:"LOG_LEVEL" default:"info"`
+	Debug            bool   `envconfig:"DEBUG" default:"false"`
+	JWTAccessSecret  string `envconfig:"JWT_ACCESS_SECRET" required:"true"`
+	JWTRefreshSecret string `envconfig:"JWT_REFRESH_SECRET" required:"true"`
+	TTLAccessToken   int64  `envconfig:"TTL_ACCESS_TOKEN" default:"3600"`
+	TTLRefreshToken  int64  `envconfig:"TTL_REFRESH_TOKEN" default:"604800"`
+
+	PostgresUser     string `envconfig:"POSTGRES_USER" default:"postgres"`
+	PostgresPassword string `envconfig:"POSTGRES_PASSWORD" default:"postgres"`
+	PostgresHost     string `envconfig:"POSTGRES_HOST" default:"localhost"`
+	PostgresPort     string `envconfig:"POSTGRES_PORT" default:"5432"`
+	PostgresDB       string `envconfig:"POSTGRES_DB" default:"invoice_keeper"`
+
+	SMTPHost     string `envconfig:"SMTP_HOST" default:"localhost"`
+	SMTPPort     string `envconfig:"SMTP_PORT" default:"587"`
+	SMTPUsername string `envconfig:"SMTP_USERNAME" default:""`
+	SMTPPassword string `envconfig:"SMTP_PASSWORD" default:""`
+	SMTPFrom     string `envconfig:"SMTP_FROM" default:""`
+
+	AllowedOrigins []string `envconfig:"ALLOWED_ORIGINS" default:"http://localhost:3000,http://localhost:8080"`
+
 	// Учётка администратора. Логин и пароль берутся из .env.
 	// Пустой ADMIN_PASSWORD допустим только на базе, где администратор уже
 	// есть (см. service.AdminAccount).
