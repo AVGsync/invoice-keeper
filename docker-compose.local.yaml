@@ -70,13 +70,12 @@ services:
     networks: [app-local]
 
   # ---- NL-ассистент (docs/NL_QUERIES.md §10.3) ----
-  # Локально образ собирается из ./nlq (а не тянется из GHCR). Сервисы под
-  # профилем nlq, чтобы обычный `up` (postgres/migrate/backend/pgadmin) не зависел
-  # от ключей ассистента. Запуск с ассистентом:
+  # Локально образ собирается из ./nlq (а не тянется из GHCR). Сервисы
+  # поднимаются обычным `up` вместе с остальным стеком. Ключи ассистента:
   #   # 1) сгенерировать пару ключей и положить в .env (один раз):
   #   docker compose -f docker-compose.local.yaml run --rm --no-deps nlq-agent nlq.keygen
   #   # 2) поднять всё, включая ассистента:
-  #   docker compose -f docker-compose.local.yaml --profile nlq up
+  #   docker compose -f docker-compose.local.yaml up
   # Сеть app-local (без internal: true): так работает проброс портов 8090/8900
   # для MCP Inspector и обращения Go, запущенного на хосте.
   nlq-db-init:
@@ -84,7 +83,6 @@ services:
     image: invoice-keeper-nlq:local
     command: ["nlq.dbinit"]
     restart: "no"
-    profiles: ["nlq"]
     environment:
       ADMIN_DSN: postgres://${POSTGRES_USER:-invoice_keeper}:${POSTGRES_PASSWORD:-invoice_local_password}@postgres:5432/${POSTGRES_DB:-invoice_keeper}?sslmode=disable
       NLQ_DB_PASSWORD: ${NLQ_DB_PASSWORD:-nlq_local_password}
@@ -101,7 +99,6 @@ services:
     image: invoice-keeper-nlq:local
     command: ["nlq.mcp_server"]
     restart: unless-stopped
-    profiles: ["nlq"]
     environment:
       APP_ENV: local
       NLQ_DB_DSN: postgres://nlq_reader:${NLQ_DB_PASSWORD:-nlq_local_password}@postgres:5432/${POSTGRES_DB:-invoice_keeper}?sslmode=disable
@@ -128,7 +125,6 @@ services:
     image: invoice-keeper-nlq:local
     command: ["nlq.agent"]
     restart: unless-stopped
-    profiles: ["nlq"]
     env_file:
       - path: .env.nlq
         required: false

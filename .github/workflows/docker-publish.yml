@@ -28,6 +28,11 @@ jobs:
           - name: frontend
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
+          # Telegram Mini App (miniapp/): отдельный статичный образ, раздаётся
+          # главным nginx по /tg/.
+          - name: miniapp
+            context: ./miniapp
+            dockerfile: ./miniapp/Dockerfile
           - name: nginx
             context: ./nginx
             dockerfile: ./nginx/Dockerfile

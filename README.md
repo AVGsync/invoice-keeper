@@ -11,8 +11,9 @@
 ```
 backend/    Go API (chi, PostgreSQL): cmd, internal, migrations, swagger (backend/docs)
 frontend/   Nuxt-панель (пока заготовка: одна страница)
+miniapp/    Telegram Mini App (Vue 3 + Vite, статичный образ, раздаётся по /tg/)
 nlq/        Python: MCP-сервер (read-only SQL), агент (OpenRouter), dbinit, keygen
-nginx/      Образ nginx с шаблоном конфига (TLS, прокси на backend и frontend)
+nginx/      Образ nginx с шаблоном конфига (TLS, прокси на backend, frontend и miniapp)
 scripts/    cert.sh: выпуск и продление сертификата Let's Encrypt
 docker-compose.local.yaml   локальный стек (сборка из исходников)
 docker-compose.yaml         продовый стек (образы из GHCR)
@@ -27,9 +28,10 @@ docker-compose.yaml         продовый стек (образы из GHCR)
         getUpdates      |           v   или long polling (локально)
                         |
   Браузер ---> nginx :443 ---> backend (Go, :8080) <---------------+
-  Mini App       |   |           |   |   |                          |
-                 |   |           |   |   +-- подписанный actor-JWT  |
-                 |   +--/api/--->+   |            (Ed25519)         |
+  Mini App       | | |           |   |   |                          |
+                 | | |           |   |   +-- подписанный actor-JWT  |
+                 | | +--/api/--->+   |            (Ed25519)         |
+                 | +--/tg/--> miniapp (Vue+Vite, nginx :8080)       |
                  +--/ (SSR)--> frontend (Nuxt :3000)                |
                                      |                              |
                                      v                              |
@@ -88,11 +90,9 @@ docker-compose.yaml         продовый стек (образы из GHCR)
 
    ```bash
    docker compose -f docker-compose.local.yaml up -d --build
-   # с ассистентом (добавляет nlq-db-init, nlq-mcp, nlq-agent):
-   docker compose -f docker-compose.local.yaml --profile nlq up -d --build
    ```
 
-   `make up` делает то же, что первая команда (без профиля `nlq`). Миграции накатывает сервис `migrate`
+   Ассистент (nlq-db-init, nlq-mcp, nlq-agent) поднимается вместе со стеком. `make up` делает то же самое. Миграции накатывает сервис `migrate`
    автоматически перед стартом backend.
 
 5. Проверьте:
@@ -196,12 +196,12 @@ curl http://localhost:8080/api/v1/assistant/status
 ### 5. Mini App
 
 1. В @BotFather: `/newapp` (или `/mybots` -> Bot Settings -> Menu Button), укажите URL
-   `https://<DOMAIN>/tg` и получите `short_name`.
+   `https://<DOMAIN>/tg/` (со слэшем) и получите `short_name`.
 2. Mini App требует **HTTPS** на вашем домене (см. «Деплой»).
 3. Впишите в `.env`:
 
    ```
-   MINIAPP_URL=https://<DOMAIN>/tg
+   MINIAPP_URL=https://<DOMAIN>/tg/
    TELEGRAM_MINIAPP_SHORT_NAME=<short_name>   # если создано через /newapp
    ```
 
@@ -209,8 +209,28 @@ curl http://localhost:8080/api/v1/assistant/status
    используется `POST /api/v1/telegram/miniapp/link` (логин и пароль вводятся один раз).
    `initData` проверяется по токену бота и живёт `TELEGRAM_INITDATA_MAX_AGE` (10 минут).
 
-Внимание: в текущем `frontend/` страницы `/tg` ещё нет (есть только `app/pages/index.vue`), поэтому
-для Mini App нужен фронтенд-маршрут `/tg`. API для него в backend готов.
+Mini App — это отдельное приложение `miniapp/` (Vue 3 + Vite, без SSR), собираемое в
+статический образ `…-miniapp`. Главный nginx раздаёт его по `/tg/` (проксирует на контейнер
+`miniapp`); это не Nuxt-фронтенд из `frontend/`.
+
+#### Локальная разработка Mini App
+
+```
+cd miniapp && npm ci && npm run dev   # http://localhost:5173/tg/
+```
+
+- Запросы к `/api` проксируются на `DEV_API_TARGET` (по умолчанию `http://localhost:8080`).
+- Переменные dev-режима — в `miniapp/.env.development.local` (не коммитится):
+  - `DEV_TG_BOT_TOKEN` — должен совпадать с backend `TELEGRAM_BOT_TOKEN`, и бот должен быть включён,
+    иначе `/telegram/miniapp/*` отвечает 404;
+  - `DEV_TG_USER_ID`, `DEV_TG_FIRST_NAME`, `DEV_TG_USERNAME`;
+  - `DEV_TG_START_PARAM` — например `occ_<hex32>` для открытия карточки периода напрямую.
+- Первый вход показывает экран привязки (логин и пароль от Invoice Keeper).
+- Telegram-мок и подписант `initData` работают только в dev и не попадают в прод-бандл.
+- Тесты: `npm test` (unit, vitest) и `npm run e2e` (Playwright, прогон локально).
+
+Зона приложения вшивается в образ на этапе сборки через build-arg `VITE_APP_TIMEZONE`
+(по умолчанию `Europe/Moscow`, должна совпадать с backend `APP_TIMEZONE`).
 
 ## Платежи: регулярные платежи и периоды
 
@@ -306,8 +326,6 @@ REMINDER_SOURCE=db        # дефолт в коде и в .env.example
    ```bash
    docker compose pull
    docker compose up -d
-   # со стеком ассистента:
-   docker compose --profile nlq up -d
    ```
 
    Другой владелец или тег: `IMAGE_PREFIX=ghcr.io/<owner>/invoice-keeper IMAGE_TAG=<sha>`.
@@ -358,6 +376,7 @@ uv run pytest -q                # БД-тесты пропускаются бе�
 | Бот молчит | Проверьте `TELEGRAM_MODE` и токен: при пустом токене бот выключен (в логе предупреждение). |
 | Лог: `telegram poller: conflict 409` (getUpdates) | У токена установлен webhook или другой процесс уже делает getUpdates. Нельзя запускать polling с продовым токеном: заведите отдельного dev-бота. Если webhook остался от прежних экспериментов, снимите его: `curl "https://api.telegram.org/bot<TOKEN>/deleteWebhook"`. |
 | Mini App отвечает 401 | `invalid_init_data`: открыт не из Telegram или токен бота в `.env` не тот, что у бота Mini App. `init_data_expired`: `initData` старше `TELEGRAM_INITDATA_MAX_AGE`, откройте Mini App заново. Также нужен HTTPS и верный `MINIAPP_URL`. |
+| `/tg/` показывает сайт (Nuxt), а не Mini App | Не поднят сервис/образ `miniapp` или не перезапущен nginx после обновления конфига. Проверьте `docker compose ps miniapp` и перезапустите nginx. |
 | Webhook не регистрируется | Лог `setWebhook failed`: проверьте HTTPS-сертификат (не самоподписанный), доступность домена снаружи, `TELEGRAM_WEBHOOK_URL`. |
 | `/assistant/ask` отвечает 503 `assistant_disabled` | `NLQ_ENABLED=false`. Включите и задайте ключи. |
 | `nlq healthz` не OK (контейнер `unhealthy`) | `docker compose -f docker-compose.local.yaml logs nlq-mcp nlq-agent`. Частые причины: пустой или битый `NLQ_ACTOR_PUBLIC_KEY`, не отработал `nlq-db-init` (проверьте `NLQ_DB_PASSWORD` и `ps -a`). У агента статус `degraded` без ключа OpenRouter допустим, он работает как `rules`. |
