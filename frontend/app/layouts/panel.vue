@@ -5,6 +5,7 @@
       <slot />
       <AppFolio />
     </main>
+    <AppToast />
   </div>
 </template>
 

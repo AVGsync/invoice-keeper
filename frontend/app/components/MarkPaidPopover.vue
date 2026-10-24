@@ -4,7 +4,7 @@ import type { Period } from '~/utils/demo'
 const props = defineProps<{ period: Period }>()
 const emit = defineEmits<{ close: [] }>()
 
-const demo = useDemo()
+const payments = usePayments()
 
 // the table row this popover belongs to counts as inside, so clicking that row again toggles it
 const root = ref<HTMLElement>()
@@ -12,18 +12,41 @@ useClickOutside(() => root.value?.parentElement, () => emit('close'))
 
 // an already paid period opens with its date, to fix it or take the mark off
 const alreadyPaid = !!props.period.paidAt
-const paidAt = ref(alreadyPaid ? fromRu(props.period.paidAt!) : demoToday)
+const paidAt = ref(alreadyPaid ? fromRu(props.period.paidAt!) : payments.today.value)
 // paid after the due date counts as late
 const late = computed(() => !!paidAt.value && paidAt.value > fromRu(props.period.due))
+// the server doesn't take a payment date in the future
+const future = computed(() => paidAt.value > payments.today.value)
+
+const busy = ref(false)
+const error = ref('')
+
+async function save(action: () => Promise<unknown>) {
+  if (busy.value) return
+  busy.value = true
+  error.value = ''
+  try {
+    await action()
+    emit('close')
+  }
+  catch (e) {
+    error.value = apiError(e)
+  }
+  finally {
+    busy.value = false
+  }
+}
 
 function confirm() {
-  demo.markPaid(props.period, paidAt.value)
-  emit('close')
+  if (future.value) {
+    error.value = 'Дата оплаты не может быть в будущем'
+    return
+  }
+  save(() => payments.markPaid(props.period, paidAt.value))
 }
 
 function unmark() {
-  demo.unmark(props.period)
-  emit('close')
+  save(() => payments.unmark(props.period))
 }
 </script>
 
@@ -33,15 +56,16 @@ function unmark() {
     <p class="meta">{{ period.title }} · {{ period.amount }} · срок {{ period.due }}</p>
 
     <UiField label="Фактическая дата оплаты">
-      <UiDatePicker v-model="paidAt" :today="demoToday" />
+      <UiDatePicker v-model="paidAt" :today="payments.today.value" />
     </UiField>
-    <p v-if="late" class="hint late">Позже срока — будет «оплачено с опозданием».</p>
+    <p v-if="error" class="hint error-text">{{ error }}</p>
+    <p v-else-if="late" class="hint late">Позже срока — будет «оплачено с опозданием».</p>
     <p v-else class="hint">Оплата в день срока и раньше — вовремя.</p>
 
     <div class="buttons">
-      <UiButton v-if="alreadyPaid" size="md" :soon="!demo.enabled.value" @click="unmark">Снять отметку</UiButton>
+      <UiButton v-if="alreadyPaid" size="md" :disabled="busy" @click="unmark">Снять отметку</UiButton>
       <UiButton v-else size="md" @click="$emit('close')">Отмена</UiButton>
-      <UiButton size="md" variant="primary" :soon="!demo.enabled.value" @click="confirm">
+      <UiButton size="md" variant="primary" :disabled="busy" @click="confirm">
         {{ alreadyPaid ? 'Сохранить' : 'Подтвердить' }}
       </UiButton>
     </div>

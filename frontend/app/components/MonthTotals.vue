@@ -5,7 +5,7 @@ defineProps<{ title: string, totals: CurrencyTotal[] }>()
 </script>
 
 <template>
-  <section class="card month">
+  <section class="month">
     <h2 class="title display">{{ title }}</h2>
     <p class="kicker">По валютам · без конвертации</p>
 
@@ -22,7 +22,8 @@ defineProps<{ title: string, totals: CurrencyTotal[] }>()
 <style scoped>
 .month {
   view-transition-name: month-totals;
-  padding: 16px 20px 18px;
+  padding: 16px 0 18px;
+  border-bottom: 1px solid var(--line);
 }
 
 .title {

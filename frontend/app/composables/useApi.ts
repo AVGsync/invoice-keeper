@@ -9,6 +9,16 @@ import type {
   TelegramLinkResponse,
   TelegramTeamChatResponse,
   CreatePersonaRequest,
+  CreateRecurrentPaymentRequest,
+  PatchPaymentOccurrenceRequest,
+  PatchUserNotificationSettingsRequest,
+  PaymentListResponse,
+  PaymentOccurrence,
+  PaymentSummaryResponse,
+  RecurrentPayment,
+  UpdateRecurrentPaymentRequest,
+  UpdateUserNotificationSettingsRequest,
+  UserNotificationSettings,
   CreateUserRequest,
   LoginRequest,
   Persona,
@@ -46,6 +56,37 @@ export function useApi() {
       update: (id: string, body: UpdatePersonaRequest) =>
         api<Persona>(`/personas/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
       remove: (id: string) => api(`/personas/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    },
+
+    // templates: everyone reads, only the admin creates, edits and stops
+    recurring: {
+      list: () => api<RecurrentPayment[]>('/recurring-payments'),
+      create: (body: CreateRecurrentPaymentRequest) =>
+        api<{ id?: string }>('/recurring-payments', { method: 'POST', body }),
+      update: (id: string, body: UpdateRecurrentPaymentRequest) =>
+        api(`/recurring-payments/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+      // stops it: no new periods, the history stays
+      stop: (id: string) => api(`/recurring-payments/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    },
+
+    // periods of the recurring payments. the assignee or the admin marks them paid
+    occurrences: {
+      list: (mine = false) => api<PaymentListResponse>('/payment-occurrences', { query: mine ? { assignee: 'me' } : undefined }),
+      get: (id: string) => api<PaymentOccurrence>(`/payment-occurrences/${encodeURIComponent(id)}`),
+      patch: (id: string, body: PatchPaymentOccurrenceRequest) =>
+        api(`/payment-occurrences/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+    },
+
+    // totals per currency, due dates between from and to
+    summary: (from?: string, to?: string) => api<PaymentSummaryResponse>('/payments/summary', { query: { from, to } }),
+
+    // the current user's email reminders. 404 means they were never set up
+    notifications: {
+      get: () => api<UserNotificationSettings>('/notifications/settings'),
+      create: (body: UpdateUserNotificationSettingsRequest) => api('/notifications/settings', { method: 'POST', body }),
+      replace: (body: UpdateUserNotificationSettingsRequest) => api('/notifications/settings', { method: 'PUT', body }),
+      patch: (body: PatchUserNotificationSettingsRequest) => api('/notifications/settings', { method: 'PATCH', body }),
+      remove: () => api('/notifications/settings', { method: 'DELETE' }),
     },
 
     assistant: {

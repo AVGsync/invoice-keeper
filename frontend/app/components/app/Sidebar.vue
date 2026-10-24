@@ -176,7 +176,7 @@ function toggleTheme(e: MouseEvent) {
   gap: 10px;
   height: 34px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: 9999px;
   color: var(--ink-2);
   font-weight: 500;
   transition: background-color 0.2s ease, color 0.2s ease;
@@ -216,7 +216,7 @@ function toggleTheme(e: MouseEvent) {
   top: 0;
   left: 12px;
   right: 12px;
-  border-radius: 8px;
+  border-radius: 9999px;
   background: var(--accent-bg);
   transition: transform 0.5s var(--ease-out), height 0.5s var(--ease-out);
 }
@@ -263,7 +263,7 @@ function toggleTheme(e: MouseEvent) {
   padding: 0;
   background: none;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 9999px;
   color: var(--ink-2);
   transition: color 0.2s ease, border-color 0.2s ease;
 }
@@ -318,7 +318,7 @@ function toggleTheme(e: MouseEvent) {
   padding: 0;
   background: none;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 9999px;
   font-size: 12px;
   color: var(--red);
 }

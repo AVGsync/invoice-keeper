@@ -3,9 +3,10 @@ import type { Person } from '~/utils/demo'
 
 const props = defineProps<{ person: Person }>()
 const { isAdmin } = useRole()
+const { meName } = usePayments()
 
 // on user screens your own payments get a blue avatar and "· вы"
-const me = computed(() => !isAdmin.value && props.person.name === currentUser.name)
+const me = computed(() => !isAdmin.value && !!meName.value && props.person.name === meName.value)
 </script>
 
 <template>

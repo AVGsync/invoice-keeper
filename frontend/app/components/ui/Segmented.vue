@@ -77,7 +77,7 @@ onBeforeUnmount(() => observer?.disconnect())
   padding: 3px;
   background: var(--subtle);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 9999px;
 }
 
 .thumb {
@@ -85,7 +85,7 @@ onBeforeUnmount(() => observer?.disconnect())
   top: 3px;
   bottom: 3px;
   left: 0;
-  border-radius: 6px;
+  border-radius: 9999px;
 }
 
 .sliding .thumb {
@@ -113,7 +113,7 @@ onBeforeUnmount(() => observer?.disconnect())
   padding: 0 12px;
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 9999px;
   font-size: 13px;
   color: var(--ink-2);
   transition: color 0.22s ease;

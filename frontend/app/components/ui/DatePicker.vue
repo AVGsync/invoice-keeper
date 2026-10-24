@@ -136,10 +136,10 @@ useClickOutside(root, () => { open.value = false }, open)
   justify-content: space-between;
   width: 100%;
   height: 40px;
-  padding: 0 12px;
+  padding: 0 14px 0 16px;
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: 9999px;
   font-size: 14px;
   text-align: left;
   outline: none;
@@ -195,7 +195,7 @@ useClickOutside(root, () => { open.value = false }, open)
   padding: 4px 8px;
   background: none;
   border: 0;
-  border-radius: 6px;
+  border-radius: 9999px;
   font-size: 13px;
   font-weight: 500;
 }
@@ -216,7 +216,7 @@ useClickOutside(root, () => { open.value = false }, open)
   height: 28px;
   background: none;
   border: 0;
-  border-radius: 6px;
+  border-radius: 9999px;
   font-size: 15px;
   color: var(--ink-2);
 }
@@ -238,7 +238,7 @@ useClickOutside(root, () => { open.value = false }, open)
   height: 30px;
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 9999px;
   font-size: 12px;
 }
 

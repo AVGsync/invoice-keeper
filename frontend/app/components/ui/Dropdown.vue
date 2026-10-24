@@ -77,10 +77,10 @@ function pick(value: string) {
   gap: 8px;
   width: 100%;
   height: 40px;
-  padding: 0 12px;
+  padding: 0 14px 0 16px;
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: 9999px;
   text-align: left;
 }
 
@@ -145,7 +145,7 @@ function pick(value: string) {
   padding: 0 10px;
   background: none;
   border: 0;
-  border-radius: 6px;
+  border-radius: 9999px;
   text-align: left;
 }
 

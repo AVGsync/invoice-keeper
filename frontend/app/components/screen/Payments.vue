@@ -4,9 +4,12 @@ const { isAdmin } = useRole()
 const status = ref('all')
 const showNewPayment = ref(false)
 
-// 'YYYY-MM', starts on the demo's current month
-const demoMonth = demoToday.slice(0, 7)
-const month = ref(demoMonth)
+const payments = usePayments()
+onMounted(payments.load)
+
+// 'YYYY-MM', starts on the current month
+const thisMonth = computed(() => payments.today.value.slice(0, 7))
+const month = ref(thisMonth.value)
 
 const currencies = ref<string[]>(['RUB', 'USD', 'EUR'])
 const currencyOptions = [
@@ -15,16 +18,15 @@ const currencyOptions = [
   { value: 'EUR', label: 'EUR', symbol: '€' },
 ]
 
-// '' = everyone
+// '' = everyone, otherwise the person's full name
 const assignee = ref('')
-const assigneeOptions = Object.entries(people).map(([key, person]) => ({ value: key, label: person.short, meta: person.persona }))
-
-const demo = useDemo()
+const assigneeOptions = computed(() => payments.assignees.value
+  .map(({ person }) => ({ value: person.name, label: person.short, meta: person.persona })))
 
 // currency and assignee filters first, the status filter goes on top of that
-const filtered = computed(() => demo.periods.value.filter(period => fromRu(period.due).startsWith(month.value)
+const filtered = computed(() => payments.periods.value.filter(period => fromRu(period.due).startsWith(month.value)
   && currencies.value.includes(period.currency)
-  && (!assignee.value || period.who.name === people[assignee.value as keyof typeof people].name)))
+  && (!assignee.value || period.who.name === assignee.value)))
 
 const count = (s: string) => filtered.value.filter(period => s === 'paid'
   ? period.status === 'paid' || period.status === 'late'
@@ -51,11 +53,11 @@ const currenciesModel = transitioned(currencies)
 const assigneeModel = transitioned(assignee)
 
 // any filter narrower than "everything"
-const isFiltered = computed(() => month.value !== demoMonth || status.value !== 'all' || currencies.value.length < 3 || !!assignee.value)
+const isFiltered = computed(() => month.value !== thisMonth.value || status.value !== 'all' || currencies.value.length < 3 || !!assignee.value)
 
 function resetFilters() {
   withTransition(() => {
-    month.value = demoMonth
+    month.value = thisMonth.value
     status.value = 'all'
     currencies.value = ['RUB', 'USD', 'EUR']
     assignee.value = ''
@@ -77,13 +79,23 @@ const shownTotals = computed(() => totalsOn(lastDayOf(month.value), filtered.val
     </AppPageHeader>
 
     <div class="filters">
-      <UiMonthPicker v-model="monthModel" :current="demoMonth" />
+      <UiMonthPicker v-model="monthModel" :current="thisMonth" />
       <UiSegmented v-model="statusModel" :options="statusOptions" />
       <UiChips v-model="currenciesModel" :options="currencyOptions" />
       <UiDropdown v-model="assigneeModel" :options="assigneeOptions" prefix="Ответственный:" placeholder="все" compact class="assignee" />
     </div>
 
-    <PaymentsTable :periods="shown" :totals="shownTotals" :filtered="isFiltered" :month="monthName" @reset="resetFilters" />
+    <UiState v-if="payments.loadError.value" kind="error" class="load-error" @retry="payments.load">
+      Не удалось загрузить платежи: {{ payments.loadError.value }}
+    </UiState>
+    <PaymentsTable
+      :periods="shown"
+      :totals="shownTotals"
+      :filtered="isFiltered"
+      :month="monthName"
+      :loading="payments.pending.value"
+      @reset="resetFilters"
+    />
 
     <Transition name="modal">
       <NewPaymentModal v-if="showNewPayment" @close="showNewPayment = false" />
@@ -109,5 +121,9 @@ const shownTotals = computed(() => totalsOn(lastDayOf(month.value), filtered.val
 
 .new {
   width: 160px;
+}
+
+.load-error {
+  margin-bottom: 12px;
 }
 </style>

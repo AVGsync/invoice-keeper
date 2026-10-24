@@ -43,14 +43,23 @@ function watch(page, who) {
 }
 
 const browser = await chromium.launch()
+// most checks are about the screens, so they run on the fixed demo data (demo mode on).
+// T48 checks the live api calls, T50 the demo actions
+const demoOn = () => {
+  if (!localStorage.getItem('invoice-keeper:prefs')) localStorage.setItem('invoice-keeper:prefs', JSON.stringify({ demoMode: true }))
+}
 const admin = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })
+await admin.addInitScript(demoOn)
 const page = await admin.newPage()
 watch(page, 'admin')
 const shot = name => page.screenshot({ path: `${SHOTS}${name}.png` })
 const rows = () => page.locator('.table .row:not(.head)')
 const rowsOf = p => p.locator('.table .row:not(.head)')
 const modalTitled = (p, title) => p.locator('.modal').filter({ has: p.locator('h2.title', { hasText: new RegExp(`^${title}$`) }) })
-const hydrated = p => p.waitForFunction(() => !!document.querySelector('#__nuxt')?.__vue_app__, null, { timeout: 15000 }).then(() => p.waitForLoadState('networkidle'))
+// networkidle sometimes never comes through the dev proxy (a finished api answer stays "open" for playwright),
+// so it gets a short wait; the checks after it wait for their own elements anyway
+const hydrated = p => p.waitForFunction(() => !!document.querySelector('#__nuxt')?.__vue_app__, null, { timeout: 15000 })
+  .then(() => p.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {}))
 let userPassword = ''
 
 // date fields can't be typed into: open the calendar, go to the month, click the day
@@ -85,7 +94,7 @@ try {
   })
 
   await check('T25', async () => {
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
     await shot('C1-login')
     const title = await page.locator('.receipt .line').first().locator('.title').boundingBox()
     const amount = await page.locator('.receipt .line').first().locator('.amount').boundingBox()
@@ -118,13 +127,13 @@ try {
     const role = await page.locator('.me-role').innerText()
     assert(name === 'Администратор', `name "${name}"`)
     assert(role === 'admin · .env', `role "${role}"`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
     await shot('A1-overview')
   })
 
   await check('T9', async () => {
     await page.reload()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
     assert(page.url().endsWith('/admin/overview'), `url after reload ${page.url()}`)
     assert(await page.locator('.me-name').innerText() === 'Администратор', 'sidebar empty after reload')
   })
@@ -227,8 +236,13 @@ try {
     await shot('A2-payments-popover')
     await popover.getByRole('button', { name: 'Отмена' }).click()
     await popover.waitFor({ state: 'detached', timeout: 5000 })
+    // a paid row opens too: to fix the date or take the mark off
     await rows().filter({ hasText: 'Интернет в офисе' }).click()
-    assert(await page.locator('.popover').count() === 0, 'paid row opened popover')
+    await popover.waitFor({ timeout: 5000 })
+    assert(await popover.getByRole('button', { name: 'Снять отметку' }).count() === 1, 'paid row popover has no «Снять отметку»')
+    await page.keyboard.press('Escape')
+    await page.locator('h1.title').click()
+    await popover.waitFor({ state: 'detached', timeout: 5000 })
   })
 
   await check('T21', async () => {
@@ -446,7 +460,7 @@ try {
     await hydrated(page)
     await rows().filter({ hasText: 'admin' }).first().waitFor({ timeout: 10000 })
     await page.locator('aside.panel').waitFor()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
     await shot('A4-users')
     return `${await rows().count()} users, ${await page.locator('aside.panel .item').count()} persona rows`
   })
@@ -536,6 +550,7 @@ try {
 
   // ---------- regular user ----------
   const userCtx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })
+  await userCtx.addInitScript(demoOn)
   const up = await userCtx.newPage()
   watch(up, 'user')
 
@@ -547,7 +562,7 @@ try {
     const role = await up.locator('.me-role').innerText()
     assert(role === `user · ${P1}`, `role "${role}"`)
     assert(await up.getByRole('button', { name: 'Новый платёж' }).count() === 0, 'user sees «Новый платёж»')
-    await up.waitForLoadState('networkidle')
+    await up.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
     await up.screenshot({ path: `${SHOTS}U1-overview.png` })
   })
 
@@ -563,7 +578,7 @@ try {
     assert(await up.getByRole('button', { name: 'Прекратить' }).count() === 0, 'user sees «Прекратить»')
     await up.screenshot({ path: `${SHOTS}U4-recurring.png` })
     await up.goto(`${BASE}/user/payments`)
-    await up.waitForLoadState('networkidle')
+    await up.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
     await up.screenshot({ path: `${SHOTS}U2-payments.png` })
   })
   await userCtx.close()
@@ -643,28 +658,80 @@ try {
     await ctx.close()
   })
 
-  await check('T48', async () => {
-    // things waiting for the backend are marked «скоро»: disabled, with a reason on hover
-    await page.goto(`${BASE}/admin/overview`)
-    await hydrated(page)
-    const marked = page.locator('.soon')
-    const count = await marked.count()
-    assert(count >= 4, `only ${count} «скоро» controls on Обзор`)
-    const markPaid = page.getByRole('button', { name: 'Отметить оплату' })
-    assert(await markPaid.isDisabled(), '«Отметить оплату» is clickable')
-    assert((await markPaid.getAttribute('title'))?.includes('сервер'), 'no hint on «Отметить оплату»')
-    await page.goto(`${BASE}/admin/recurring`)
-    await hydrated(page)
-    assert(await page.getByRole('button', { name: 'Прекратить' }).first().isDisabled(), '«Прекратить» is clickable')
-    return `${count} on Обзор`
-  })
-
   // a fresh browser with the admin's cookies, so settings saved here don't leak into other checks
   const prefsContext = () => browser.newContext({ viewport: { width: 1920, height: 1080 }, reducedMotion: 'reduce', storageState: { cookies: [], origins: [] } })
     .then(async (ctx) => {
       await ctx.addCookies((await admin.storageState()).cookies)
       return ctx
     })
+
+  await check('T48', async () => {
+    // live mode (demo off) talks to the payment api. the server has no hard delete for payments,
+    // so instead of writing to it the payment endpoints answer from here and every write is recorded
+    const ctx = await prefsContext()
+    const p = await ctx.newPage()
+    watch(p, 'live')
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(new Date())
+    const shift = (n) => {
+      const d = new Date(`${today}T12:00:00`)
+      d.setDate(d.getDate() + n)
+      return d.toISOString().slice(0, 10)
+    }
+    const recurring = [
+      { id: 'r1', amount: 12000000, currency: 'RUB', description: 'Аренда офиса', frequency: 'monthly', interval: 1, start_date: shift(-6), assignee_name: 'Ольга Иванова' },
+      { id: 'r2', amount: 4990, currency: 'USD', description: 'Сервер VPS', frequency: 'monthly', interval: 1, start_date: shift(1), assignee_name: 'Дмитрий Ким' },
+    ]
+    const occurrences = [
+      { id: 'o1', recurrent_payment_id: 'r1', amount: 12000000, currency: 'RUB', description: 'Аренда офиса', due_date: shift(-6), status: 'overdue', assignee_name: 'Ольга Иванова' },
+      { id: 'o2', recurrent_payment_id: 'r2', amount: 4990, currency: 'USD', description: 'Сервер VPS', due_date: shift(1), status: 'pending', assignee_name: 'Дмитрий Ким' },
+    ]
+    const writes = []
+    await p.route('**/api/v1/payment-occurrences**', (route) => {
+      const req = route.request()
+      if (req.method() === 'GET') return route.fulfill({ json: { items: occurrences, total: occurrences.length } })
+      writes.push(`${req.method()} ${new URL(req.url()).pathname} ${req.postData()}`)
+      const item = occurrences.find(o => req.url().endsWith(o.id))
+      Object.assign(item, { status: 'paid', paid_date: today })
+      return route.fulfill({ status: 204 })
+    })
+    await p.route('**/api/v1/recurring-payments**', (route) => {
+      const req = route.request()
+      if (req.method() === 'GET') return route.fulfill({ json: recurring })
+      writes.push(`${req.method()} ${new URL(req.url()).pathname} ${req.postData() ?? ''}`)
+      if (req.method() === 'DELETE') recurring.find(r => req.url().endsWith(r.id)).stopped_at = new Date().toISOString()
+      return route.fulfill(req.method() === 'POST' ? { status: 201, json: { id: 'r9' } } : { status: 204 })
+    })
+
+    await p.goto(`${BASE}/admin/overview`)
+    await hydrated(p)
+    assert(await p.locator('.soon').count() === 0, '«скоро» left on Обзор')
+    await p.locator('.banner').getByRole('button', { name: 'Отметить оплату' }).click()
+    await p.locator('.banner').waitFor({ state: 'detached', timeout: 5000 })
+    assert(writes[0] === `PATCH /api/v1/payment-occurrences/o1 {"action":"confirm","paid_date":"${today}"}`, `mark: ${writes[0]}`)
+
+    await p.goto(`${BASE}/admin/recurring`)
+    await hydrated(p)
+    const vps = rowsOf(p).filter({ hasText: 'Сервер VPS' })
+    await vps.getByRole('button', { name: 'Прекратить' }).click()
+    assert(writes.length === 1, 'stopped on the first click')
+    await vps.getByRole('button', { name: 'Точно прекратить?' }).click()
+    await vps.waitFor({ state: 'detached', timeout: 5000 })
+    assert(writes[1] === 'DELETE /api/v1/recurring-payments/r2 ', `stop: ${writes[1]}`)
+
+    await p.getByRole('button', { name: 'Новый платёж' }).click()
+    const modal = modalTitled(p, 'Новый регулярный платёж')
+    await modal.getByLabel('Название').fill('Аренда склада')
+    await modal.getByLabel('Сумма').fill('45000,50')
+    await modal.getByLabel('Ответственный').click()
+    await modal.locator('.menu .option').first().click()
+    await modal.getByRole('button', { name: 'Добавить платёж' }).click()
+    await modal.waitFor({ state: 'detached', timeout: 5000 })
+    const body = JSON.parse(writes[2]?.split(' ').slice(2).join(' ') ?? '{}')
+    assert(body.amount === 4500050 && body.description === 'Аренда склада' && body.frequency === 'monthly' && body.interval === 1 && body.assignee_id,
+      `create: ${writes[2]}`)
+    await ctx.close()
+    return `${writes.length} writes, all as in Swagger`
+  })
 
   await check('T49', async () => {
     // theme switch in the sidebar, accessibility switches in Настройки, all kept after reload
@@ -680,6 +747,7 @@ try {
     const bg = await p.evaluate(() => getComputedStyle(document.body).backgroundColor)
     await p.goto(`${BASE}/admin/settings`)
     await hydrated(p)
+    await p.getByRole('button', { name: /Доступность/ }).click()
     await p.getByRole('switch', { name: 'Меньше движения' }).click()
     await p.getByRole('switch', { name: 'Шрифт для дислексии' }).click()
     await p.reload()
@@ -694,12 +762,13 @@ try {
   })
 
   await check('T50', async () => {
-    // demo mode: «скоро» buttons work on the demo data in this browser
+    // demo mode: the actions change the demo data in this browser only
     const ctx = await prefsContext()
     const p = await ctx.newPage()
     watch(p, 'demo')
     await p.goto(`${BASE}/admin/settings`)
     await hydrated(p)
+    await p.getByRole('button', { name: /Демо-режим/ }).click()
     await p.getByRole('switch', { name: 'Демо-режим' }).click()
     await p.locator('aside .demo').waitFor()
 
@@ -721,6 +790,7 @@ try {
     await p.waitForURL('**/admin/recurring')
     const before = await rowsOf(p).count()
     await rowsOf(p).filter({ hasText: 'Почта Workspace' }).getByRole('button', { name: 'Прекратить' }).click()
+    await rowsOf(p).filter({ hasText: 'Почта Workspace' }).getByRole('button', { name: 'Точно прекратить?' }).click()
     await p.waitForFunction(n => document.querySelectorAll('.table .row:not(.head)').length === n - 1, before)
     await p.getByRole('button', { name: 'Новый платёж' }).click()
     const modal = modalTitled(p, 'Новый регулярный платёж')
@@ -728,6 +798,8 @@ try {
     await modal.getByText('Введите название').waitFor()
     await modal.getByLabel('Название').fill('Тестовый склад')
     await modal.getByLabel('Сумма').fill('45000')
+    await modal.getByLabel('Ответственный').click()
+    await modal.locator('.menu .option').first().click()
     await modal.getByRole('button', { name: 'Добавить платёж' }).click()
     await modal.waitFor({ state: 'detached' })
     await rowsOf(p).filter({ hasText: 'Тестовый склад' }).waitFor()
@@ -735,6 +807,7 @@ try {
     // reset brings the seed data back
     await p.locator('aside.sidebar').getByRole('link', { name: 'Настройки' }).click()
     await p.waitForURL('**/admin/settings')
+    await p.getByRole('button', { name: /Демо-режим/ }).click()
     await p.getByRole('button', { name: 'Сбросить', exact: true }).click()
     await p.locator('aside.sidebar').getByRole('link', { name: 'Регулярные' }).click()
     await p.waitForURL('**/admin/recurring')

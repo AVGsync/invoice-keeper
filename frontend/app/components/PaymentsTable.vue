@@ -1,20 +1,27 @@
 <script setup lang="ts">
 import type { CurrencyTotal, Period } from '~/utils/demo'
 
-withDefaults(defineProps<{ periods: Period[], totals: CurrencyTotal[], filtered?: boolean, month?: string }>(), { month: 'октябрь' })
-// every demo payment (the `periods` prop only has the filtered ones).
-// its index gives each row a stable view-transition-name
-const { periods: allPeriods, enabled: demoOn } = useDemo()
+withDefaults(defineProps<{
+  periods: Period[]
+  totals: CurrencyTotal[]
+  filtered?: boolean
+  month?: string
+  loading?: boolean
+}>(), { month: 'октябрь' })
 defineEmits<{ reset: [] }>()
 
-// title of the row whose "mark paid" popover is open
+const payments = usePayments()
+
+// id of the row whose "mark paid" popover is open
 const open = ref<string>()
 
-// paid rows only open (to fix the date or unmark) in demo mode
+// a paid row opens too: to fix the date or take the mark off
 function toggle(period: Period) {
-  if (period.paidAt && !demoOn.value) return
-  open.value = open.value === period.title ? undefined : period.title
+  if (!clickable(period)) return
+  open.value = open.value === period.id ? undefined : period.id
 }
+
+const clickable = (period: Period) => period.status !== 'ended' && payments.canMark(period)
 </script>
 
 <template>
@@ -33,10 +40,10 @@ function toggle(period: Period) {
 
     <div
       v-for="(period, i) in periods"
-      :key="period.title"
+      :key="period.id"
       class="row rise"
-      :class="{ overdue: period.status === 'overdue', clickable: !period.paidAt || demoOn, 'has-popover': open === period.title }"
-      :style="{ viewTransitionName: `row-${allPeriods.indexOf(period)}`, '--i': i }"
+      :class="{ overdue: period.status === 'overdue', clickable: clickable(period), 'has-popover': open === period.id }"
+      :style="{ viewTransitionName: `row-${period.id}`, '--i': i }"
       @click="toggle(period)"
     >
       <span class="mono muted small">{{ String(i + 1).padStart(2, '0') }}</span>
@@ -62,12 +69,18 @@ function toggle(period: Period) {
       </span>
 
       <Transition name="menu">
-        <MarkPaidPopover v-if="open === period.title" :period="period" class="popover" @close="open = undefined" />
+        <MarkPaidPopover v-if="open === period.id" :period="period" class="popover" @close="open = undefined" />
       </Transition>
     </div>
 
     <!-- nothing matched: say so and offer a way out -->
-    <UiState v-if="!periods.length" class="empty">
+    <template v-if="loading">
+      <div v-for="n in 4" :key="n" class="row">
+        <span /><span class="skeleton-stack"><UiSkeleton width="160px" /><UiSkeleton width="90px" height="10px" /></span>
+        <UiSkeleton width="100px" /><UiSkeleton width="80px" /><UiSkeleton width="90px" class="right-skeleton" />
+      </div>
+    </template>
+    <UiState v-else-if="!periods.length" class="empty">
       {{ filtered ? 'Под эти фильтры нет ни одного платежа.' : 'Платежей пока нет.' }}
       <template v-if="filtered">
         <br>
@@ -198,5 +211,15 @@ function toggle(period: Period) {
   display: flex;
   gap: 12px;
   width: 220px;
+}
+
+.skeleton-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.right-skeleton {
+  justify-self: end;
 }
 </style>

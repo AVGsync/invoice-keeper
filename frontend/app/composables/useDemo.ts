@@ -1,8 +1,7 @@
-import type { Currency, Period, Template } from '~/utils/demo'
+import type { Currency, Period, Person, Template } from '~/utils/demo'
 
-// the demo payments every payment screen reads. with demo mode on (Настройки) the actions below
-// really change them, in this browser only, until reload. with it off they stay read-only
-// and the buttons waiting for the backend are marked «скоро»
+// the demo payments, used by usePayments() while demo mode is on (Настройки).
+// the actions below change them in this browser only, until reload
 export function useDemo() {
   const { prefs } = usePrefs()
   const enabled = computed(() => prefs.value.demoMode)
@@ -48,28 +47,32 @@ export function useDemo() {
     template.nextDue = undefined
   }
 
-  function add(input: { title: string, amount: number, currency: Currency, dueIso: string, yearly: boolean }) {
+  function add(input: { title: string, amount: number, currency: Currency, dueIso: string, yearly: boolean, who?: Person }) {
     const amount = formatMoney(input.amount, input.currency)
     const frequency = input.yearly ? 'ежегодно' : 'ежемесячно'
+    const who = input.who ?? people.olga
     const day = Number(input.dueIso.slice(8, 10))
     const daysLeft = daysBetween(demoToday, input.dueIso)
 
+    const id = `demo-new-${Date.now()}`
     data.value.templates.unshift({
+      id,
       title: input.title,
       category: 'Новый',
       amount,
       currency: input.currency,
       frequency,
       day: input.yearly ? `${day} ${monthNamesGenitive[Number(input.dueIso.slice(5, 7)) - 1]}` : `${day}-е число`,
-      who: people.olga,
+      who,
       nextDue: toRu(input.dueIso),
     })
 
     const period: Period = {
+      id: `${id}-p`,
       title: input.title,
       frequency,
       meta: `${frequency} · новый`,
-      who: people.olga,
+      who,
       due: toRu(input.dueIso),
       relative: daysLeft === 1 ? 'завтра' : daysLeft > 1 ? `через ${daysLeft} дн.` : daysLeft < 0 ? `${-daysLeft} дн. назад` : 'сегодня',
       amount,

@@ -15,7 +15,7 @@ withDefaults(defineProps<{
 .skeleton {
   display: inline-block;
   vertical-align: middle;
-  border-radius: 4px;
+  border-radius: 9999px;
   background: var(--subtle);
   opacity: 0.7;
 }

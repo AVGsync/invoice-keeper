@@ -11,6 +11,7 @@ const labels = {
   paid: 'Оплачено',
   late: 'Оплачено с опозданием',
   overdue: 'Просрочено',
+  ended: 'Остановлен',
   active: 'Активен',
 }
 </script>
@@ -46,14 +47,16 @@ const labels = {
   background: currentColor;
 }
 
-.pending,
-.active {
+.pending { background: var(--accent-bg); color: var(--accent-ink); }
+.active { background: var(--green-bg); color: var(--green); }
+
+/* stopped: not a debt any more, so no colour */
+.ended {
   background: var(--subtle);
   color: var(--ink-2);
 }
 
-.pending .dot,
-.active .dot {
+.ended .dot {
   background: var(--ink-3);
 }
 

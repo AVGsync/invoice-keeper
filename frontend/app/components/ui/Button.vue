@@ -21,7 +21,7 @@ withDefaults(defineProps<{
 
 <style scoped>
 .btn {
-  border-radius: 8px;
+  border-radius: 9999px;
   font-weight: 500;
   padding: 0 16px;
   white-space: nowrap;

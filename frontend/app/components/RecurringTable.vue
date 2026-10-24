@@ -1,8 +1,19 @@
 <script setup lang="ts">
 import type { Template } from '~/utils/demo'
 
-const props = defineProps<{ templates: Template[], demo?: boolean }>()
-defineEmits<{ stop: [template: Template] }>()
+const props = defineProps<{ templates: Template[] }>()
+const emit = defineEmits<{ stop: [template: Template] }>()
+
+// stopping can't be undone, so the first click only asks
+const confirming = ref<string>()
+function stop(item: Template) {
+  if (confirming.value !== item.id) {
+    confirming.value = item.id
+    return
+  }
+  confirming.value = undefined
+  emit('stop', item)
+}
 const { isAdmin } = useRole()
 
 // soonest next due date first, stopped ones (no next date) at the end
@@ -24,7 +35,7 @@ const sorted = computed(() => [...props.templates].sort((a, b) =>
       <span v-if="isAdmin" />
     </div>
 
-    <div v-for="(item, i) in sorted" :key="item.title" class="row rise" :class="{ ended: item.ended }" :style="{ '--i': i }">
+    <div v-for="(item, i) in sorted" :key="item.id" class="row rise" :class="{ ended: item.ended }" :style="{ '--i': i }">
       <span class="mono muted small">{{ String(i + 1).padStart(2, '0') }}</span>
       <span>
         <span class="title">{{ item.title }}</span>
@@ -40,12 +51,19 @@ const sorted = computed(() => [...props.templates].sort((a, b) =>
       <span class="mono dim">{{ item.nextDue ?? '—' }}</span>
       <span v-if="item.ended" class="muted">Прекращён</span>
       <UiStatus v-else status="active" />
-      <!-- «Прекратить» works in demo mode, «История» needs the backend either way -->
+      <!-- «История» waits for the backend -->
       <template v-if="isAdmin">
-        <button v-if="!item.ended && demo" type="button" class="action" @click="$emit('stop', item)">Прекратить</button>
-        <button v-else type="button" class="action text-action soon" disabled :title="soonHint">
-          {{ item.ended ? 'История' : 'Прекратить' }}
+        <button
+          v-if="!item.ended"
+          type="button"
+          class="action"
+          :class="{ confirm: confirming === item.id }"
+          @click="stop(item)"
+          @blur="confirming = undefined"
+        >
+          {{ confirming === item.id ? 'Точно прекратить?' : 'Прекратить' }}
         </button>
+        <button v-else type="button" class="action text-action soon" disabled :title="soonHint">История</button>
       </template>
     </div>
   </div>
@@ -76,7 +94,7 @@ const sorted = computed(() => [...props.templates].sort((a, b) =>
 }
 
 .admin .row {
-  grid-template-columns: 36px 234px 130px 90px 180px 160px 120px 1fr 90px;
+  grid-template-columns: 36px 210px 130px 80px 160px 160px 120px 1fr 130px;
 }
 
 /* header: plain small text, the hairline under it does the separating */
@@ -121,5 +139,10 @@ const sorted = computed(() => [...props.templates].sort((a, b) =>
   color: var(--ink-2);
   text-align: right;
   justify-self: end;
+}
+
+.action.confirm {
+  color: var(--red);
+  font-weight: 500;
 }
 </style>

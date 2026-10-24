@@ -12,7 +12,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 const theme = process.env.UI_THEME ?? 'dark'
 await page.addInitScript(t => localStorage.setItem('invoice-keeper:prefs', JSON.stringify({ theme: t })), theme)
 console.log(`theme: ${theme}`)
-const hydrated = () => page.waitForFunction(() => !!document.querySelector('#__nuxt')?.__vue_app__).then(() => page.waitForLoadState('networkidle'))
+const hydrated = () => page.waitForFunction(() => !!document.querySelector('#__nuxt')?.__vue_app__).then(() => page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {}))
 
 // every visible text element whose contrast with the real background behind it is under 3:1
 function audit() {

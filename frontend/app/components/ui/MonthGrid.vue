@@ -67,7 +67,7 @@ const is = (month: Month | undefined, index: number) => month?.year === shownYea
   height: 28px;
   background: none;
   border: 0;
-  border-radius: 6px;
+  border-radius: 9999px;
   font-size: 15px;
   color: var(--ink-2);
 }
@@ -82,7 +82,7 @@ const is = (month: Month | undefined, index: number) => month?.year === shownYea
   height: 36px;
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 9999px;
   font-size: 13px;
 }
 

@@ -75,7 +75,7 @@ function step(by: number) {
   padding: 0 6px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 9999px;
 }
 
 .control .label {
@@ -90,7 +90,9 @@ function step(by: number) {
 .arrow {
   display: inline-grid;
   place-items: center;
-  width: 20px;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
   background: none;
   border: 0;
   font-size: 15px;
@@ -123,10 +125,11 @@ function step(by: number) {
 
 .arrows {
   display: flex;
+  overflow: hidden;
   height: 32px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 9999px;
 }
 
 .arrows button {

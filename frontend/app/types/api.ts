@@ -143,3 +143,121 @@ export interface MiniAppAuthResponse {
   token_type?: string
   user?: MiniAppUser
 }
+
+// ---- payments (Swagger from main, synced 2026-10-24) ----
+// amounts are in minor units: kopecks, cents. dates are "YYYY-MM-DD"
+
+export interface RecurrentPayment {
+  id?: string
+  amount?: number
+  currency?: string
+  description?: string
+  // weekly | monthly
+  frequency?: string
+  // every N weeks or months
+  interval?: number
+  // monthly: day of the month 1-31, weekly: day of the week 0-6
+  day_offset?: number
+  // the first due date, the schedule counts from it
+  start_date?: string
+  assignee_id?: string | null
+  assignee_name?: string
+  // set once the payment is stopped
+  stopped_at?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CreateRecurrentPaymentRequest {
+  amount?: number
+  currency?: string
+  description?: string
+  frequency?: string
+  interval?: number
+  day_offset?: number
+  start_date?: string
+  assignee_id?: string
+}
+
+// the schedule fields can't change, only amount, currency, description and assignee
+export interface UpdateRecurrentPaymentRequest {
+  amount?: number
+  currency?: string
+  description?: string
+  assignee_id?: string
+  frequency?: string
+  interval?: number
+  day_offset?: number
+  start_date?: string
+}
+
+export interface PaymentOccurrence {
+  id?: string
+  // who has to pay it
+  user_id?: string
+  recurrent_payment_id?: string | null
+  amount?: number
+  currency?: string
+  description?: string
+  due_date?: string
+  paid_date?: string | null
+  paid_late?: boolean
+  // pending | overdue | paid | ended
+  status?: string
+  assignee_name?: string
+  // its recurring payment was stopped
+  ended?: boolean
+  paid_at?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface PaymentListResponse {
+  items?: PaymentOccurrence[]
+  total?: number
+}
+
+// action confirm: mark paid (paid_date defaults to today, on a paid one it changes the date).
+// action cancel: take the mark off. no action: admin edits amount / currency / description
+export interface PatchPaymentOccurrenceRequest {
+  action?: 'confirm' | 'cancel'
+  paid_date?: string
+  amount?: number
+  currency?: string
+  description?: string
+  due_date?: string
+}
+
+export interface PaymentCurrencySummary {
+  currency?: string
+  paid_total?: number
+  outstanding_total?: number
+  overdue_total?: number
+}
+
+export interface PaymentSummaryResponse {
+  items?: PaymentCurrencySummary[]
+}
+
+export interface UserNotificationSettings {
+  user_id?: string
+  email?: string
+  email_enabled?: boolean
+  email_verified?: boolean
+  days_before_due?: number
+  // "HH:MM"
+  send_time?: string
+  timezone?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface UpdateUserNotificationSettingsRequest {
+  email?: string
+  email_enabled?: boolean
+  days_before_due?: number
+  send_time?: string
+  timezone?: string
+}
+
+export type PatchUserNotificationSettingsRequest = UpdateUserNotificationSettingsRequest

@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import type { Period } from '~/utils/demo'
 
-defineProps<{ items: Period[], soon?: boolean }>()
+defineProps<{ items: Period[], canMark?: (period: Period) => boolean }>()
+
+const shortMonths = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
+const monthOf = (due: string) => shortMonths[Number(due.slice(3, 5)) - 1] ?? ''
 defineEmits<{ mark: [period: Period] }>()
 </script>
 
 <template>
   <ul class="list">
-    <li v-for="(item, i) in items" :key="item.title" class="row rise" :style="{ '--i': i }">
-      <UiDateTile month="окт" :day="item.due.slice(0, 2)" />
+    <li v-for="(item, i) in items" :key="item.id" class="row rise" :style="{ '--i': i }">
+      <UiDateTile :month="monthOf(item.due)" :day="item.due.slice(0, 2)" />
       <span class="relative" :class="{ near: item.relative === 'завтра' }">{{ item.relative }}</span>
       <span>
         <span class="title">{{ item.title }}</span>
@@ -22,7 +25,7 @@ defineEmits<{ mark: [period: Period] }>()
         <UiStatus v-else :status="item.status" />
       </span>
       <span class="action">
-        <UiButton v-if="!item.paidAt" :soon="soon" @click="$emit('mark', item)">Оплачено</UiButton>
+        <UiButton v-if="!item.paidAt && (!canMark || canMark(item))" @click="$emit('mark', item)">Оплачено</UiButton>
       </span>
     </li>
   </ul>
