@@ -15,6 +15,175 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/assistant/ask": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Задаёт ассистенту вопрос на естественном языке о платежах команды\n(«что просрочено?», «сколько платим в долларах в этом месяце?»). Go\nаутентифицирует пользователя, применяет лимиты, перечитывает роль из БД,\nподписывает короткоживущий actor-JWT и проксирует вопрос в nlq-agent.\nОтвет — конверт §7.9: короткий текст плюс блоки с данными. Числа и даты\nсчитает БД, текст проходит grounding-check.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ассистент"
+                ],
+                "summary": "Вопрос ассистенту (NL-запрос о платежах)",
+                "parameters": [
+                    {
+                        "description": "Вопрос и канал (web|miniapp)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AssistantAskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Конверт ответа агента",
+                        "schema": {
+                            "$ref": "#/definitions/response.AssistantAnswerResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Пустой/длинный вопрос или неверный channel (bad_request)",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или просрочен токен",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Превышен лимит (assistant_rate_limited), заголовок Retry-After",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Фича выключена/занята/агент недоступен (assistant_disabled|assistant_busy|assistant_unavailable)",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "Агент не уложился в таймаут (assistant_timeout)",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/assistant/ask/stream": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "То же, что POST /assistant/ask, но ответ приходит потоком Server-Sent\nEvents: кадры step (идёт инструмент), block (блок данных), text (текст\nпосле grounding) и done (полный конверт). Go проксирует поток от агента с\nнемедленным flush и отключённой буферизацией (X-Accel-Buffering: no); при\nразрыве соединения с клиентом фоновая работа агента отменяется.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Ассистент"
+                ],
+                "summary": "Вопрос ассистенту со стримингом (SSE)",
+                "parameters": [
+                    {
+                        "description": "Вопрос и канал (web|miniapp)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AssistantAskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Поток SSE (event: step|block|text|done|error)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "bad_request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или просрочен токен",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "assistant_rate_limited",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "assistant_disabled|assistant_busy|assistant_unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "assistant_timeout",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/assistant/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Включена ли фича и отвечает ли агент (кэш 10 с). UI прячет ассистента при\nenabled=false. При выключенной фиче healthy=false и mode пустой.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ассистент"
+                ],
+                "summary": "Состояние ассистента",
+                "responses": {
+                    "200": {
+                        "description": "Статус ассистента",
+                        "schema": {
+                            "$ref": "#/definitions/response.AssistantStatusResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или просрочен токен",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Проверяет логин и пароль пользователя. При успехе выставляет две\nHttpOnly-куки: ` + "`" + `AccessToken` + "`" + ` (TTL 1 час) и ` + "`" + `RefreshToken` + "`" + ` (TTL 7 дней),\nобе с флагами ` + "`" + `Secure` + "`" + ` и ` + "`" + `SameSite=Strict` + "`" + `. Тело успешного ответа пустое —\nтокены передаются только через Set-Cookie.\n\nПорядок проверок и коды ответов:\n1. тело не парсится как JSON → ` + "`" + `400 invalid request body` + "`" + `;\n2. не прошла валидация (пустой login или password) → ` + "`" + `400` + "`" + ` с текстом ошибки;\n3. пользователь не найден ИЛИ неверный пароль → ` + "`" + `401 invalid credentials` + "`" + `.\nВ целях защиты от перебора все ошибки аутентификации отдаются одинаково (401),\nбез различия «нет такого логина» / «неверный пароль».",
@@ -140,6 +309,121 @@ const docTemplate = `{
                         "description": "Не удалось выпустить новые токены",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/me/telegram": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает, привязан ли Telegram у текущего пользователя, и настройки доставки.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Telegram"
+                ],
+                "summary": "Состояние привязки Telegram",
+                "responses": {
+                    "200": {
+                        "description": "Состояние привязки",
+                        "schema": {
+                            "$ref": "#/definitions/response.TelegramLinkResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаляет привязку Telegram текущего пользователя.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Telegram"
+                ],
+                "summary": "Отвязать Telegram",
+                "responses": {
+                    "204": {
+                        "description": "Отвязано"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Привязки не было",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/me/telegram/link-code": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Создаёт одноразовый deep link для привязки Telegram к текущему пользователю.\nСсылку нужно открыть в Telegram и подтвердить привязку кнопкой. Код живёт 10 минут,\nодновременно активных кодов не больше трёх.\nКоды ответов: ` + "`" + `201` + "`" + ` — ссылка создана; ` + "`" + `429 too_many_link_codes` + "`" + ` — слишком много\nактивных кодов; ` + "`" + `503 telegram_disabled` + "`" + ` — бот выключен в конфигурации.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Telegram"
+                ],
+                "summary": "Код привязки Telegram",
+                "responses": {
+                    "201": {
+                        "description": "Deep link и TTL",
+                        "schema": {
+                            "$ref": "#/definitions/response.TelegramLinkCodeResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Слишком много активных кодов",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Бот выключен",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
@@ -424,6 +708,234 @@ const docTemplate = `{
                         "schema": {
                             "type": "string"
                         }
+                    }
+                }
+            }
+        },
+        "/telegram/miniapp/auth": {
+            "post": {
+                "description": "Проверяет подпись initData Telegram Mini App и, если этот Telegram уже\nпривязан к аккаунту, выпускает access-токен (только access, без refresh и cookie).\nРоль берётся из БД, поэтому админ получает полные права и в Mini App.\nКоды ответов: ` + "`" + `200` + "`" + ` — вошли; ` + "`" + `401 invalid_init_data` + "`" + ` / ` + "`" + `init_data_expired` + "`" + ` —\nподпись неверна или данные старше 10 минут; ` + "`" + `409 telegram_not_linked` + "`" + ` — этот\nTelegram ещё не привязан (нужно вызвать ` + "`" + `/telegram/miniapp/link` + "`" + `).\nСырые initData не логируются. Лимит ` + "`" + `30/min` + "`" + ` по IP.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Telegram"
+                ],
+                "summary": "Вход в Mini App по привязке",
+                "parameters": [
+                    {
+                        "description": "initData из Telegram.WebApp",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.MiniAppAuthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Access-токен и профиль",
+                        "schema": {
+                            "$ref": "#/definitions/response.MiniAppAuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Невалидное тело запроса",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Неверная или устаревшая initData",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Telegram не привязан",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Бот выключен",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/telegram/miniapp/link": {
+            "post": {
+                "description": "Проверяет подпись initData, затем логин и пароль аккаунта. При успехе\nпривязывает текущий Telegram к аккаунту и выпускает access-токен (пароль\nвводится один раз). Коды ответов: ` + "`" + `200` + "`" + ` — привязано и вошли;\n` + "`" + `401 invalid_init_data` + "`" + ` / ` + "`" + `init_data_expired` + "`" + ` — проблема с initData;\n` + "`" + `401 invalid_credentials` + "`" + ` — неверный логин или пароль (не различаются);\n` + "`" + `409 telegram_already_linked` + "`" + ` — этот Telegram уже за другим аккаунтом.\nСырые initData и пароль не логируются. Лимит ` + "`" + `10/min` + "`" + ` по IP, как у ` + "`" + `/auth/login` + "`" + `.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Telegram"
+                ],
+                "summary": "Привязка и вход в Mini App по логину/паролю",
+                "parameters": [
+                    {
+                        "description": "initData, логин и пароль",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.MiniAppLinkRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Access-токен и профиль",
+                        "schema": {
+                            "$ref": "#/definitions/response.MiniAppAuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Невалидное тело запроса",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Неверная initData или учётные данные",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Telegram уже привязан к другому аккаунту",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Бот выключен",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/telegram/team-chat": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает активный командный чат, куда уходят напоминания. Доступно роли ` + "`" + `admin` + "`" + `.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Telegram"
+                ],
+                "summary": "Командный чат (админ)",
+                "responses": {
+                    "200": {
+                        "description": "Состояние командного чата",
+                        "schema": {
+                            "$ref": "#/definitions/response.TelegramTeamChatResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/telegram/team-chat/test": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Отправляет тестовое сообщение в командный чат. Доступно роли ` + "`" + `admin` + "`" + `.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Telegram"
+                ],
+                "summary": "Тест командного чата (админ)",
+                "responses": {
+                    "202": {
+                        "description": "Сообщение отправлено"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Командный чат не привязан",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Ошибка Telegram",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/telegram/webhook": {
+            "post": {
+                "description": "Приём апдейтов Telegram. Проверяется заголовок X-Telegram-Bot-Api-Secret-Token,\nтело разбирается как Update. Ответ всегда 200 (кроме неверного секрета — 401).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Telegram"
+                ],
+                "summary": "Webhook Telegram",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Неверный секрет"
                     }
                 }
             }
@@ -785,6 +1297,25 @@ const docTemplate = `{
                 }
             }
         },
+        "request.AssistantAskRequest": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "description": "Канал обращения: web (по умолчанию) или miniapp.",
+                    "type": "string",
+                    "enum": [
+                        "web",
+                        "miniapp"
+                    ],
+                    "example": "web"
+                },
+                "question": {
+                    "description": "Вопрос на естественном языке, 1–500 символов.",
+                    "type": "string",
+                    "example": "что просрочено?"
+                }
+            }
+        },
         "request.CreatePersonaRequest": {
             "type": "object",
             "required": [
@@ -863,6 +1394,36 @@ const docTemplate = `{
                 }
             }
         },
+        "request.MiniAppAuthRequest": {
+            "type": "object",
+            "properties": {
+                "init_data": {
+                    "description": "Сырая строка initData из Telegram.WebApp (query-формат). Не логируется.",
+                    "type": "string",
+                    "example": "query_id=...\u0026user=%7B...%7D\u0026auth_date=...\u0026hash=..."
+                }
+            }
+        },
+        "request.MiniAppLinkRequest": {
+            "type": "object",
+            "properties": {
+                "init_data": {
+                    "description": "Сырая строка initData из Telegram.WebApp. Не логируется.",
+                    "type": "string",
+                    "example": "query_id=...\u0026user=%7B...%7D\u0026auth_date=...\u0026hash=..."
+                },
+                "login": {
+                    "description": "Логин аккаунта в Invoice Keeper.",
+                    "type": "string",
+                    "example": "ivan.petrov"
+                },
+                "password": {
+                    "description": "Пароль аккаунта. В логи не попадает.",
+                    "type": "string",
+                    "example": "Str0ngPass!2026"
+                }
+            }
+        },
         "request.UpdatePersonaRequest": {
             "type": "object",
             "properties": {
@@ -900,6 +1461,204 @@ const docTemplate = `{
                 }
             }
         },
+        "response.APIError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Code — стабильный машинный код; клиентская логика ветвится по нему.",
+                    "type": "string",
+                    "example": "payment_not_found"
+                },
+                "details": {
+                    "description": "Details содержит предметные данные, например currency или period при ошибке валидации платежа.",
+                    "type": "object"
+                },
+                "message": {
+                    "description": "Message предназначен для диагностики; UI может локализовать сообщение по Code.",
+                    "type": "string",
+                    "example": "payment not found"
+                },
+                "request_id": {
+                    "description": "RequestID совпадает с response header X-Request-ID и нужен для диагностики.",
+                    "type": "string",
+                    "example": "f16cc96e-aaf4-44fb-a462-836ed4d0b135"
+                }
+            }
+        },
+        "response.AssistantAnswerResponse": {
+            "type": "object",
+            "properties": {
+                "answer_id": {
+                    "description": "AnswerID совпадает с X-Request-ID.",
+                    "type": "string",
+                    "example": "f16cc96e-aaf4-44fb-a462-836ed4d0b135"
+                },
+                "blocks": {
+                    "description": "Блоки данных (до 3): occurrence_list, currency_totals, payment_list, people_list.",
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                },
+                "error_code": {
+                    "description": "ErrorCode при status=error: llm_unavailable | data_unavailable | timeout | bad_question.",
+                    "type": "string",
+                    "example": "llm_unavailable"
+                },
+                "followups": {
+                    "description": "Подсказки «можно спросить…».",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Кто отвечает за просроченные?"
+                    ]
+                },
+                "meta": {
+                    "description": "Метаданные ответа (модель, токены, стоимость, латентность); показываются только админу.",
+                    "type": "object"
+                },
+                "mode": {
+                    "description": "Режим: llm | rules | fake.",
+                    "type": "string",
+                    "enum": [
+                        "llm",
+                        "rules",
+                        "fake"
+                    ],
+                    "example": "llm"
+                },
+                "notes": {
+                    "description": "Оговорки, добавленные агентом.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "другие валюты не учитывались и не пересчитывались"
+                    ]
+                },
+                "status": {
+                    "description": "Статус: ok | partial | error.",
+                    "type": "string",
+                    "enum": [
+                        "ok",
+                        "partial",
+                        "error"
+                    ],
+                    "example": "ok"
+                },
+                "text": {
+                    "description": "Короткий текст ответа, plain text.",
+                    "type": "string",
+                    "example": "Просрочено 4 платежа."
+                }
+            }
+        },
+        "response.AssistantStatusResponse": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Включена ли фича (NLQ_ENABLED).",
+                    "type": "boolean",
+                    "example": true
+                },
+                "examples": {
+                    "description": "Примеры вопросов для подсказки в UI.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Что просрочено?",
+                        "Сколько платим в долларах в этом месяце?",
+                        "Кто отвечает за аренду?"
+                    ]
+                },
+                "healthy": {
+                    "description": "Отвечает ли агент на /healthz (кэш 10 с). При выключенной фиче всегда false.",
+                    "type": "boolean",
+                    "example": true
+                },
+                "mode": {
+                    "description": "Режим «мозга» агента: openrouter | rules | fake. Пусто, если агент недоступен.",
+                    "type": "string",
+                    "example": "openrouter"
+                }
+            }
+        },
+        "response.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error — единый envelope JSON-ошибок.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/response.APIError"
+                        }
+                    ]
+                }
+            }
+        },
+        "response.MiniAppAuthResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "description": "Access-токен (Bearer). Хранится в памяти JS, cookie не выставляются.",
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "dm_available": {
+                    "description": "Может ли бот писать пользователю в личку (allows_write_to_pm из initData).",
+                    "type": "boolean",
+                    "example": true
+                },
+                "expires_in": {
+                    "description": "Сколько секунд живёт access-токен.",
+                    "type": "integer",
+                    "example": 3600
+                },
+                "token_type": {
+                    "description": "Тип токена, всегда Bearer.",
+                    "type": "string",
+                    "example": "Bearer"
+                },
+                "user": {
+                    "description": "Профиль вошедшего пользователя.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/response.MiniAppUser"
+                        }
+                    ]
+                }
+            }
+        },
+        "response.MiniAppUser": {
+            "type": "object",
+            "properties": {
+                "full_name": {
+                    "description": "Полное имя.",
+                    "type": "string",
+                    "example": "Иван Петров"
+                },
+                "id": {
+                    "description": "Идентификатор пользователя.",
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "9a191dfa-5e71-47aa-bcb2-ed5e9c071830"
+                },
+                "role": {
+                    "description": "Роль: admin | user. Админ получает полные права и в Mini App.",
+                    "type": "string",
+                    "enum": [
+                        "admin",
+                        "user"
+                    ],
+                    "example": "user"
+                }
+            }
+        },
         "response.PersonaListResponse": {
             "type": "object",
             "properties": {
@@ -914,6 +1673,80 @@ const docTemplate = `{
                     "description": "Сколько всего персон.",
                     "type": "integer",
                     "example": 1
+                }
+            }
+        },
+        "response.TelegramLinkCodeResponse": {
+            "type": "object",
+            "properties": {
+                "deep_link": {
+                    "description": "Ссылка t.me для привязки, открывается в Telegram.",
+                    "type": "string",
+                    "example": "https://t.me/ik_dev_bot?start=link_AbC..."
+                },
+                "expires_in": {
+                    "description": "Сколько секунд живёт код.",
+                    "type": "integer",
+                    "example": 600
+                }
+            }
+        },
+        "response.TelegramLinkResponse": {
+            "type": "object",
+            "properties": {
+                "bot_blocked": {
+                    "description": "Заблокировал ли пользователь бота.",
+                    "type": "boolean"
+                },
+                "dm_enabled": {
+                    "description": "Включена ли доставка в личку.",
+                    "type": "boolean"
+                },
+                "linked": {
+                    "description": "Привязан ли Telegram.",
+                    "type": "boolean",
+                    "example": true
+                },
+                "linked_at": {
+                    "description": "Когда привязан.",
+                    "type": "string"
+                },
+                "tg_username": {
+                    "description": "Username в Telegram (может быть пустым).",
+                    "type": "string",
+                    "example": "ivan"
+                }
+            }
+        },
+        "response.TelegramTeamChatResponse": {
+            "type": "object",
+            "properties": {
+                "bound": {
+                    "description": "Привязан ли активный командный чат.",
+                    "type": "boolean",
+                    "example": true
+                },
+                "bound_at": {
+                    "description": "Когда привязан.",
+                    "type": "string"
+                },
+                "is_active": {
+                    "description": "Активен ли чат.",
+                    "type": "boolean"
+                },
+                "last_error": {
+                    "description": "Последняя ошибка доставки (например, «бот удалён из чата») или null.",
+                    "type": "string"
+                },
+                "tg_chat_id": {
+                    "description": "ID чата в Telegram.",
+                    "type": "integer",
+                    "example": -1001234567890
+                },
+                "title": {
+                    "description": "Название чата или null.",
+                    "type": "string",
+                    "example": "Финансы"
                 }
             }
         },

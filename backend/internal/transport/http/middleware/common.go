@@ -122,18 +122,20 @@ func (m *Middleware) MaxBytes(limit int64) func(http.Handler) http.Handler {
 	}
 }
 
-// extractToken: сначала кука, затем Authorization: Bearer <token>.
+// extractToken: сначала непустой Authorization: Bearer <token>, затем кука.
+// Явный Bearer важнее куки, иначе старая cookie из WebView перебивает токен
+// Mini App (docs/TELEGRAM_BOT.md §3.3).
 func extractToken(r *http.Request, cookieName string) (string, bool) {
-	if c, err := r.Cookie(cookieName); err == nil && c.Value != "" {
-		return c.Value, true
-	}
-
 	const prefix = "Bearer "
 	h := r.Header.Get("Authorization")
 	if len(h) > len(prefix) && strings.EqualFold(h[:len(prefix)], prefix) {
 		if tok := strings.TrimSpace(h[len(prefix):]); tok != "" {
 			return tok, true
 		}
+	}
+
+	if c, err := r.Cookie(cookieName); err == nil && c.Value != "" {
+		return c.Value, true
 	}
 	return "", false
 }
@@ -212,6 +214,19 @@ func (m *Middleware) IsAdmin(next http.Handler) http.Handler {
 		if !ok || claims.Role != "admin" {
 			slog.Debug("not admin", "path", r.URL.Path)
 			forbidden(w)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// IsAdminJSON — вариант IsAdmin с JSON-ошибкой (api.WriteError). Для Telegram-
+// эндпоинтов, которые отдают ошибки в едином JSON-формате (§7).
+func (m *Middleware) IsAdminJSON(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFromContext(r.Context())
+		if !ok || claims.Role != "admin" {
+			api.WriteError(w, r, http.StatusForbidden, "forbidden", "forbidden", nil)
 			return
 		}
 		next.ServeHTTP(w, r)

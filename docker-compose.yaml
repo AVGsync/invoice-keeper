@@ -17,7 +17,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-    networks: [app]
+    networks: [app, nlq-db]
 
   migrate:
     image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-migrations:${IMAGE_TAG:-latest}
@@ -78,9 +78,109 @@ services:
       - frontend
     networks: [app]
 
+  # ---- NL-ассистент (docs/NL_QUERIES.md §10.2) ----
+  # Один образ -nlq, три команды. backend НЕ зависит от nlq-* : без ассистента
+  # приложение обязано работать. Сервисы под профилем nlq, чтобы обычный
+  # `docker compose up -d` (postgres/backend/frontend/nginx) не поднимал их и не
+  # требовал ключей ассистента. Запуск со стеком NL:
+  #   docker compose --profile nlq up -d
+  # Переменные ассистента заданы с безопасными дефолтами (`:-`), иначе пустой
+  # прод-.env ломал бы интерполяцию всего файла даже при выключенном ассистенте;
+  # сами сервисы fail-closed, если ключ пуст/битый. Ключ OpenRouter живёт только
+  # в .env.nlq у агента.
+  #
+  # Генерация ключей actor-JWT (один раз, положить в .env). Не требует compose-
+  # интерполяции и работает до появления ключей:
+  #   docker run --rm ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nlq:${IMAGE_TAG:-latest} nlq.keygen
+  #   -> NLQ_ACTOR_PRIVATE_KEY (только backend) и NLQ_ACTOR_PUBLIC_KEY (agent+mcp)
+  # Пароль роли nlq_reader — свой секрет в NLQ_DB_PASSWORD.
+
+  nlq-db-init:
+    image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nlq:${IMAGE_TAG:-latest}
+    command: ["nlq.dbinit"]
+    restart: "no"
+    profiles: ["nlq"]
+    environment:
+      ADMIN_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      NLQ_DB_PASSWORD: ${NLQ_DB_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB}
+      APP_ENV: production
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [nlq-db]
+
+  nlq-mcp:
+    image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nlq:${IMAGE_TAG:-latest}
+    command: ["nlq.mcp_server"]
+    restart: unless-stopped
+    profiles: ["nlq"]
+    # БЕЗ env_file: переменные пробрасываются поимённо, ключа OpenRouter здесь нет.
+    environment:
+      APP_ENV: production
+      NLQ_DB_DSN: postgres://nlq_reader:${NLQ_DB_PASSWORD:-}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      NLQ_ACTOR_PUBLIC_KEY: ${NLQ_ACTOR_PUBLIC_KEY:-}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Moscow}
+      NLQ_USER_SCOPE: ${NLQ_USER_SCOPE:-team}
+      NLQ_MAX_ROWS: "20"
+    depends_on:
+      nlq-db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-m", "nlq.health", "mcp"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # Без app: нет интернета (эксфильтрация невозможна), не виден nginx/frontend.
+    networks: [nlq, nlq-db]
+
+  nlq-agent:
+    image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nlq:${IMAGE_TAG:-latest}
+    command: ["nlq.agent"]
+    restart: unless-stopped
+    profiles: ["nlq"]
+    # Только OPENROUTER_API_KEY. Файл .env.nlq в .gitignore (пример —
+    # nlq/.env.nlq.example). required: false — без файла агент стартует в режиме
+    # rules (ключа нет), остальной стек не ломается.
+    env_file:
+      - path: .env.nlq
+        required: false
+    environment:
+      APP_ENV: production
+      NLQ_MODELS: ${NLQ_MODELS:-anthropic/claude-sonnet-4.5,google/gemini-2.5-flash}
+      NLQ_LLM: ${NLQ_LLM:-openrouter}
+      NLQ_RULES_FALLBACK: ${NLQ_RULES_FALLBACK:-true}
+      NLQ_ACTOR_PUBLIC_KEY: ${NLQ_ACTOR_PUBLIC_KEY:-}
+      NLQ_MCP_URL: http://nlq-mcp:8900/mcp
+      NLQ_PUBLIC_URL: https://${DOMAIN}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Moscow}
+    depends_on:
+      nlq-mcp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-m", "nlq.health", "agent"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # app — вход от backend и выход в интернет (OpenRouter); nlq — к MCP.
+    networks: [app, nlq]
+
 volumes:
   postgres-data:
 
 networks:
   app:
     driver: bridge
+  # Внутренние сети без доступа в интернет: MCP их не покидает (§8.3).
+  nlq:
+    internal: true
+  nlq-db:
+    internal: true

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
@@ -34,6 +35,20 @@ type Config struct {
 	// есть (см. service.AdminAccount).
 	AdminLogin    string `envconfig:"ADMIN_LOGIN" default:"admin"`
 	AdminPassword string `envconfig:"ADMIN_PASSWORD" default:""`
+	// Единая зона приложения. На ней считаются «сегодня» и окно напоминаний
+	// (см. internal/clock, docs/TELEGRAM_BOT.md §5.2). Системный TZ не используем.
+	AppTimezone string `envconfig:"APP_TIMEZONE" default:"Europe/Moscow"`
+
+	// Настройки Telegram-бота и напоминаний вынесены в отдельный файл и
+	// встроены анонимно: envconfig читает их поля без префикса родителя.
+	TelegramConfig
+
+	// Настройки NL-ассистента (docs/NL_QUERIES.md), также встроены анонимно.
+	AssistantConfig
+
+	// location — разобранная AppTimezone. Заполняется в Validate, падаем на старте
+	// при неверной зоне.
+	location *time.Location
 }
 
 func (c *Config) Validate() error {
@@ -52,7 +67,28 @@ func (c *Config) Validate() error {
 	if c.AdminPassword != "" && len(c.AdminPassword) < 8 {
 		return fmt.Errorf("ADMIN_PASSWORD must be at least 8 characters")
 	}
+	// Зону грузим здесь, чтобы процесс упал на старте при неверном APP_TIMEZONE,
+	// а не при первом обращении к clock. tzdata вшита в бинарник.
+	loc, err := time.LoadLocation(c.AppTimezone)
+	if err != nil {
+		return fmt.Errorf("APP_TIMEZONE %q is invalid: %w", c.AppTimezone, err)
+	}
+	c.location = loc
+	if err := c.validateTelegram(); err != nil {
+		return err
+	}
+	if err := c.validateAssistant(); err != nil {
+		return err
+	}
 	return nil
+}
+
+// Location возвращает разобранную зону приложения. Корректна после Validate.
+func (c *Config) Location() *time.Location {
+	if c.location == nil {
+		return time.UTC
+	}
+	return c.location
 }
 
 func (c *Config) DatabaseURL() string {

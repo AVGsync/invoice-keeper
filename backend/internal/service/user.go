@@ -48,16 +48,41 @@ type UserService struct {
 	repository UserRepository
 	hasher     Hasher
 	jwtManager JWTManager
+	accessTTL  time.Duration
 	refreshTTL time.Duration
 }
 
-func NewUserService(repository UserRepository, hasher Hasher, jwtManager JWTManager, refreshTTL time.Duration) *UserService {
+func NewUserService(repository UserRepository, hasher Hasher, jwtManager JWTManager, accessTTL, refreshTTL time.Duration) *UserService {
 	return &UserService{
 		repository: repository,
 		hasher:     hasher,
 		jwtManager: jwtManager,
+		accessTTL:  accessTTL,
 		refreshTTL: refreshTTL,
 	}
+}
+
+// IssueAccessForUser выпускает только access-токен для пользователя userID.
+// Используется входом через Mini App (docs/TELEGRAM_BOT.md §3.3): refresh не
+// выдаётся, таблица refresh_tokens не растёт. Роль берётся из БД, поэтому админ
+// получает полные права и в Mini App [В-П 7]. Живёт в auth-домене, а не у B.
+func (s *UserService) IssueAccessForUser(ctx context.Context, userID string) (string, int, error) {
+	user, err := s.repository.GetUserByID(userID, ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", 0, model.ErrUserNotFound
+		}
+		slog.Error("user service: issue access for user: failed to get user by ID", "error", err)
+		return "", 0, fmt.Errorf("user service: issue access for user: %w", err)
+	}
+
+	token, err := s.jwtManager.GenerateAccess(user.ID, user.Role)
+	if err != nil {
+		slog.Error("user service: issue access for user: failed to generate access token", "error", err)
+		return "", 0, fmt.Errorf("user service: issue access for user: %w", err)
+	}
+
+	return token, int(s.accessTTL.Seconds()), nil
 }
 
 func (s *UserService) AuthenticateUser(req request.LoginRequest, ctx context.Context) (string, string, error) {

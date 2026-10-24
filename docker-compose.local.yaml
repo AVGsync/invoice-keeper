@@ -55,6 +55,104 @@ services:
       retries: 20
     networks: [app-local]
 
+  pgadmin:
+    image: dpage/pgadmin4:9.17
+    container_name: pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-ad@ad.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${LOCAL_PGADMIN_PORT:-5050}:80"
+    networks: [app-local]
+
+  # ---- NL-ассистент (docs/NL_QUERIES.md §10.3) ----
+  # Локально образ собирается из ./nlq (а не тянется из GHCR). Сервисы под
+  # профилем nlq, чтобы обычный `up` (postgres/migrate/backend/pgadmin) не зависел
+  # от ключей ассистента. Запуск с ассистентом:
+  #   # 1) сгенерировать пару ключей и положить в .env (один раз):
+  #   docker compose -f docker-compose.local.yaml run --rm --no-deps nlq-agent nlq.keygen
+  #   # 2) поднять всё, включая ассистента:
+  #   docker compose -f docker-compose.local.yaml --profile nlq up
+  # Сеть app-local (без internal: true): так работает проброс портов 8090/8900
+  # для MCP Inspector и обращения Go, запущенного на хосте.
+  nlq-db-init:
+    build: ./nlq
+    image: invoice-keeper-nlq:local
+    command: ["nlq.dbinit"]
+    restart: "no"
+    profiles: ["nlq"]
+    environment:
+      ADMIN_DSN: postgres://${POSTGRES_USER:-invoice_keeper}:${POSTGRES_PASSWORD:-invoice_local_password}@postgres:5432/${POSTGRES_DB:-invoice_keeper}?sslmode=disable
+      NLQ_DB_PASSWORD: ${NLQ_DB_PASSWORD:-nlq_local_password}
+      POSTGRES_DB: ${POSTGRES_DB:-invoice_keeper}
+      APP_ENV: local
+      NLQ_DEV_SCHEMA: ${NLQ_DEV_SCHEMA:-nlq_dev}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [app-local]
+
+  nlq-mcp:
+    build: ./nlq
+    image: invoice-keeper-nlq:local
+    command: ["nlq.mcp_server"]
+    restart: unless-stopped
+    profiles: ["nlq"]
+    environment:
+      APP_ENV: local
+      NLQ_DB_DSN: postgres://nlq_reader:${NLQ_DB_PASSWORD:-nlq_local_password}@postgres:5432/${POSTGRES_DB:-invoice_keeper}?sslmode=disable
+      NLQ_ACTOR_PUBLIC_KEY: ${NLQ_ACTOR_PUBLIC_KEY:-}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Moscow}
+      NLQ_USER_SCOPE: ${NLQ_USER_SCOPE:-team}
+      NLQ_MAX_ROWS: "20"
+      NLQ_DEV_SCHEMA: ${NLQ_DEV_SCHEMA:-nlq_dev}
+      NLQ_TODAY: ${NLQ_TODAY:-}
+    ports:
+      - "127.0.0.1:8900:8900" # MCP Inspector с токеном из `python -m nlq.devtoken`
+    depends_on:
+      nlq-db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-m", "nlq.health", "mcp"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [app-local]
+
+  nlq-agent:
+    build: ./nlq
+    image: invoice-keeper-nlq:local
+    command: ["nlq.agent"]
+    restart: unless-stopped
+    profiles: ["nlq"]
+    env_file:
+      - path: .env.nlq
+        required: false
+    environment:
+      APP_ENV: local
+      NLQ_MODELS: ${NLQ_MODELS:-anthropic/claude-sonnet-4.5,google/gemini-2.5-flash}
+      NLQ_LLM: ${NLQ_LLM:-openrouter}
+      NLQ_RULES_FALLBACK: ${NLQ_RULES_FALLBACK:-true}
+      NLQ_ACTOR_PUBLIC_KEY: ${NLQ_ACTOR_PUBLIC_KEY:-}
+      NLQ_MCP_URL: http://nlq-mcp:8900/mcp
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Moscow}
+      NLQ_TODAY: ${NLQ_TODAY:-}
+    ports:
+      - "127.0.0.1:8090:8090" # отладка; Go на хосте: NLQ_AGENT_URL=http://localhost:8090
+    depends_on:
+      nlq-mcp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-m", "nlq.health", "agent"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [app-local]
+
 volumes:
   postgres-local-data:
 

@@ -1,0 +1,17 @@
+# Keep secrets, local state and test/dev-only files out of the image layers.
+# COPY . . would otherwise bake .env.nlq (OPENROUTER_API_KEY), the local venv
+# and caches into the build (see NL_QUERIES section 10.2).
+.env
+.env.*
+!.env.nlq.example
+.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+tests/
+eval/
+.git/
+.gitignore
+.dockerignore
+Dockerfile

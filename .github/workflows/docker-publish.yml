@@ -31,6 +31,11 @@ jobs:
           - name: nginx
             context: ./nginx
             dockerfile: ./nginx/Dockerfile
+          # Один образ -nlq на три команды NL-ассистента (nlq.agent / nlq.mcp_server /
+          # nlq.dbinit); команда выбирается в compose (docs/NL_QUERIES.md §10.2).
+          - name: nlq
+            context: ./nlq
+            dockerfile: ./nlq/Dockerfile
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

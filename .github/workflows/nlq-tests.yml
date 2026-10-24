@@ -1,0 +1,74 @@
+name: NLQ tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./nlq
+
+    # Postgres для БД-тестов nlq. Без TEST_DATABASE_URL они Skip-аются (локально
+    # 152 passed / 25 skipped), поэтому в CI поднимаем базу, накатываем миграции
+    # backend и создаём роль nlq_reader через nlq.dbinit — тогда идут все 177.
+    services:
+      postgres:
+        image: postgres:16.15-alpine
+        env:
+          POSTGRES_USER: invoice_keeper
+          POSTGRES_PASSWORD: invoice_local_password
+          POSTGRES_DB: invoice_keeper_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U invoice_keeper"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Имя БД обязано оканчиваться на _test — иначе деструктивные фикстуры
+      # (TRUNCATE public.users/personas, сброс роли nlq_reader) Skip-аются.
+      TEST_DATABASE_URL: postgres://invoice_keeper:invoice_local_password@localhost:5432/invoice_keeper_test?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.5"
+
+      - name: uv sync
+        run: uv sync
+
+      - name: ruff check
+        run: uv run ruff check .
+
+      # Миграции backend создают public.users/personas, на которые nlq_reader
+      # получает column-level grants в nlq.dbinit.
+      - name: migrate up (test db)
+        run: |
+          docker run --rm --network host \
+            -v "$PWD/../backend/migrations:/migrations" \
+            migrate/migrate:v4.18.3 \
+            -path=/migrations -database "$TEST_DATABASE_URL" up
+
+      # Роль nlq_reader + гранты + dev-схема с фикстурными таблицами B (нужна
+      # БД-тестам визибилити). APP_ENV=local, иначе dev-схема не создаётся.
+      - name: nlq.dbinit
+        env:
+          ADMIN_DSN: ${{ env.TEST_DATABASE_URL }}
+          NLQ_DB_PASSWORD: nlq_test_pw
+          POSTGRES_DB: invoice_keeper_test
+          APP_ENV: local
+          NLQ_DEV_SCHEMA: nlq_test
+        run: uv run python -m nlq.dbinit
+
+      - name: pytest
+        run: uv run pytest -q

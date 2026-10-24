@@ -67,6 +67,21 @@ func (m *Middleware) LimitByUser(requests int, window time.Duration) func(http.H
 	return m.rateLimit(requests, window, keyByUser)
 }
 
+// LimitByIPJSON — вариант LimitByIP с ответом 429 в едином JSON-формате (§7).
+// Для публичных Telegram-эндпоинтов Mini App (auth/link), которые отдают ошибки
+// JSON-envelope'ом, как остальной API.
+func (m *Middleware) LimitByIPJSON(requests int, window time.Duration) func(http.Handler) http.Handler {
+	return httprate.LimitBy(
+		requests,
+		window,
+		keyByClientIP,
+		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+			slog.Debug("rate limit exceeded", "path", r.URL.Path, "ip", clientIP(r))
+			api.WriteError(w, r, http.StatusTooManyRequests, "rate_limit_exceeded", "too many requests", nil)
+		}),
+	)
+}
+
 func (m *Middleware) LimitByUserJSON(requests int, window time.Duration) func(http.Handler) http.Handler {
 	return httprate.LimitBy(
 		requests,
