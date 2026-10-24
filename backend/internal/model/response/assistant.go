@@ -6,8 +6,8 @@ type AssistantStatusResponse struct {
 	Enabled bool `json:"enabled" example:"true"`
 	// Отвечает ли агент на /healthz (кэш 10 с). При выключенной фиче всегда false.
 	Healthy bool `json:"healthy" example:"true"`
-	// Режим «мозга» агента: openrouter | rules | fake. Пусто, если агент недоступен.
-	Mode string `json:"mode,omitempty" example:"openrouter"`
+	// Режим «мозга» агента: llm | rules | fake. Пусто, если агент недоступен.
+	Mode string `json:"mode,omitempty" example:"llm"`
 	// Примеры вопросов для подсказки в UI.
 	Examples []string `json:"examples" example:"Что просрочено?,Сколько платим в долларах в этом месяце?,Кто отвечает за аренду?"`
 	// Сводка о памяти диалога (из конфига): включена ли, сколько ходов в контекст, срок жизни.

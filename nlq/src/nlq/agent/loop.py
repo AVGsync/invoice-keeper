@@ -200,7 +200,7 @@ async def _chat_with_fallback(
     user: str | None,
     telemetry: LoopTelemetry,
 ) -> LLMResponse:
-    """Primary (with OpenRouter-side fallback list), then a manual backup try."""
+    """Primary (with provider-side fallback list when supported), then a manual backup try."""
     backup = llm.backup
     primary_timeout = min(cfg.step_timeout, max(deadline - time.monotonic(), 0.0))
     try:
@@ -215,7 +215,7 @@ async def _chat_with_fallback(
         )
     except OpenRouterError as exc:
         if exc.auth:
-            log.error("openrouter_auth_or_credits: %s", exc)
+            log.error("llm_auth_or_credits: %s", exc)
             raise
         backup_timeout = min(cfg.step_timeout, max(deadline - time.monotonic(), 0.0))
         if backup is None or backup_timeout < _MIN_STEP_BUDGET:

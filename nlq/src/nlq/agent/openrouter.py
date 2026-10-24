@@ -1,4 +1,4 @@
-"""OpenRouter chat-completions client."""
+"""Клиент chat-completions для OpenAI-совместимых API (OpenRouter, OpenAI, Groq, vLLM и др.)."""
 
 from __future__ import annotations
 
@@ -70,26 +70,27 @@ class OpenRouterClient:
             "tools": tools,
             "tool_choice": tool_choice,
             "temperature": 0,
-            "max_tokens": self._settings.nlq_max_tokens,
-            "provider": {
+            self._settings.llm_max_tokens_field: self._settings.nlq_max_tokens,
+        }
+        headers = {
+            "Authorization": f"Bearer {self._settings.api_key}",
+            "Content-Type": "application/json",
+        }
+        if self._settings.is_openrouter:
+            # Эти поля есть только у OpenRouter; другие API на них отвечают 400.
+            body["provider"] = {
                 "require_parameters": True,
                 "allow_fallbacks": True,
                 "data_collection": "deny",
-            },
-            "usage": {"include": True},
-        }
-        if fallback_models:
-            body["models"] = [model, *fallback_models]
+            }
+            body["usage"] = {"include": True}
+            if fallback_models:
+                body["models"] = [model, *fallback_models]
+            headers["HTTP-Referer"] = self._settings.nlq_public_url
+            headers["X-Title"] = "Invoice Keeper"
         if user:
             body["user"] = user
-
-        headers = {
-            "Authorization": f"Bearer {self._settings.openrouter_api_key}",
-            "HTTP-Referer": self._settings.nlq_public_url,
-            "X-Title": "Invoice Keeper",
-            "Content-Type": "application/json",
-        }
-        url = f"{self._settings.openrouter_base_url.rstrip('/')}/chat/completions"
+        url = f"{self._settings.base_url}/chat/completions"
 
         data = await self._post_with_retry(url, headers, body, timeout)
         return _parse_response(data)
@@ -118,7 +119,7 @@ class OpenRouterClient:
 
             if resp.status_code in _AUTH_STATUS:
                 raise OpenRouterError(
-                    f"openrouter_auth_or_credits: HTTP {resp.status_code}", auth=True
+                    f"llm_auth_or_credits: HTTP {resp.status_code}", auth=True
                 )
             if resp.status_code in _TRANSIENT_STATUS:
                 if attempt == 0 and _should_retry(resp):
@@ -127,7 +128,7 @@ class OpenRouterClient:
                 raise OpenRouterError(f"HTTP {resp.status_code}")
             if resp.status_code >= 400:
                 # 400 and friends: do not retry here; the loop may try backup.
-                log.warning("openrouter rejected request: HTTP %s", resp.status_code)
+                log.warning("llm rejected request: HTTP %s", resp.status_code)
                 raise OpenRouterError(f"HTTP {resp.status_code}")
 
             try:
@@ -144,8 +145,8 @@ class OpenRouterClient:
 
     async def list_models(self, timeout: float = 5.0) -> dict[str, dict[str, Any]]:
         """``GET /models`` → {id: model} for the self-check."""
-        url = f"{self._settings.openrouter_base_url.rstrip('/')}/models"
-        headers = {"Authorization": f"Bearer {self._settings.openrouter_api_key}"}
+        url = f"{self._settings.base_url}/models"
+        headers = {"Authorization": f"Bearer {self._settings.api_key}"}
         resp = await self._client.get(url, headers=headers, timeout=timeout)
         resp.raise_for_status()
         data = resp.json()

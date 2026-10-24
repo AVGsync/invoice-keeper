@@ -127,7 +127,10 @@ services:
     environment:
       APP_ENV: local
       NLQ_MODELS: ${NLQ_MODELS:-anthropic/claude-sonnet-4.5,google/gemini-2.5-flash}
-      NLQ_LLM: ${NLQ_LLM:-openrouter}
+      NLQ_LLM: ${NLQ_LLM:-llm}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MAX_TOKENS_FIELD: ${LLM_MAX_TOKENS_FIELD:-max_tokens}
       NLQ_RULES_FALLBACK: ${NLQ_RULES_FALLBACK:-true}
       NLQ_ACTOR_PUBLIC_KEY: ${NLQ_ACTOR_PUBLIC_KEY:-}
       NLQ_MCP_URL: http://nlq-mcp:8900/mcp

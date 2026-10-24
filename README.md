@@ -11,7 +11,7 @@
 | `backend/` | Go API (chi, PostgreSQL), миграции, Swagger в `backend/docs`, Telegram-бот и движок напоминаний |
 | `frontend/` | Веб-панель (Nuxt) |
 | `miniapp/` | Telegram Mini App (Vue 3 + Vite), раздаётся по `/tg/` |
-| `nlq/` | Python: ассистент (агент с LLM через OpenRouter и MCP-сервер только для чтения БД) |
+| `nlq/` | Python: ассистент (агент с LLM через любой OpenAI-совместимый API и MCP-сервер только для чтения БД) |
 | `nginx/` | Образ nginx: TLS и прокси на backend, frontend и miniapp |
 | `scripts/` | `cert.sh` (сертификат Let's Encrypt), `seed.py` (демо-данные) |
 
@@ -20,7 +20,7 @@
                                     ├─ /tg/  ──> miniapp        ^
                                     └─ /     ──> frontend       │ роль nlq_reader (read-only)
                                           backend ──> nlq-agent ──> nlq-mcp ──┘
-                                                         └──> OpenRouter
+                                                         └──> LLM API (OpenRouter и др.)
 ```
 
 Ассистент необязателен: без него (или с `NLQ_ENABLED=false`) всё остальное работает.
@@ -162,8 +162,14 @@ Mini App локально: `cd miniapp && npm ci && npm run dev` (http://localho
    ```
 
    `NLQ_ACTOR_PRIVATE_KEY` нужен только backend, `NLQ_ACTOR_PUBLIC_KEY` — агенту и MCP.
-2. Задайте `NLQ_ENABLED=true`, `NLQ_DB_PASSWORD=<пароль роли nlq_reader>`, модели в `NLQ_MODELS`.
-3. Ключ OpenRouter лежит отдельно: `cp nlq/.env.nlq.example .env.nlq` и впишите `OPENROUTER_API_KEY`. Без ключа ассистент работает в упрощённом режиме `rules`.
+2. Задайте `NLQ_ENABLED=true` и `NLQ_DB_PASSWORD=<пароль роли nlq_reader>`.
+3. Подключите LLM: подойдёт любой OpenAI-совместимый API (`/chat/completions` с вызовом функций).
+   - `LLM_BASE_URL`: адрес API; пусто означает OpenRouter. Например `https://api.openai.com/v1`, `https://api.groq.com/openai/v1`, `https://api.deepseek.com/v1`, свой vLLM или Ollama (`http://host:11434/v1`).
+   - `LLM_API_KEY`: ключ. Его лучше держать в `.env.nlq` (`cp nlq/.env.nlq.example .env.nlq`), тогда он не попадёт в контейнер backend; но работает и из `.env`.
+   - `NLQ_MODELS`: основная и резервная модель через запятую в формате выбранного API (у OpenAI `gpt-4o-mini`, у OpenRouter `vendor/model`). Модель должна уметь tool calling.
+   - `LLM_MAX_TOKENS_FIELD=max_completion_tokens`: для новых моделей OpenAI (gpt-5, o-серия).
+   - Старые имена `OPENROUTER_API_KEY` и `OPENROUTER_BASE_URL` по-прежнему работают. Поля, которые понимает только OpenRouter (цепочка моделей, запрет на сбор данных), отправляются лишь на его адрес.
+   - Без ключа ассистент работает в упрощённом режиме `rules`, без LLM.
 4. `docker compose up -d`. Проверка: `GET /api/v1/assistant/status` под авторизованным пользователем.
 
 Агент вызывает инструменты MCP (только чтение под ролью `nlq_reader`), числа в ответе проверяются по данным, валюты не складываются. История диалога хранится на сервере, ассистент помнит последние реплики: `GET` и `DELETE /api/v1/assistant/history`.

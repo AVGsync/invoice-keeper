@@ -131,14 +131,17 @@ services:
     image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nlq:${IMAGE_TAG:-latest}
     command: ["nlq.agent"]
     restart: unless-stopped
-    # Только OPENROUTER_API_KEY; без файла агент работает в режиме rules.
+    # Ключ LLM можно держать в .env.nlq (LLM_API_KEY); без ключа агент работает в режиме rules.
     env_file:
       - path: .env.nlq
         required: false
     environment:
       APP_ENV: production
       NLQ_MODELS: ${NLQ_MODELS:-anthropic/claude-sonnet-4.5,google/gemini-2.5-flash}
-      NLQ_LLM: ${NLQ_LLM:-openrouter}
+      NLQ_LLM: ${NLQ_LLM:-llm}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MAX_TOKENS_FIELD: ${LLM_MAX_TOKENS_FIELD:-max_tokens}
       NLQ_RULES_FALLBACK: ${NLQ_RULES_FALLBACK:-true}
       NLQ_ACTOR_PUBLIC_KEY: ${NLQ_ACTOR_PUBLIC_KEY:-}
       NLQ_MCP_URL: http://nlq-mcp:8900/mcp
@@ -156,7 +159,7 @@ services:
     tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    # app: вход от backend и выход к OpenRouter; nlq: связь с MCP.
+    # app: вход от backend и выход к LLM API; nlq: связь с MCP.
     networks: [app, nlq]
 
 volumes:

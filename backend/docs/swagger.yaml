@@ -613,9 +613,9 @@ definitions:
         description: 'Сводка о памяти диалога (из конфига): включена ли, сколько ходов
           в контекст, срок жизни.'
       mode:
-        description: 'Режим «мозга» агента: openrouter | rules | fake. Пусто, если
-          агент недоступен.'
-        example: openrouter
+        description: 'Режим «мозга» агента: llm | rules | fake. Пусто, если агент
+          недоступен.'
+        example: llm
         type: string
     type: object
   response.AuditActionsResponse:

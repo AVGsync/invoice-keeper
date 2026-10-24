@@ -4020,9 +4020,9 @@ const docTemplate = `{
                     ]
                 },
                 "mode": {
-                    "description": "Режим «мозга» агента: openrouter | rules | fake. Пусто, если агент недоступен.",
+                    "description": "Режим «мозга» агента: llm | rules | fake. Пусто, если агент недоступен.",
                     "type": "string",
-                    "example": "openrouter"
+                    "example": "llm"
                 }
             }
         },

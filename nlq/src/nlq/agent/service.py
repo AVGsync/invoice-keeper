@@ -49,7 +49,7 @@ class AgentService:
         return OpenRouterClient(self.settings)
 
     async def startup(self) -> None:
-        if isinstance(self.llm, OpenRouterClient) and self.settings.openrouter_api_key:
+        if isinstance(self.llm, OpenRouterClient) and self.settings.api_key:
             self.model_health = await selfcheck.check_models(self.settings, self.llm)
             log.info("model health: %s", self.model_health)
         self._mcp_task = asyncio.create_task(self._mcp_probe_loop())
@@ -139,9 +139,9 @@ class AgentService:
         }
         status = "ok"
         reason: str | None = None
-        if mode == "openrouter":
-            if not self.settings.openrouter_api_key:
-                status, reason = "degraded", "no_openrouter_key"
+        if mode == "llm":
+            if not self.settings.api_key:
+                status, reason = "degraded", "no_llm_key"
             elif degraded_models:
                 status, reason = "degraded", "model_missing_tools"
             elif self.mcp_status != "ok":

@@ -27,6 +27,10 @@ async def check_models(settings: Settings, client: OpenRouterClient) -> dict[str
         if info is None:
             statuses[model] = "unknown"
             continue
+        if "supported_parameters" not in info:
+            # Обычный OpenAI-совместимый API не сообщает возможности модели: проверить нечем.
+            statuses[model] = "ok"
+            continue
         supported = set(_supported_parameters(info))
         statuses[model] = "ok" if all(p in supported for p in _REQUIRED) else "missing_tools"
     return statuses

@@ -10,6 +10,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_MODELS: Final = "anthropic/claude-sonnet-4.5,google/gemini-2.5-flash"
 
+DEFAULT_BASE_URL: Final = "https://openrouter.ai/api/v1"
+
 LogLevel = Literal["debug", "info", "warning", "error"]
 
 
@@ -23,14 +25,17 @@ class Settings(BaseSettings):
 
     nlq_actor_public_key: str = Field(default="", alias="NLQ_ACTOR_PUBLIC_KEY")
 
+    # Любой OpenAI-совместимый API: LLM_BASE_URL + LLM_API_KEY. Имена OPENROUTER_* оставлены для совместимости.
+    llm_api_key: str = Field(default="", alias="LLM_API_KEY")
+    llm_base_url: str = Field(default="", alias="LLM_BASE_URL")
     openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
-    openrouter_base_url: str = Field(
-        default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL"
+    openrouter_base_url: str = Field(default="", alias="OPENROUTER_BASE_URL")
+    # Для новых моделей OpenAI нужно max_completion_tokens.
+    llm_max_tokens_field: Literal["max_tokens", "max_completion_tokens"] = Field(
+        default="max_tokens", alias="LLM_MAX_TOKENS_FIELD"
     )
     nlq_models: str = Field(default=DEFAULT_MODELS, alias="NLQ_MODELS")
-    nlq_llm: Literal["openrouter", "rules", "fake"] = Field(
-        default="openrouter", alias="NLQ_LLM"
-    )
+    nlq_llm: Literal["llm", "rules", "fake"] = Field(default="llm", alias="NLQ_LLM")
     nlq_rules_fallback: bool = Field(default=True, alias="NLQ_RULES_FALLBACK")
     nlq_mcp_url: str = Field(default="http://nlq-mcp:8900/mcp", alias="NLQ_MCP_URL")
     nlq_max_llm_calls: int = Field(default=4, ge=1, le=8, alias="NLQ_MAX_LLM_CALLS")
@@ -60,6 +65,20 @@ class Settings(BaseSettings):
     postgres_host: str = Field(default="postgres", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
     nlq_db_password: str = Field(default="", alias="NLQ_DB_PASSWORD")
+
+    @property
+    def api_key(self) -> str:
+        return self.llm_api_key or self.openrouter_api_key
+
+    @property
+    def base_url(self) -> str:
+        url = self.llm_base_url or self.openrouter_base_url or DEFAULT_BASE_URL
+        return url.rstrip("/")
+
+    @property
+    def is_openrouter(self) -> bool:
+        """OpenRouter понимает дополнительные поля запроса, остальные API их не ждут."""
+        return "openrouter.ai" in self.base_url
 
     @property
     def is_production(self) -> bool:
@@ -95,6 +114,15 @@ class Settings(BaseSettings):
             f"postgres://{self.postgres_user}{pw}@"
             f"{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @field_validator("nlq_llm", mode="before")
+    @classmethod
+    def _norm_llm_mode(cls, v: object) -> object:
+        if isinstance(v, str):
+            v = v.strip().lower()
+            if v in ("openrouter", "openai"):
+                return "llm"
+        return v
 
     @field_validator("nlq_user_scope", mode="before")
     @classmethod
