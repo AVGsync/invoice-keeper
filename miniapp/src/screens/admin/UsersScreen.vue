@@ -34,7 +34,15 @@ useMainButton({
       @retry="users.load()"
     />
     <Section v-else>
-      <div v-for="u in usersState.items" :key="u.id" class="urow">
+      <component
+        :is="u.role === 'admin' ? 'div' : 'button'"
+        v-for="u in usersState.items"
+        :key="u.id"
+        class="urow"
+        :class="{ clickable: u.role !== 'admin' }"
+        :type="u.role === 'admin' ? undefined : 'button'"
+        @click="u.role !== 'admin' && router.push('/admin/users/' + u.id)"
+      >
         <div class="top">
           <span class="name">{{ u.full_name }}</span>
           <span class="role" :class="u.role">{{ u.role === 'admin' ? 'Админ' : 'Сотрудник' }}</span>
@@ -47,12 +55,25 @@ useMainButton({
               : 'Telegram не привязан'
           }}
         </div>
-      </div>
+      </component>
     </Section>
   </div>
 </template>
 
 <style scoped>
+.urow.clickable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--c-line);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.urow.clickable:active {
+  opacity: 0.55;
+}
 .urow {
   padding: var(--sp-4) 0;
   border-bottom: 1px solid var(--c-line);

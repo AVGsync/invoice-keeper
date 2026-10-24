@@ -1,7 +1,16 @@
 import { reactive } from 'vue'
 import { ApiError } from '../api/errors'
-import { listUsers, createUser, listPersonas } from '../api/endpoints'
-import type { CreateUserRequest, Persona, User } from '../api/types'
+import {
+  listUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  listPersonas,
+  createPersona,
+  updatePersona,
+  deletePersona,
+} from '../api/endpoints'
+import type { CreateUserRequest, Persona, UpdateUserRequest, User } from '../api/types'
 
 interface UsersState {
   items: User[]
@@ -53,5 +62,26 @@ export const users = {
   async create(req: CreateUserRequest): Promise<void> {
     await createUser(req)
     await this.load()
+  },
+
+  async update(id: string, req: UpdateUserRequest): Promise<void> {
+    await updateUser(id, req)
+    await this.load()
+  },
+
+  async remove(id: string): Promise<void> {
+    await deleteUser(id)
+    await this.load()
+  },
+
+  async savePersona(id: string | null, name: string, description: string): Promise<void> {
+    if (id) await updatePersona(id, { name, description })
+    else await createPersona({ name, description: description || undefined })
+    await Promise.all([this.loadPersonas(), this.load()])
+  },
+
+  async removePersona(id: string): Promise<void> {
+    await deletePersona(id)
+    await Promise.all([this.loadPersonas(), this.load()])
   },
 }

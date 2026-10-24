@@ -73,7 +73,7 @@ func (r UpdatePersonaRequest) Validate() error {
 }
 
 func (r UserUpdateRequest) Validate() error {
-	if r.Login == nil && r.FullName == nil {
+	if r.Login == nil && r.FullName == nil && r.PersonaID == nil && r.Password == nil {
 		return errors.New("at least one field must be provided")
 	}
 	if r.Login != nil && !loginRegexp.MatchString(*r.Login) {
@@ -81,6 +81,14 @@ func (r UserUpdateRequest) Validate() error {
 	}
 	if r.FullName != nil && !runesBetween(*r.FullName, 3, 64) {
 		return errors.New("full_name must be 3-64 characters")
+	}
+	if r.PersonaID != nil && *r.PersonaID != "" {
+		if _, err := uuid.Parse(*r.PersonaID); err != nil {
+			return errors.New("persona_id must be a valid UUID or empty")
+		}
+	}
+	if r.Password != nil && (len(*r.Password) < 8 || len(*r.Password) > 72) {
+		return errors.New("password must be 8-72 bytes")
 	}
 	return nil
 }

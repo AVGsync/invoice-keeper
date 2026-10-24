@@ -27,6 +27,8 @@ const rel = computed(() => {
       <div class="desc">{{ occ.description }}</div>
       <div class="meta">
         <span class="when"
+          ><svg v-if="occ.receipts_count" class="clip" viewBox="0 0 24 24" aria-label="Есть чеки" role="img"
+            ><path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.6 17.2a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6" /></svg
           >{{ rel
           }}<template v-if="showAssignee && occ.assignee_name"> · {{ occ.assignee_name }}</template></span
         >
@@ -70,6 +72,17 @@ const rel = computed(() => {
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
+}
+.clip {
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .when {
   max-width: 100%;

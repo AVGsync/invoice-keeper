@@ -371,11 +371,13 @@ func (h *UserHandler) DeleteUserByID() http.HandlerFunc {
 // UpdateUserByID godoc
 //
 // @Summary      Обновление пользователя
-// @Description  Частичное (PATCH) обновление данных обычного пользователя: ФИО и/или логин.
-// @Description  Роль и пароль этим методом не меняются. Учётку администратора менять нельзя —
+// @Description  Частичное (PATCH) обновление обычного пользователя: ФИО, логин, персона и/или пароль.
+// @Description  Роль этим методом не меняется. Учётку администратора менять нельзя —
 // @Description  она задаётся в .env. Доступно только роли `admin`.
 // @Description
-// @Description  Тело — только изменяемые поля (оба опциональны, но хотя бы одно обязательно):
+// @Description  Тело — только изменяемые поля (все опциональны, но хотя бы одно обязательно):
+// @Description  - `persona_id`: UUID персоны, пустая строка снимает персону (неизвестный id — `400 persona not found`);
+// @Description  - `password`: новый пароль, 8–72 байта (сессии пользователя не сбрасываются);
 // @Description  - `full_name`: если передан — 3–64 символа;
 // @Description  - `login`: если передан — 3–32 символа, только `[a-zA-Z0-9_.-]`.
 // @Description
@@ -430,6 +432,8 @@ func (h *UserHandler) UpdateUserByID() http.HandlerFunc {
 				http.Error(w, model.ErrAdminImmutable.Error(), http.StatusForbidden)
 			case errors.Is(err, model.ErrLoginTaken):
 				http.Error(w, "user with this login already exists", http.StatusConflict)
+			case errors.Is(err, model.ErrPersonaNotFound):
+				http.Error(w, "persona not found", http.StatusBadRequest)
 			default:
 				http.Error(w, "failed to update user", http.StatusInternalServerError)
 			}

@@ -15,6 +15,10 @@ import type {
   AssistantHistoryResponse,
   Receipt,
   ReceiptAccess,
+  UpdateUserRequest,
+  AuditResponse,
+  TeamChat,
+  Currency,
 } from './types'
 
 // Auth
@@ -57,6 +61,13 @@ export function cancelOccurrence(id: string): Promise<void> {
   return request('PATCH', `/payment-occurrences/${id}`, { body: { action: 'cancel' } })
 }
 
+export function editOccurrence(
+  id: string,
+  body: { amount?: number; currency?: Currency; description?: string },
+): Promise<void> {
+  return request('PATCH', `/payment-occurrences/${id}`, { body })
+}
+
 // Receipts
 export async function listReceipts(paymentId: string, signal?: AbortSignal): Promise<Receipt[]> {
   const res = await request<{ items: Receipt[] }>('GET', `/payment-occurrences/${paymentId}/receipts`, { signal })
@@ -92,6 +103,13 @@ export function createRecurring(req: CreateRecurringRequest): Promise<{ id: stri
   return request('POST', '/recurring-payments', { body: req })
 }
 
+export function updateRecurring(
+  id: string,
+  body: { amount?: number; currency?: Currency; description?: string; assignee_id?: string },
+): Promise<void> {
+  return request('PATCH', `/recurring-payments/${id}`, { body })
+}
+
 export function stopRecurring(id: string): Promise<void> {
   return request('DELETE', `/recurring-payments/${id}`)
 }
@@ -105,8 +123,45 @@ export function createUser(req: CreateUserRequest): Promise<void> {
   return request('POST', '/users', { body: req })
 }
 
+export function updateUser(id: string, body: UpdateUserRequest): Promise<void> {
+  return request('PATCH', `/users/${id}`, { body })
+}
+
+export function deleteUser(id: string): Promise<void> {
+  return request('DELETE', `/users/${id}`)
+}
+
+export function createPersona(body: { name: string; description?: string }): Promise<unknown> {
+  return request('POST', '/personas', { body })
+}
+
+export function updatePersona(id: string, body: { name?: string; description?: string }): Promise<unknown> {
+  return request('PATCH', `/personas/${id}`, { body })
+}
+
+export function deletePersona(id: string): Promise<void> {
+  return request('DELETE', `/personas/${id}`)
+}
+
 export function listPersonas(signal?: AbortSignal): Promise<PersonaListResponse> {
   return request('GET', '/personas', { signal })
+}
+
+// Журнал действий: свои записи или (для админа) все
+export function listActivity(
+  scope: 'me' | 'all',
+  query: { limit: number; offset: number; channel?: string },
+  signal?: AbortSignal,
+): Promise<AuditResponse> {
+  return request('GET', scope === 'me' ? '/me/activity' : '/audit-log', { query, signal })
+}
+
+export function getTeamChat(signal?: AbortSignal): Promise<TeamChat> {
+  return request('GET', '/telegram/team-chat', { signal })
+}
+
+export function testTeamChat(): Promise<void> {
+  return request('POST', '/telegram/team-chat/test')
 }
 
 // Telegram

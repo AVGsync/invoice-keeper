@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { occState, occurrences } from '../stores/occurrences'
 import { session, isAdmin } from '../stores/session'
@@ -38,6 +38,17 @@ function patchQuery(patch: Record<string, string | undefined>): void {
   router.replace({ query: q })
 }
 
+// Поиск по названию и ответственному; хранится в адресе (?q=), чтобы переживать переходы.
+const query = computed(() => ((route.query.q as string | undefined) ?? '').trim().toLowerCase())
+const search = ref((route.query.q as string | undefined) ?? '')
+watch(search, (v) => patchQuery({ q: v.trim() || undefined }))
+watch(
+  () => route.query.q,
+  (v) => {
+    if (((v as string | undefined) ?? '') !== search.value.trim()) search.value = (v as string | undefined) ?? ''
+  },
+)
+
 const todayStr = computed(() => today())
 const curWeekStart = computed(() => weekStart(todayStr.value))
 
@@ -48,6 +59,13 @@ const afterScope = computed<PaymentResponse[]>(() => {
   }
   if (mineFilter.value === 'mine' && session.user) {
     items = items.filter((i) => i.user_id === session.user!.id)
+  }
+  if (query.value) {
+    items = items.filter(
+      (i) =>
+        i.description.toLowerCase().includes(query.value) ||
+        (i.assignee_name ?? '').toLowerCase().includes(query.value),
+    )
   }
   if (statusFilter.value !== 'all') items = items.filter((i) => i.status === statusFilter.value)
   if (currencyFilter.value !== 'all') items = items.filter((i) => i.currency === currencyFilter.value)
@@ -60,7 +78,7 @@ const earlyItems = computed(() =>
 )
 
 const visibleItems = computed(() => {
-  if (showPast.value || recFilter.value) return afterScope.value
+  if (showPast.value || recFilter.value || query.value) return afterScope.value
   return afterScope.value.filter(
     (i) => i.status === 'overdue' || i.due_date >= curWeekStart.value,
   )
@@ -73,6 +91,7 @@ const hasAnyFilter = computed(
     statusFilter.value !== 'all' ||
     currencyFilter.value !== 'all' ||
     route.query.mine !== undefined ||
+    !!query.value ||
     !!recFilter.value,
 )
 
@@ -92,6 +111,16 @@ onMounted(() => void occurrences.load())
 <template>
   <div class="payments">
     <h1 class="title">Платежи</h1>
+
+    <input
+      v-model="search"
+      class="search"
+      type="search"
+      enterkeyhint="search"
+      autocomplete="off"
+      placeholder="Поиск по названию или ответственному"
+      aria-label="Поиск платежей"
+    />
 
     <div class="filters">
       <Chips
@@ -168,6 +197,11 @@ onMounted(() => void occurrences.load())
 </template>
 
 <style scoped>
+.search {
+  margin-bottom: var(--sp-3);
+  border-radius: var(--radius-pill);
+  padding-left: var(--sp-4);
+}
 .filters {
   display: flex;
   flex-direction: column;

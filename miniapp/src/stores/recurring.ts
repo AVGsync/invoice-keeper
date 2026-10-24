@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 import { ApiError } from '../api/errors'
-import { listRecurring, createRecurring, stopRecurring } from '../api/endpoints'
+import { listRecurring, createRecurring, stopRecurring, updateRecurring } from '../api/endpoints'
 import type { CreateRecurringRequest, RecurrentPayment } from '../api/types'
 import { occurrences } from './occurrences'
 
@@ -39,6 +39,11 @@ export const recurring = {
     const res = await createRecurring(req)
     await Promise.all([this.load(), occurrences.load({ force: true })])
     return res
+  },
+
+  async update(id: string, body: Parameters<typeof updateRecurring>[1]): Promise<void> {
+    await updateRecurring(id, body)
+    await Promise.all([this.load(), occurrences.load({ force: true })])
   },
 
   async stop(id: string): Promise<void> {

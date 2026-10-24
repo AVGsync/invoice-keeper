@@ -35,6 +35,41 @@ export interface User {
   created_at: string
 }
 
+export interface UpdateUserRequest {
+  full_name?: string
+  login?: string
+  persona_id?: string
+  password?: string
+}
+
+export interface AuditItem {
+  id: number
+  created_at: string
+  actor: { id: string; full_name: string | null; role: string | null } | null
+  channel: 'web' | 'miniapp' | 'bot' | 'system'
+  action: string
+  action_label: string
+  outcome: 'success' | 'failure'
+  entity_type: string | null
+  entity_id: string | null
+}
+
+export interface AuditResponse {
+  items: AuditItem[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface TeamChat {
+  bound: boolean
+  is_active?: boolean
+  title?: string
+  tg_chat_id?: number
+  last_error?: string
+  bound_at?: string
+}
+
 export interface Receipt {
   id: string
   payment_id: string
@@ -85,6 +120,7 @@ export interface PaymentResponse {
   status: OccStatus
   assignee_name?: string
   ended?: boolean
+  receipts_count?: number
   paid_at?: string
   created_at: string
   updated_at: string

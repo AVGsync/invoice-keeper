@@ -397,6 +397,18 @@ definitions:
         maxLength: 64
         minLength: 3
         type: string
+      password:
+        description: Новый пароль администратором, минимум 8 символов. Активные сессии
+          пользователя не сбрасываются.
+        example: N3wStr0ngPass!2026
+        minLength: 8
+        type: string
+      persona_id:
+        description: Персона (должность). Пустая строка снимает персону; неизвестный
+          id даёт 400 persona not found.
+        example: 223f4e8e-98ea-4e50-9fb7-a9ea8984b2f1
+        format: uuid
+        type: string
     type: object
   response.APIError:
     properties:
@@ -744,6 +756,8 @@ definitions:
         type: string
       paid_late:
         type: boolean
+      receipts_count:
+        type: integer
       recurrent_payment_id:
         type: string
       status:
@@ -3176,11 +3190,13 @@ paths:
       consumes:
       - application/json
       description: |-
-        Частичное (PATCH) обновление данных обычного пользователя: ФИО и/или логин.
-        Роль и пароль этим методом не меняются. Учётку администратора менять нельзя —
+        Частичное (PATCH) обновление обычного пользователя: ФИО, логин, персона и/или пароль.
+        Роль этим методом не меняется. Учётку администратора менять нельзя —
         она задаётся в .env. Доступно только роли `admin`.
 
-        Тело — только изменяемые поля (оба опциональны, но хотя бы одно обязательно):
+        Тело — только изменяемые поля (все опциональны, но хотя бы одно обязательно):
+        - `persona_id`: UUID персоны, пустая строка снимает персону (неизвестный id — `400 persona not found`);
+        - `password`: новый пароль, 8–72 байта (сессии пользователя не сбрасываются);
         - `full_name`: если передан — 3–64 символа;
         - `login`: если передан — 3–32 символа, только `[a-zA-Z0-9_.-]`.
 

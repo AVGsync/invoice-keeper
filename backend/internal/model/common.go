@@ -149,6 +149,8 @@ type Payment struct {
 	AssigneeName string `json:"assignee_name,omitempty"`
 	// Ended — платёж остановлен/удалён (recurrent_payment_id IS NULL OR stopped_at IS NOT NULL).
 	Ended bool `json:"ended"`
+	// ReceiptsCount — сколько чеков прикреплено к периоду.
+	ReceiptsCount int `json:"receipts_count"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

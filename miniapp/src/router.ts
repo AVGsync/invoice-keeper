@@ -53,6 +53,54 @@ const routes: RouteRecordRaw[] = [
     component: () => import('./screens/admin/UserCreateScreen.vue'),
     meta: { admin: true, parent: '/admin/users' },
   },
+  {
+    path: '/occ/:id/edit',
+    name: 'occEdit',
+    component: () => import('./screens/admin/OccurrenceEditScreen.vue'),
+    meta: { admin: true, parent: '/' },
+  },
+  {
+    path: '/admin/recurring/:id/edit',
+    name: 'recurringEdit',
+    component: () => import('./screens/admin/RecurringEditScreen.vue'),
+    meta: { admin: true, parent: '/admin/recurring' },
+  },
+  {
+    path: '/admin/users/:id',
+    name: 'userEdit',
+    component: () => import('./screens/admin/UserEditScreen.vue'),
+    meta: { admin: true, parent: '/admin/users' },
+  },
+  {
+    path: '/admin/personas',
+    name: 'personas',
+    component: () => import('./screens/admin/PersonasScreen.vue'),
+    meta: { admin: true, parent: '/profile' },
+  },
+  {
+    path: '/admin/personas/new',
+    name: 'personaNew',
+    component: () => import('./screens/admin/PersonaFormScreen.vue'),
+    meta: { admin: true, parent: '/admin/personas' },
+  },
+  {
+    path: '/admin/personas/:id',
+    name: 'personaEdit',
+    component: () => import('./screens/admin/PersonaFormScreen.vue'),
+    meta: { admin: true, parent: '/admin/personas' },
+  },
+  {
+    path: '/activity',
+    name: 'activity',
+    component: () => import('./screens/ActivityScreen.vue'),
+    meta: { parent: '/profile' },
+  },
+  {
+    path: '/admin/audit',
+    name: 'audit',
+    component: () => import('./screens/ActivityScreen.vue'),
+    meta: { admin: true, parent: '/profile', all: true },
+  },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

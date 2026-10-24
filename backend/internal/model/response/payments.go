@@ -21,6 +21,7 @@ type PaymentResponse struct {
 	Status             string     `json:"status"`
 	AssigneeName       string     `json:"assignee_name,omitempty"`
 	Ended              bool       `json:"ended"`
+	ReceiptsCount      int        `json:"receipts_count"`
 	PaidAt             *time.Time `json:"paid_at,omitempty"`
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
@@ -46,6 +47,7 @@ func NewPaymentResponse(payment model.Payment, status string, paidLate bool) Pay
 		Status:             status,
 		AssigneeName:       payment.AssigneeName,
 		Ended:              payment.Ended,
+		ReceiptsCount:      payment.ReceiptsCount,
 		PaidAt:             payment.PaidAt,
 		CreatedAt:          payment.CreatedAt,
 		UpdatedAt:          payment.UpdatedAt,

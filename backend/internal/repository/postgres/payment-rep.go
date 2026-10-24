@@ -50,6 +50,7 @@ func scanPayment(row rowScanner) (model.Payment, error) {
 		&payment.Status,
 		&assigneeName,
 		&payment.Ended,
+		&payment.ReceiptsCount,
 		&payment.CreatedAt,
 		&payment.UpdatedAt,
 	)
@@ -82,6 +83,7 @@ const paymentSelect = `
 		p.status,
 		COALESCE(u.full_name, ''),
 		(p.recurrent_payment_id IS NULL OR rp.stopped_at IS NOT NULL) AS ended,
+		(SELECT count(*) FROM payment_receipts pr WHERE pr.payment_id = p.id)::int,
 		p.created_at,
 		p.updated_at
 	FROM payments p

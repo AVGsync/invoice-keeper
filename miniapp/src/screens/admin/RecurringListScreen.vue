@@ -121,6 +121,14 @@ useMainButton({
         </div>
         <button
           v-if="!r.stopped_at"
+          class="btn btn-secondary edit"
+          type="button"
+          @click="router.push('/admin/recurring/' + r.id + '/edit')"
+        >
+          Изменить
+        </button>
+        <button
+          v-if="!r.stopped_at"
           class="btn btn-destructive stop"
           type="button"
           :disabled="busyId === r.id"
@@ -159,6 +167,11 @@ useMainButton({
   font-size: var(--fs-small);
   color: var(--fog);
   margin: 1px 0;
+}
+.edit {
+  margin-top: var(--sp-3);
+  min-height: 44px;
+  padding: 10px 18px;
 }
 .stop {
   margin-top: var(--sp-2);

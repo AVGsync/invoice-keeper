@@ -381,9 +381,31 @@ func (s *UserService) UpdateUserByID(ctx context.Context, userID string, req req
 	if req.Login != nil {
 		user.Login = *req.Login
 	}
+	oldPersona := ""
+	if user.Persona != nil {
+		oldPersona = user.Persona.ID
+	}
+	if req.PersonaID != nil {
+		if *req.PersonaID == "" {
+			user.Persona = nil
+		} else {
+			user.Persona = &model.PersonaRef{ID: *req.PersonaID}
+		}
+	}
+	if req.Password != nil {
+		hash, err := s.hasher.HashPassword(*req.Password)
+		if err != nil {
+			return fmt.Errorf("user service: update user: hash password: %w", err)
+		}
+		user.PasswordHash = hash
+	}
 
 	if err := s.repository.UpdateUser(user, ctx); err != nil {
 		return err
+	}
+	newPersona := ""
+	if user.Persona != nil {
+		newPersona = user.Persona.ID
 	}
 
 	s.audit.Record(ctx, audit.Entry{
@@ -393,7 +415,9 @@ func (s *UserService) UpdateUserByID(ctx context.Context, userID string, req req
 		Changes: audit.Diff().
 			Add("login", oldLogin, user.Login).
 			Add("full_name", oldFullName, user.FullName).
+			Add("persona_id", oldPersona, newPersona).
 			Map(),
+		Payload: map[string]any{"password_changed": req.Password != nil},
 	})
 	return nil
 }

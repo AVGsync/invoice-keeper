@@ -2,7 +2,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { occurrences, occState } from '../stores/occurrences'
-import { session } from '../stores/session'
+import { session, isAdmin } from '../stores/session'
 import { confirmOccurrence, cancelOccurrence, getOccurrence } from '../api/endpoints'
 import { ApiError } from '../api/errors'
 import { canMarkPaid } from '../lib/permissions'
@@ -247,6 +247,15 @@ onUnmounted(() => controller?.abort())
 
       <ReceiptsSection v-if="canPay" :payment-id="occ.id" />
 
+      <button
+        v-if="isAdmin && !isEnded"
+        class="btn btn-secondary btn-block edit-btn"
+        type="button"
+        @click="router.push('/occ/' + occ.id + '/edit')"
+      >
+        Изменить платёж
+      </button>
+
       <Section v-if="history.length" title="История">
         <button
           v-for="h in history"
@@ -280,6 +289,9 @@ onUnmounted(() => controller?.abort())
 }
 .late:not(.badge) {
   color: var(--bone);
+}
+.edit-btn {
+  margin-top: var(--sp-6);
 }
 .hint-pad {
   padding: var(--sp-4) 0;

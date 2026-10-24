@@ -199,15 +199,24 @@ func (r *UserRepository) DeleteUserByID(id string, ctx context.Context) error {
 }
 
 func (r *UserRepository) UpdateUser(user model.User, ctx context.Context) error {
+	var personaID *string
+	if user.Persona != nil {
+		personaID = &user.Persona.ID
+	}
 	_, err := r.database.db.ExecContext(ctx, `
 		UPDATE users
-		SET full_name = $1, login = $2, password_hash = $3, role = $4
-		WHERE id = $5
-	`, user.FullName, user.Login, user.PasswordHash, user.Role, user.ID)
+		SET full_name = $1, login = $2, password_hash = $3, role = $4, persona_id = $5
+		WHERE id = $6
+	`, user.FullName, user.Login, user.PasswordHash, user.Role, personaID, user.ID)
 	if err != nil {
 		var pqErr *pq.Error
-		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return model.ErrLoginTaken
+		if errors.As(err, &pqErr) {
+			switch pqErr.Code {
+			case "23505":
+				return model.ErrLoginTaken
+			case "23503":
+				return model.ErrPersonaNotFound
+			}
 		}
 		return fmt.Errorf("user repository: update user: %w", err)
 	}

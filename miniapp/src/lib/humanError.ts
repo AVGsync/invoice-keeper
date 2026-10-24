@@ -26,6 +26,8 @@ export function humanError(e: unknown): string {
     if (msg.includes('persona not found')) return 'Персона не найдена'
     if (msg.includes('day_offset does not match')) return 'Неверная дата графика'
     if (msg.includes('description must be at most 255')) return 'Название не длиннее 255 символов'
+    if (msg.includes('referenced')) return 'Нельзя удалить: на сотрудника ссылаются платежи'
+    if (msg.includes('persona with this name')) return 'Персона с таким названием уже есть'
     if (msg.includes('too many receipts')) return 'К платежу уже прикреплено максимум чеков'
     if (msg.includes('url')) return 'Некорректная ссылка: нужен адрес http или https'
     if (msg.includes('amount')) return 'Сумма должна быть больше нуля'

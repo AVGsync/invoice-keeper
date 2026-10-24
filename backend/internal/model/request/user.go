@@ -39,6 +39,10 @@ type UserUpdateRequest struct {
 	Login *string `json:"login,omitempty" validate:"omitempty,min=3,max=64" example:"ivan.new"`
 	// Новое полное имя. Если поле не передано, текущее значение не меняется.
 	FullName *string `json:"full_name,omitempty" validate:"omitempty,min=3,max=64" example:"Иван Сергеевич Петров"`
+	// Персона (должность). Пустая строка снимает персону; неизвестный id даёт 400 persona not found.
+	PersonaID *string `json:"persona_id,omitempty" format:"uuid" example:"223f4e8e-98ea-4e50-9fb7-a9ea8984b2f1"`
+	// Новый пароль администратором, минимум 8 символов. Активные сессии пользователя не сбрасываются.
+	Password *string `json:"password,omitempty" minLength:"8" example:"N3wStr0ngPass!2026"`
 }
 
 type ChangePasswordRequest struct {

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { session, isAdmin } from '../stores/session'
-import { getTelegramLink } from '../api/endpoints'
+import { getTelegramLink, getTeamChat, testTeamChat } from '../api/endpoints'
 import { useAsync } from '../composables/useAsync'
 import { formatDateTime } from '../lib/dates'
+import { haptic, alert as tgAlert } from '../telegram/webapp'
+import { humanError } from '../lib/humanError'
 import Section from '../components/Section.vue'
 import Cell from '../components/Cell.vue'
 
@@ -14,6 +16,27 @@ const roleLabel = computed(() => (me.value?.role === 'admin' ? 'Админист
 
 const tg = useAsync((signal) => getTelegramLink(signal))
 onMounted(() => void tg.run())
+
+const chat = useAsync((signal) => getTeamChat(signal))
+onMounted(() => {
+  if (isAdmin.value) void chat.run()
+})
+const testing = ref(false)
+
+async function sendTest(): Promise<void> {
+  if (testing.value) return
+  testing.value = true
+  try {
+    await testTeamChat()
+    haptic.success()
+    await tgAlert('Тестовое сообщение отправлено в командный чат')
+  } catch (e) {
+    haptic.error()
+    await tgAlert(humanError(e))
+  } finally {
+    testing.value = false
+  }
+}
 
 const appVersion = __APP_VERSION__
 
@@ -54,9 +77,33 @@ function go(path: string): void {
       </div>
     </Section>
 
+    <Section title="Действия">
+      <Cell clickable chevron @click="go('/activity')">Мои действия</Cell>
+    </Section>
+
     <Section v-if="isAdmin" title="Администрирование">
       <Cell clickable chevron @click="go('/admin/recurring')">Регулярные платежи</Cell>
       <Cell clickable chevron @click="go('/admin/users')">Сотрудники</Cell>
+      <Cell clickable chevron @click="go('/admin/personas')">Персоны</Cell>
+      <Cell clickable chevron @click="go('/admin/audit')">Журнал действий</Cell>
+    </Section>
+
+    <Section v-if="isAdmin" title="Командный чат">
+      <Cell label="Чат">
+        <template v-if="chat.data.value?.bound">
+          {{ chat.data.value.title || 'Привязан' }}
+          <span v-if="chat.data.value.is_active === false" class="hint"> · не активен</span>
+        </template>
+        <template v-else>Не привязан: отправьте /bind в группе</template>
+      </Cell>
+      <Cell v-if="chat.data.value?.last_error">
+        <span class="warn">{{ chat.data.value.last_error }}</span>
+      </Cell>
+      <div v-if="chat.data.value?.bound" class="chat-actions">
+        <button class="btn btn-secondary btn-block" type="button" :disabled="testing" @click="sendTest">
+          Отправить тест в чат
+        </button>
+      </div>
     </Section>
 
     <p class="version hint">Версия {{ appVersion }}</p>
@@ -71,6 +118,9 @@ function go(path: string): void {
   border-left: 2px solid var(--red);
   padding-left: 10px;
   margin-top: 8px;
+}
+.chat-actions {
+  padding: var(--sp-4) 0;
 }
 .unlink-hint {
   padding: var(--sp-4) 0;
