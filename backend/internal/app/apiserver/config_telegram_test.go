@@ -72,8 +72,8 @@ func TestEnvconfigDefaults(t *testing.T) {
 	if cfg.TelegramAPIURL != "https://api.telegram.org" {
 		t.Errorf("TelegramAPIURL default = %q", cfg.TelegramAPIURL)
 	}
-	if cfg.ReminderSource != "stub" {
-		t.Errorf("ReminderSource default = %q, want stub", cfg.ReminderSource)
+	if cfg.ReminderSource != "db" {
+		t.Errorf("ReminderSource default = %q, want db", cfg.ReminderSource)
 	}
 	if cfg.ReminderLeadDays != 3 {
 		t.Errorf("ReminderLeadDays default = %d, want 3", cfg.ReminderLeadDays)

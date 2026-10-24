@@ -98,9 +98,27 @@ func byID(occs []model.ReminderOccurrence, id string) (model.ReminderOccurrence,
 	return model.ReminderOccurrence{}, false
 }
 
+// SourceContractOption настраивает проверку контракта источника.
+type SourceContractOption func(*sourceContractOpts)
+
+type sourceContractOpts struct {
+	assigneeRequired bool
+}
+
+// AssigneeRequired ослабляет проверку 5: у реального источника B payments.user_id
+// NOT NULL, поэтому период без ответственного невозможен — проверяем лишь, что
+// период в выборке. MemoryStore этот параметр не передаёт (у него AssigneeID=nil).
+func AssigneeRequired() SourceContractOption {
+	return func(o *sourceContractOpts) { o.assigneeRequired = true }
+}
+
 // RunSourceContract проверяет инварианты OccurrenceSource (§2.5, 1–5).
-func RunSourceContract(t *testing.T, newSrc func(t *testing.T, fx Fixtures) reminder.OccurrenceSource) {
+func RunSourceContract(t *testing.T, newSrc func(t *testing.T, fx Fixtures) reminder.OccurrenceSource, opts ...SourceContractOption) {
 	t.Helper()
+	var o sourceContractOpts
+	for _, opt := range opts {
+		opt(&o)
+	}
 	today := clock.Date{Y: 2026, M: 10, D: 24}
 	fx := BuildFixtures(today)
 	src := newSrc(t, fx)
@@ -134,8 +152,10 @@ func RunSourceContract(t *testing.T, newSrc func(t *testing.T, fx Fixtures) remi
 	if !contains(due, fx.NoAssigneeID) {
 		t.Error("период без ответственного не попал в выборку")
 	}
-	if o, ok := byID(due, fx.NoAssigneeID); ok && o.AssigneeID != nil {
-		t.Error("ожидался nil AssigneeID у периода без ответственного")
+	if !o.assigneeRequired {
+		if occ, ok := byID(due, fx.NoAssigneeID); ok && occ.AssigneeID != nil {
+			t.Error("ожидался nil AssigneeID у периода без ответственного")
+		}
 	}
 
 	// 4: поля совпадают, due_date не сдвинута.

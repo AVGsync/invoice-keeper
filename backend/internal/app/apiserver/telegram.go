@@ -2,7 +2,6 @@ package apiserver
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strconv"
 	"sync"
@@ -30,16 +29,6 @@ type telegramRuntime struct {
 	loop    *reminder.Loop // движок напоминаний; nil, когда бот выключен
 	enabled bool
 	mode    string
-}
-
-// dbPayerPlaceholder — временный Payer для REMINDER_SOURCE=db, пока у B нет
-// метода MarkOccurrencePaid. На интеграции (этап 4) заменяется на paymentsPayer,
-// который зовёт сервис B и маппит его ошибки в reminder.Err* (§2.2). Возвращает
-// не-sentinel ошибку: бот покажет «Ошибка, попробуйте позже» и залогирует.
-type dbPayerPlaceholder struct{}
-
-func (dbPayerPlaceholder) MarkPaid(ctx context.Context, occurrenceID string, paidDate clock.Date, actorUserID string) error {
-	return fmt.Errorf("reminder payer: сервис B (MarkOccurrencePaid) ещё не подключён для REMINDER_SOURCE=db")
 }
 
 // buildTelegram собирает компоненты бота из конфигурации. Вызывается из
@@ -110,7 +99,8 @@ func (s *APIServer) buildReminder(rt *telegramRuntime, client *telegram.Client) 
 	switch s.config.ReminderSource {
 	case "db":
 		source = s.db.TelegramSource()
-		payer = dbPayerPlaceholder{}
+		// paymentsPayer: права и запись — через сервис B, «завершён» — по источнику.
+		payer = paymentsPayer{payments: s.payments, source: source, isAdmin: isAdmin}
 	default: // stub
 		// Назначаем демо-платежи реальному админу (если он уже создан), чтобы
 		// «Оплачено» работало и как ответственный, и как админ.
@@ -135,8 +125,13 @@ func (s *APIServer) buildReminder(rt *telegramRuntime, client *telegram.Client) 
 	botSvc := reminder.NewBotService(source, payer, notif, client, clk, rcfg)
 	rt.service.AttachPayments(botSvc)
 
-	// ensurer=nil: периоды создаёт B заранее на горизонт (§2.2, рекомендация [В-B 2]).
-	rt.loop = reminder.NewLoop(source, notif, s.db.Telegram(), client, clk, nil, rcfg)
+	// ensurer: в режиме db периоды гарантирует PaymentScheduler перед выборкой
+	// (§2.2). В stub источник сам отдаёт фикстуры, ensurer не нужен.
+	var ensurer reminder.OccurrenceEnsurer
+	if s.config.ReminderSource == "db" && s.scheduler != nil {
+		ensurer = s.scheduler
+	}
+	rt.loop = reminder.NewLoop(source, notif, s.db.Telegram(), client, clk, ensurer, rcfg)
 }
 
 // mountTelegramWebhook монтирует публичный маршрут webhook (вне групп Auth и

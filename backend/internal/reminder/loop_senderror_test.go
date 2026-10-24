@@ -2,6 +2,7 @@ package reminder
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -170,5 +171,33 @@ func TestLoop_ReconcileUnrecoverableEditFixesStatus(t *testing.T) {
 	h.loop.Tick(ctx)
 	if len(h.fake.Edited) != before {
 		t.Errorf("reconcile повторяет правку уже оплаченной строки")
+	}
+}
+
+// Период удалён остановкой платежа (D7): reconcile правит сообщение в нейтральный
+// текст и фиксирует ended, чтобы строка не всплывала в очереди бесконечно (§5.6, G9).
+func TestLoop_DeletedOccurrenceReconciled(t *testing.T) {
+	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
+	ctx := context.Background()
+
+	h.loop.Tick(ctx) // отправили напоминание
+	if len(h.fake.Sent) != 1 {
+		t.Fatalf("ожидалась отправка на первом тике, got %d", len(h.fake.Sent))
+	}
+
+	h.store.Delete(testOccID) // платёж остановлен, будущий период удалён
+
+	h.loop.Tick(ctx) // reconcile должен отредактировать сообщение
+
+	if len(h.fake.Edited) != 1 {
+		t.Fatalf("ожидалась одна правка сообщения, got %d", len(h.fake.Edited))
+	}
+	if !strings.Contains(h.fake.Edited[0].Text, "отменён") {
+		t.Errorf("правка не про отмену: %q", h.fake.Edited[0].Text)
+	}
+	for _, r := range h.notif.all() {
+		if r.ShownStatus != model.ShownStatusEnded {
+			t.Errorf("shown_status не ended: %s", r.ShownStatus)
+		}
 	}
 }

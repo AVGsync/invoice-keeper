@@ -13,6 +13,9 @@ var ErrLoginTaken = errors.New("login already taken")
 // ErrUserNotFound возвращается, когда пользователь с указанным id не найден.
 var ErrUserNotFound = errors.New("user not found")
 
+// ErrNotificationSettingsNotFound возвращается, когда настройки уведомлений пользователя не найдены.
+var ErrNotificationSettingsNotFound = errors.New("user notification settings not found")
+
 // ErrUserInUse запрещает удалять пользователя, на которого ссылаются другие записи.
 var ErrUserInUse = errors.New("user is referenced and cannot be deleted")
 
@@ -25,6 +28,23 @@ var ErrPersonaNotFound = errors.New("persona not found")
 
 // ErrPersonaNameTaken — персона с таким названием уже есть (без учёта регистра).
 var ErrPersonaNameTaken = errors.New("persona with this name already exists")
+
+// Единые sentinel-ошибки модуля платежей. Репозиторий и сервис возвращают их,
+// а HTTP-слой и Telegram-адаптер раскладывают по статусам/ошибкам reminder.
+var (
+	// ErrPaymentNotFound — периода (payments) с таким id нет.
+	ErrPaymentNotFound = errors.New("payment not found")
+	// ErrRecurrentPaymentNotFound — шаблона (recurrent_payments) с таким id нет.
+	ErrRecurrentPaymentNotFound = errors.New("recurrent payment not found")
+	// ErrPaymentForbidden — пользователь не ответственный и не админ (решение №4).
+	ErrPaymentForbidden = errors.New("payment action forbidden")
+	// ErrPaymentAlreadyPaid — период уже оплачен (повторное подтверждение).
+	ErrPaymentAlreadyPaid = errors.New("payment already paid")
+	// ErrPaymentEnded — платёж остановлен/удалён, отметить нельзя (использует бот).
+	ErrPaymentEnded = errors.New("payment ended")
+	// ErrNotificationSettingsExists — настройки уведомлений уже созданы (uq email).
+	ErrNotificationSettingsExists = errors.New("notification settings already exist")
+)
 
 type User struct {
 	// Идентификатор пользователя.
@@ -79,4 +99,66 @@ type Claims struct {
 	Type   string `json:"type"`
 
 	jwt.RegisteredClaims
+}
+
+type RecurrentPayment struct {
+	ID          string `json:"id" format:"uuid"`
+	Amount      int64  `json:"amount"` // Сумма в минимальных денежных единицах
+	Currency    string `json:"currency"`
+	Frequency   string `json:"frequency"` // weekly, monthly
+	Interval    int    `json:"interval"`  // Каждые N недель или месяцев
+	Description string `json:"description"`
+
+	// Для monthly: день месяца (1–31)
+	// Для weekly: день недели (0–6)
+	DayOffset int `json:"day_offset"`
+
+	// StartDate — ближайшая дата оплаты (якорь графика), "YYYY-MM-DD".
+	StartDate string `json:"start_date"`
+	// StoppedAt — момент мягкой остановки; nil у активного шаблона.
+	StoppedAt *time.Time `json:"stopped_at,omitempty"`
+	// AssigneeID — ответственный (user_recurrent_payments, ровно один); nil, если не назначен.
+	AssigneeID *string `json:"assignee_id,omitempty"`
+	// AssigneeName — полное имя ответственного (для списков и бота).
+	AssigneeName string `json:"assignee_name,omitempty"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type Payment struct {
+	ID                 string  `json:"id"`
+	UserID             string  `json:"user_id"`
+	RecurrentPaymentID *string `json:"recurrent_payment_id,omitempty"`
+
+	Amount      int64  `json:"amount"`
+	Currency    string `json:"currency"`
+	Description string `json:"description"`
+
+	// DueDate и PaidDate — календарные даты "YYYY-MM-DD" без зоны (читаются как
+	// due_date::text / paid_date::text, см. internal/clock, §5.2).
+	DueDate  string     `json:"due_date"`
+	PaidDate *string    `json:"paid_date,omitempty"`
+	PaidAt   *time.Time `json:"paid_at,omitempty"`
+	Status   string     `json:"status"`
+
+	// AssigneeName — полное имя ответственного (payments.user_id → users.full_name).
+	AssigneeName string `json:"assignee_name,omitempty"`
+	// Ended — платёж остановлен/удалён (recurrent_payment_id IS NULL OR stopped_at IS NOT NULL).
+	Ended bool `json:"ended"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type UserNotificationSettings struct {
+	UserID        string    `json:"user_id"`
+	Email         string    `json:"email"`
+	EmailVerified bool      `json:"email_verified"`
+	EmailEnabled  bool      `json:"email_enabled"`
+	DaysBeforeDue int       `json:"days_before_due"`
+	SendTime      string    `json:"send_time"`
+	Timezone      string    `json:"timezone"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }

@@ -43,6 +43,12 @@ migrate-version:
 test:
 	@cd backend && go test ./...
 
+# Интеграционные тесты пакетов postgres и apiserver делят одну TEST_DATABASE_URL
+# и одни и те же UUID фикстур, поэтому гоняем строго последовательно (-p 1),
+# иначе параллельные пакеты наступают друг на друга (duplicate key / гонки сида).
+test-integration:
+	@cd backend && go test -tags integration -p 1 -count=1 ./...
+
 vet:
 	@cd backend && go vet ./...
 

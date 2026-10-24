@@ -34,9 +34,9 @@ type TelegramConfig struct {
 	// Максимальный возраст initData Mini App (auth_date). Старее => 401 init_data_expired (§3.3).
 	TelegramInitDataMaxAge time.Duration `envconfig:"TELEGRAM_INITDATA_MAX_AGE" default:"10m"`
 
-	// Источник данных о периодах: stub (in-memory фикстуры) | db (SQL по таблицам B).
-	// Пока таблиц B нет, по умолчанию stub.
-	ReminderSource string `envconfig:"REMINDER_SOURCE" default:"stub"`
+	// Источник данных о периодах: db (SQL по таблицам B, по умолчанию) | stub
+	// (in-memory демо-фикстуры, только для демонстрации без базы).
+	ReminderSource string `envconfig:"REMINDER_SOURCE" default:"db"`
 	// За сколько дней до срока напоминать. Минимум 3 по требованию.
 	ReminderLeadDays int `envconfig:"REMINDER_LEAD_DAYS" default:"3"`
 	// Период тика движка напоминаний.

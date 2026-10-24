@@ -1,5 +1,38 @@
 basePath: /api/v1
 definitions:
+  handler.PatchPaymentOccurrenceRequest:
+    properties:
+      action:
+        type: string
+      amount:
+        type: integer
+      currency:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      paid_date:
+        type: string
+    type: object
+  handler.PaymentCurrencySummary:
+    properties:
+      currency:
+        type: string
+      outstanding_total:
+        type: integer
+      overdue_total:
+        type: integer
+      paid_total:
+        type: integer
+    type: object
+  handler.PaymentSummaryResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handler.PaymentCurrencySummary'
+        type: array
+    type: object
   model.Persona:
     properties:
       created_at:
@@ -37,6 +70,47 @@ definitions:
         example: Бухгалтер
         type: string
     type: object
+  model.RecurrentPayment:
+    properties:
+      amount:
+        description: Сумма в минимальных денежных единицах
+        type: integer
+      assignee_id:
+        description: AssigneeID — ответственный (user_recurrent_payments, ровно один);
+          nil, если не назначен.
+        type: string
+      assignee_name:
+        description: AssigneeName — полное имя ответственного (для списков и бота).
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      day_offset:
+        description: |-
+          Для monthly: день месяца (1–31)
+          Для weekly: день недели (0–6)
+        type: integer
+      description:
+        type: string
+      frequency:
+        description: weekly, monthly
+        type: string
+      id:
+        format: uuid
+        type: string
+      interval:
+        description: Каждые N недель или месяцев
+        type: integer
+      start_date:
+        description: StartDate — ближайшая дата оплаты (якорь графика), "YYYY-MM-DD".
+        type: string
+      stopped_at:
+        description: StoppedAt — момент мягкой остановки; nil у активного шаблона.
+        type: string
+      updated_at:
+        type: string
+    type: object
   model.User:
     properties:
       created_at:
@@ -70,6 +144,27 @@ definitions:
         example: user
         type: string
     type: object
+  model.UserNotificationSettings:
+    properties:
+      created_at:
+        type: string
+      days_before_due:
+        type: integer
+      email:
+        type: string
+      email_enabled:
+        type: boolean
+      email_verified:
+        type: boolean
+      send_time:
+        type: string
+      timezone:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
   request.AssistantAskRequest:
     properties:
       channel:
@@ -101,6 +196,25 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  request.CreateRecurrentPaymentRequest:
+    properties:
+      amount:
+        type: integer
+      assignee_id:
+        type: string
+      currency:
+        type: string
+      day_offset:
+        type: integer
+      description:
+        type: string
+      frequency:
+        type: string
+      interval:
+        type: integer
+      start_date:
+        type: string
     type: object
   request.CreateUserRequest:
     properties:
@@ -172,6 +286,19 @@ definitions:
         example: Str0ngPass!2026
         type: string
     type: object
+  request.PatchUserNotificationSettingsRequest:
+    properties:
+      days_before_due:
+        type: integer
+      email:
+        type: string
+      email_enabled:
+        type: boolean
+      send_time:
+        type: string
+      timezone:
+        type: string
+    type: object
   request.UpdatePersonaRequest:
     properties:
       description:
@@ -187,6 +314,38 @@ definitions:
         example: Главный бухгалтер
         maxLength: 64
         minLength: 1
+        type: string
+    type: object
+  request.UpdateRecurrentPaymentRequest:
+    properties:
+      amount:
+        type: integer
+      assignee_id:
+        type: string
+      currency:
+        type: string
+      day_offset:
+        type: integer
+      description:
+        type: string
+      frequency:
+        type: string
+      interval:
+        type: integer
+      start_date:
+        type: string
+    type: object
+  request.UpdateUserNotificationSettingsRequest:
+    properties:
+      days_before_due:
+        type: integer
+      email:
+        type: string
+      email_enabled:
+        type: boolean
+      send_time:
+        type: string
+      timezone:
         type: string
     type: object
   request.UserUpdateRequest:
@@ -357,6 +516,48 @@ definitions:
         - admin
         - user
         example: user
+        type: string
+    type: object
+  response.PaymentListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.PaymentResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  response.PaymentResponse:
+    properties:
+      amount:
+        type: integer
+      assignee_name:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      ended:
+        type: boolean
+      id:
+        type: string
+      paid_at:
+        type: string
+      paid_date:
+        type: string
+      paid_late:
+        type: boolean
+      recurrent_payment_id:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      user_id:
         type: string
     type: object
   response.PersonaListResponse:
@@ -759,6 +960,369 @@ paths:
       summary: Код привязки Telegram
       tags:
       - Telegram
+  /notifications/settings:
+    delete:
+      description: |-
+        Удаляет настройки email-уведомлений текущего пользователя.
+        Сам пользователь при этом не удаляется.
+        Идентификатор пользователя берётся из access-токена.
+
+        Коды ответов:
+        - 204 — настройки удалены;
+        - 401 — пользователь не авторизован;
+        - 404 — настройки не найдены;
+        - 500 — ошибка удаления.
+      operationId: deleteNotificationSettings
+      produces:
+      - text/plain
+      responses:
+        "204":
+          description: Настройки удалены
+        "401":
+          description: Не авторизован
+          schema:
+            type: string
+        "404":
+          description: Настройки не найдены
+          schema:
+            type: string
+        "500":
+          description: Не удалось удалить настройки
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Удаление настроек email-уведомлений
+      tags:
+      - Notifications
+    get:
+      description: |-
+        Возвращает настройки email-уведомлений текущего авторизованного пользователя.
+        Идентификатор пользователя берётся из access-токена, передавать его в запросе не нужно.
+        Возвращаемые настройки включают email, статус подтверждения email, включение уведомлений,
+        количество дней до платежа, время отправки и часовой пояс.
+
+        Коды ответов:
+        - 200 — настройки получены;
+        - 401 — пользователь не авторизован;
+        - 404 — настройки ещё не созданы;
+        - 500 — внутренняя ошибка.
+      operationId: getNotificationSettings
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Настройки уведомлений
+          schema:
+            $ref: '#/definitions/model.UserNotificationSettings'
+        "401":
+          description: Не авторизован
+          schema:
+            type: string
+        "404":
+          description: Настройки уведомлений не найдены
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Получение настроек email-уведомлений
+      tags:
+      - Notifications
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Обновляет только переданные поля настроек текущего пользователя.
+        Можно передать одно или несколько полей: email, email_enabled,
+        days_before_due, send_time, timezone. Хотя бы одно поле обязательно.
+        При изменении email он снова становится неподтверждённым.
+        Идентификатор пользователя берётся из access-токена.
+
+        Коды ответов:
+        - 204 — настройки обновлены;
+        - 400 — невалидное тело или значения полей;
+        - 401 — пользователь не авторизован;
+        - 404 — настройки не найдены;
+        - 500 — ошибка обновления.
+      operationId: patchNotificationSettings
+      parameters:
+      - description: Изменяемые поля настроек
+        in: body
+        name: settings
+        required: true
+        schema:
+          $ref: '#/definitions/request.PatchUserNotificationSettingsRequest'
+      produces:
+      - text/plain
+      responses:
+        "204":
+          description: Настройки обновлены
+        "400":
+          description: Невалидное тело запроса или значения полей
+          schema:
+            type: string
+        "401":
+          description: Не авторизован
+          schema:
+            type: string
+        "404":
+          description: Настройки не найдены
+          schema:
+            type: string
+        "500":
+          description: Не удалось обновить настройки
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Частичное обновление настроек email-уведомлений
+      tags:
+      - Notifications
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создаёт настройки уведомлений для текущего авторизованного пользователя.
+        Email должен быть корректным адресом; days_before_due должен находиться в диапазоне 0–365;
+        send_time задаётся в формате HH:MM; timezone должен быть корректным часовым поясом IANA.
+        При создании email считается неподтверждённым (email_verified=false).
+        Идентификатор пользователя берётся из access-токена.
+
+        Коды ответов:
+        - 201 — настройки созданы;
+        - 400 — невалидное тело или значения полей;
+        - 401 — пользователь не авторизован;
+        - 500 — ошибка создания настроек.
+      operationId: createNotificationSettings
+      parameters:
+      - description: Настройки уведомлений
+        in: body
+        name: settings
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateUserNotificationSettingsRequest'
+      produces:
+      - text/plain
+      responses:
+        "201":
+          description: Настройки созданы
+        "400":
+          description: Невалидное тело запроса или значения полей
+          schema:
+            type: string
+        "401":
+          description: Не авторизован
+          schema:
+            type: string
+        "500":
+          description: Не удалось создать настройки
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Создание настроек email-уведомлений
+      tags:
+      - Notifications
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Полностью обновляет настройки уведомлений текущего пользователя.
+        Все обязательные поля должны присутствовать в запросе.
+        При изменении email он снова становится неподтверждённым.
+        Идентификатор пользователя берётся из access-токена.
+
+        Коды ответов:
+        - 204 — настройки обновлены;
+        - 400 — невалидное тело или значения полей;
+        - 401 — пользователь не авторизован;
+        - 404 — настройки не найдены;
+        - 500 — ошибка обновления.
+      operationId: updateNotificationSettings
+      parameters:
+      - description: Полный набор настроек
+        in: body
+        name: settings
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateUserNotificationSettingsRequest'
+      produces:
+      - text/plain
+      responses:
+        "204":
+          description: Настройки обновлены
+        "400":
+          description: Невалидное тело запроса или значения полей
+          schema:
+            type: string
+        "401":
+          description: Не авторизован
+          schema:
+            type: string
+        "404":
+          description: Настройки не найдены
+          schema:
+            type: string
+        "500":
+          description: Не удалось обновить настройки
+          schema:
+            type: string
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Полное обновление настроек email-уведомлений
+      tags:
+      - Notifications
+  /payment-occurrences:
+    get:
+      description: Возвращает периоды платежей всей команды. Фильтр ?assignee=me —
+        только свои.
+      parameters:
+      - description: me — только периоды текущего пользователя
+        in: query
+        name: assignee
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.PaymentListResponse'
+        "403":
+          description: Не удалось получить данные авторизации
+          schema:
+            type: string
+        "500":
+          description: Не удалось получить платежи
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить список платежей
+      tags:
+      - Payments
+  /payment-occurrences/{id}:
+    get:
+      description: Возвращает период платежа команды.
+      parameters:
+      - description: UUID платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.PaymentResponse'
+        "400":
+          description: Некорректный UUID
+          schema:
+            type: string
+        "404":
+          description: Платеж не найден
+          schema:
+            type: string
+        "500":
+          description: Не удалось получить платеж
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить платеж по ID
+      tags:
+      - Payments
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        action=confirm — отметить оплату (paid_date опционально, по умолчанию сегодня; повторно — меняет дату).
+        action=cancel — снять оплату и очистить дату.
+        Без action — правка суммы/валюты/описания (только администратор); due_date менять нельзя.
+      parameters:
+      - description: UUID платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Действие или поля для обновления
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.PatchPaymentOccurrenceRequest'
+      responses:
+        "204":
+          description: Платеж обновлен
+        "400":
+          description: Некорректный запрос
+          schema:
+            type: string
+        "403":
+          description: Недостаточно прав
+          schema:
+            type: string
+        "404":
+          description: Платеж не найден
+          schema:
+            type: string
+        "409":
+          description: Платеж уже оплачен
+          schema:
+            type: string
+        "500":
+          description: Не удалось изменить платеж
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Изменить платеж
+      tags:
+      - Payments
+  /payments/summary:
+    get:
+      description: Возвращает суммы оплаченных, неоплаченных и просроченных платежей
+        команды по валютам (минимальные единицы).
+      parameters:
+      - description: Нижняя граница due_date (YYYY-MM-DD)
+        in: query
+        name: from
+        type: string
+      - description: Верхняя граница due_date (YYYY-MM-DD)
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.PaymentSummaryResponse'
+        "400":
+          description: Некорректный формат from/to
+          schema:
+            type: string
+        "500":
+          description: Не удалось получить сводку платежей
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить сводку платежей
+      tags:
+      - Payments
   /personas:
     get:
       description: |-
@@ -1014,6 +1578,128 @@ paths:
       summary: Проверка доступности API-сервера
       tags:
       - Система
+  /recurring-payments:
+    get:
+      description: Возвращает все шаблоны регулярных платежей команды (включая остановленные).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.RecurrentPayment'
+            type: array
+        "500":
+          description: Не удалось получить регулярные платежи
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить список регулярных платежей
+      tags:
+      - Recurring Payments
+    post:
+      consumes:
+      - application/json
+      description: Создает шаблон регулярного платежа и назначает ответственного (только
+        администратор).
+      parameters:
+      - description: Данные регулярного платежа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateRecurrentPaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Идентификатор созданного платежа
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Некорректное тело запроса
+          schema:
+            type: string
+        "500":
+          description: Не удалось создать регулярный платеж
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Создать регулярный платеж
+      tags:
+      - Recurring Payments
+  /recurring-payments/{id}:
+    delete:
+      description: 'Мягко останавливает шаблон: новые периоды не создаются, напоминания
+        прекращаются, история сохраняется.'
+      parameters:
+      - description: UUID регулярного платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Регулярный платеж остановлен
+        "400":
+          description: Некорректный UUID
+          schema:
+            type: string
+        "404":
+          description: Регулярный платеж не найден
+          schema:
+            type: string
+        "500":
+          description: Не удалось остановить регулярный платеж
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Остановить регулярный платеж
+      tags:
+      - Recurring Payments
+    patch:
+      consumes:
+      - application/json
+      description: Частично обновляет сумму, валюту, описание и ответственного. Поля
+        графика неизменяемы.
+      parameters:
+      - description: UUID регулярного платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Новые параметры регулярного платежа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateRecurrentPaymentRequest'
+      responses:
+        "204":
+          description: Регулярный платеж обновлен
+        "400":
+          description: Некорректный UUID или тело запроса
+          schema:
+            type: string
+        "404":
+          description: Регулярный платеж не найден
+          schema:
+            type: string
+        "500":
+          description: Не удалось обновить регулярный платеж
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Обновить регулярный платеж
+      tags:
+      - Recurring Payments
   /telegram/miniapp/auth:
     post:
       consumes:

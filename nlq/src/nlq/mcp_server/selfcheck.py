@@ -30,11 +30,12 @@ from .state import (
     AppState,
     SchemaStatus,
 )
+from .tools.find_people import ACTIVE_PAYMENTS_SUBQUERY
 
 _CATEGORY_PROBE = """
 SELECT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'recurring_payments'
+    WHERE table_name = 'recurrent_payments'
       AND column_name = 'category'
       AND table_schema = ANY (current_schemas(false))
 )
@@ -64,11 +65,7 @@ def _rendered_templates(category_available: bool) -> list[str]:
                 category_col=category_col(category_available), order_sql=order
             )
         )
-    for active in (
-        "(SELECT count(*) FROM recurring_payments rp "
-        "WHERE rp.assignee_id = u.id AND rp.ended_at IS NULL)",
-        "0",
-    ):
+    for active in (ACTIVE_PAYMENTS_SUBQUERY, "0"):
         out.append(load_sql("find_people.sql").format(active_payments=active))
     out.append(load_sql("horizon.sql"))
     out.append(load_sql("run_rate.sql"))
@@ -107,6 +104,10 @@ async def run_security_checks(db: Database) -> None:
         await _expect_denied(conn, "SELECT login FROM users LIMIT 0", "users.login")
         await _expect_denied(conn, "SELECT 1 FROM refresh_tokens LIMIT 0", "refresh_tokens")
         await _expect_denied(conn, "SELECT 1 FROM telegram_links LIMIT 0", "telegram_links")
+        # Email addresses live here (decision #13); the reader must never read them.
+        await _expect_denied(
+            conn, "SELECT 1 FROM user_notification_settings LIMIT 0", "user_notification_settings"
+        )
 
         can_write = await conn.fetchval(
             "SELECT has_table_privilege(current_user, 'public.users', 'INSERT,UPDATE,DELETE')"

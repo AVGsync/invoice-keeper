@@ -429,6 +429,491 @@ const docTemplate = `{
                 }
             }
         },
+        "/notifications/settings": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает настройки email-уведомлений текущего авторизованного пользователя.\nИдентификатор пользователя берётся из access-токена, передавать его в запросе не нужно.\nВозвращаемые настройки включают email, статус подтверждения email, включение уведомлений,\nколичество дней до платежа, время отправки и часовой пояс.\n\nКоды ответов:\n- 200 — настройки получены;\n- 401 — пользователь не авторизован;\n- 404 — настройки ещё не созданы;\n- 500 — внутренняя ошибка.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Получение настроек email-уведомлений",
+                "operationId": "getNotificationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Настройки уведомлений",
+                        "schema": {
+                            "$ref": "#/definitions/model.UserNotificationSettings"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Настройки уведомлений не найдены",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Полностью обновляет настройки уведомлений текущего пользователя.\nВсе обязательные поля должны присутствовать в запросе.\nПри изменении email он снова становится неподтверждённым.\nИдентификатор пользователя берётся из access-токена.\n\nКоды ответов:\n- 204 — настройки обновлены;\n- 400 — невалидное тело или значения полей;\n- 401 — пользователь не авторизован;\n- 404 — настройки не найдены;\n- 500 — ошибка обновления.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Полное обновление настроек email-уведомлений",
+                "operationId": "updateNotificationSettings",
+                "parameters": [
+                    {
+                        "description": "Полный набор настроек",
+                        "name": "settings",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateUserNotificationSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Настройки обновлены"
+                    },
+                    "400": {
+                        "description": "Невалидное тело запроса или значения полей",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Настройки не найдены",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось обновить настройки",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Создаёт настройки уведомлений для текущего авторизованного пользователя.\nEmail должен быть корректным адресом; days_before_due должен находиться в диапазоне 0–365;\nsend_time задаётся в формате HH:MM; timezone должен быть корректным часовым поясом IANA.\nПри создании email считается неподтверждённым (email_verified=false).\nИдентификатор пользователя берётся из access-токена.\n\nКоды ответов:\n- 201 — настройки созданы;\n- 400 — невалидное тело или значения полей;\n- 401 — пользователь не авторизован;\n- 500 — ошибка создания настроек.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Создание настроек email-уведомлений",
+                "operationId": "createNotificationSettings",
+                "parameters": [
+                    {
+                        "description": "Настройки уведомлений",
+                        "name": "settings",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateUserNotificationSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Настройки созданы"
+                    },
+                    "400": {
+                        "description": "Невалидное тело запроса или значения полей",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось создать настройки",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаляет настройки email-уведомлений текущего пользователя.\nСам пользователь при этом не удаляется.\nИдентификатор пользователя берётся из access-токена.\n\nКоды ответов:\n- 204 — настройки удалены;\n- 401 — пользователь не авторизован;\n- 404 — настройки не найдены;\n- 500 — ошибка удаления.",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Удаление настроек email-уведомлений",
+                "operationId": "deleteNotificationSettings",
+                "responses": {
+                    "204": {
+                        "description": "Настройки удалены"
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Настройки не найдены",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось удалить настройки",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Обновляет только переданные поля настроек текущего пользователя.\nМожно передать одно или несколько полей: email, email_enabled,\ndays_before_due, send_time, timezone. Хотя бы одно поле обязательно.\nПри изменении email он снова становится неподтверждённым.\nИдентификатор пользователя берётся из access-токена.\n\nКоды ответов:\n- 204 — настройки обновлены;\n- 400 — невалидное тело или значения полей;\n- 401 — пользователь не авторизован;\n- 404 — настройки не найдены;\n- 500 — ошибка обновления.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Частичное обновление настроек email-уведомлений",
+                "operationId": "patchNotificationSettings",
+                "parameters": [
+                    {
+                        "description": "Изменяемые поля настроек",
+                        "name": "settings",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.PatchUserNotificationSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Настройки обновлены"
+                    },
+                    "400": {
+                        "description": "Невалидное тело запроса или значения полей",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Настройки не найдены",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось обновить настройки",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-occurrences": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает периоды платежей всей команды. Фильтр ?assignee=me — только свои.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Получить список платежей",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "me — только периоды текущего пользователя",
+                        "name": "assignee",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.PaymentListResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Не удалось получить данные авторизации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось получить платежи",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-occurrences/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает период платежа команды.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Получить платеж по ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID платежа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.PaymentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Платеж не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось получить платеж",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "action=confirm — отметить оплату (paid_date опционально, по умолчанию сегодня; повторно — меняет дату).\naction=cancel — снять оплату и очистить дату.\nБез action — правка суммы/валюты/описания (только администратор); due_date менять нельзя.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Изменить платеж",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID платежа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Действие или поля для обновления",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.PatchPaymentOccurrenceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Платеж обновлен"
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Платеж не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Платеж уже оплачен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось изменить платеж",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/payments/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает суммы оплаченных, неоплаченных и просроченных платежей команды по валютам (минимальные единицы).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Получить сводку платежей",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Нижняя граница due_date (YYYY-MM-DD)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Верхняя граница due_date (YYYY-MM-DD)",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.PaymentSummaryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный формат from/to",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось получить сводку платежей",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/personas": {
             "get": {
                 "security": [
@@ -705,6 +1190,194 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "pong",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/recurring-payments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает все шаблоны регулярных платежей команды (включая остановленные).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Recurring Payments"
+                ],
+                "summary": "Получить список регулярных платежей",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.RecurrentPayment"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось получить регулярные платежи",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Создает шаблон регулярного платежа и назначает ответственного (только администратор).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Recurring Payments"
+                ],
+                "summary": "Создать регулярный платеж",
+                "parameters": [
+                    {
+                        "description": "Данные регулярного платежа",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.CreateRecurrentPaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Идентификатор созданного платежа",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректное тело запроса",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось создать регулярный платеж",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/recurring-payments/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Мягко останавливает шаблон: новые периоды не создаются, напоминания прекращаются, история сохраняется.",
+                "tags": [
+                    "Recurring Payments"
+                ],
+                "summary": "Остановить регулярный платеж",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID регулярного платежа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Регулярный платеж остановлен"
+                    },
+                    "400": {
+                        "description": "Некорректный UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Регулярный платеж не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось остановить регулярный платеж",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Частично обновляет сумму, валюту, описание и ответственного. Поля графика неизменяемы.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Recurring Payments"
+                ],
+                "summary": "Обновить регулярный платеж",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID регулярного платежа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новые параметры регулярного платежа",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.UpdateRecurrentPaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Регулярный платеж обновлен"
+                    },
+                    "400": {
+                        "description": "Некорректный UUID или тело запроса",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Регулярный платеж не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось обновить регулярный платеж",
                         "schema": {
                             "type": "string"
                         }
@@ -1205,6 +1878,57 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handler.PatchPaymentOccurrenceRequest": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "paid_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.PaymentCurrencySummary": {
+            "type": "object",
+            "properties": {
+                "currency": {
+                    "type": "string"
+                },
+                "outstanding_total": {
+                    "type": "integer"
+                },
+                "overdue_total": {
+                    "type": "integer"
+                },
+                "paid_total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.PaymentSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.PaymentCurrencySummary"
+                    }
+                }
+            }
+        },
         "model.Persona": {
             "type": "object",
             "properties": {
@@ -1253,6 +1977,59 @@ const docTemplate = `{
                 }
             }
         },
+        "model.RecurrentPayment": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "Сумма в минимальных денежных единицах",
+                    "type": "integer"
+                },
+                "assignee_id": {
+                    "description": "AssigneeID — ответственный (user_recurrent_payments, ровно один); nil, если не назначен.",
+                    "type": "string"
+                },
+                "assignee_name": {
+                    "description": "AssigneeName — полное имя ответственного (для списков и бота).",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "day_offset": {
+                    "description": "Для monthly: день месяца (1–31)\nДля weekly: день недели (0–6)",
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "frequency": {
+                    "description": "weekly, monthly",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "interval": {
+                    "description": "Каждые N недель или месяцев",
+                    "type": "integer"
+                },
+                "start_date": {
+                    "description": "StartDate — ближайшая дата оплаты (якорь графика), \"YYYY-MM-DD\".",
+                    "type": "string"
+                },
+                "stopped_at": {
+                    "description": "StoppedAt — момент мягкой остановки; nil у активного шаблона.",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "model.User": {
             "type": "object",
             "properties": {
@@ -1297,6 +2074,38 @@ const docTemplate = `{
                 }
             }
         },
+        "model.UserNotificationSettings": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "days_before_due": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "email_enabled": {
+                    "type": "boolean"
+                },
+                "email_verified": {
+                    "type": "boolean"
+                },
+                "send_time": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "request.AssistantAskRequest": {
             "type": "object",
             "properties": {
@@ -1334,6 +2143,35 @@ const docTemplate = `{
                     "maxLength": 64,
                     "minLength": 1,
                     "example": "Бухгалтер"
+                }
+            }
+        },
+        "request.CreateRecurrentPaymentRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "assignee_id": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "day_offset": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "frequency": {
+                    "type": "string"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "start_date": {
+                    "type": "string"
                 }
             }
         },
@@ -1424,6 +2262,26 @@ const docTemplate = `{
                 }
             }
         },
+        "request.PatchUserNotificationSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "days_before_due": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "email_enabled": {
+                    "type": "boolean"
+                },
+                "send_time": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string"
+                }
+            }
+        },
         "request.UpdatePersonaRequest": {
             "type": "object",
             "properties": {
@@ -1439,6 +2297,55 @@ const docTemplate = `{
                     "maxLength": 64,
                     "minLength": 1,
                     "example": "Главный бухгалтер"
+                }
+            }
+        },
+        "request.UpdateRecurrentPaymentRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "assignee_id": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "day_offset": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "frequency": {
+                    "type": "string"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "start_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.UpdateUserNotificationSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "days_before_due": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "email_enabled": {
+                    "type": "boolean"
+                },
+                "send_time": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string"
                 }
             }
         },
@@ -1656,6 +2563,70 @@ const docTemplate = `{
                         "user"
                     ],
                     "example": "user"
+                }
+            }
+        },
+        "response.PaymentListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.PaymentResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "response.PaymentResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "assignee_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "ended": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "paid_at": {
+                    "type": "string"
+                },
+                "paid_date": {
+                    "type": "string"
+                },
+                "paid_late": {
+                    "type": "boolean"
+                },
+                "recurrent_payment_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
                 }
             }
         },

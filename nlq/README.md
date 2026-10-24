@@ -185,22 +185,20 @@ Python is pinned to 3.14 in the Dockerfile (env default) vs 3.12 in the spec;
 - **"Сколько в месяц" = normalized monthly run-rate (decision #2).**
   `sum_occurrences` now has a `basis` argument. Without a named month, «сколько
   платим в месяц» uses `basis=run_rate`: the average monthly load per currency
-  over active payments, normalized monthly ×1 / quarterly ÷3 / semiannual ÷6 /
-  annual ÷12. B exposes no periodicity column yet, so the interval is **inferred**
-  from the average gap between consecutive occurrence due_dates (`run_rate.sql`);
-  single-occurrence payments default to monthly. When «в этом месяце», «в
+  over active payments, normalized from B's real periodicity
+  (`recurrent_payments.frequency` + `"interval"`): monthly → `amount / interval`,
+  weekly → `amount × 52 / 12 / interval` (`run_rate.sql`). Amounts are stored in
+  minor units, so they are divided by 100 first. When «в этом месяце», «в
   октябре», «в ноябре» name a month, `basis=period_sum` sums the occurrences due
   in that window. Either way the answer always states what was computed (a note
-  built in `render.build_notes`), as the decision requires. When B ships a real
-  interval column, only `run_rate.sql` changes.
+  built in `render.build_notes`), as the decision requires.
 - **Payment categories (decision #3).** `find_recurring_payments`,
-  `find_occurrences` and `sum_occurrences` accept an optional `category` filter.
-  B's `recurring_payments.category` column may not exist yet, so the startup
-  schema probe detects it (`information_schema`): when present it is read and
-  filtered; when absent the filter is dropped and the tool returns
+  `find_occurrences` and `sum_occurrences` accept an optional `category` filter,
+  but B has **no** `category` column (`recurrent_payments`). The startup schema
+  probe always finds it absent, so the filter is dropped and the tool returns
   `category_unavailable:true` so the renderer adds a note, rather than silently
-  returning nothing. The dev fixture (`db/dev_b_tables.sql`) ships the column for
-  local/test use.
+  returning nothing. The code hook (`fragments.category_col`) is kept in case B
+  adds the column later.
 - **Coverage is per active payment (decision #4).** `horizon.sql` returns the
   earliest last-occurrence across active payments (not a single global
   `max(due_date)`) plus `any_without_periods`, so one payment generated far ahead

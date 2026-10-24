@@ -15,15 +15,16 @@ import (
 // без VIEW и FK (docs/TELEGRAM_BOT.md §2.3). Фабрика объявлена здесь, db.go не
 // трогаем.
 //
-// ВНИМАНИЕ — имена колонок приняты по §2.3 как [Д] (допущение) и подлежат сверке
-// с B ([В-B 3]). Если B использует другие имена, правится ТОЛЬКО этот файл; его
-// защищает контрактный тест (telegram-source-rep_test.go, build-тег integration).
-// Приняты:
+// Реальная схема B (миграции 000006/000008 + 000010):
 //
-//	payment_occurrences(id, recurring_payment_id, amount numeric, currency text,
-//	                    due_date date, paid_date date NULL)
-//	recurring_payments(id, title text, assignee_id uuid NULL, ended_at timestamptz NULL)
-//	users(id, full_name text)
+//	payments(id uuid, user_id uuid, recurrent_payment_id uuid NULL, amount bigint
+//	         минимальные единицы, currency, description, due_date date,
+//	         paid_date date NULL, status)
+//	recurrent_payments(id uuid, description, stopped_at timestamptz NULL)
+//	users(id uuid, full_name)
+//
+// Заголовок берётся из payments.description c откатом на recurrent_payments.description;
+// amount переводится в мажорные единицы (amount/100) десятичной строкой без float.
 type TelegramSourceRepository struct {
 	database *DB
 }
@@ -34,22 +35,23 @@ func (d *DB) TelegramSource() *TelegramSourceRepository {
 }
 
 // Общая проекция. due_date как ::text — чтобы DATE не сдвигалась зоной (§5.2);
-// amount как ::text — десятичная строка без float.
+// amount как numeric/100::text — десятичная строка без float. ended = платёж
+// удалён (recurrent_payment_id IS NULL) или остановлен (stopped_at IS NOT NULL).
 const telegramSourceSelect = `
-	SELECT o.id,
-	       o.recurring_payment_id,
-	       rp.title,
-	       o.amount::text,
-	       o.currency,
-	       o.due_date::text,
-	       (o.paid_date IS NOT NULL)  AS paid,
-	       o.paid_date::text,
-	       (rp.ended_at IS NOT NULL)  AS ended,
-	       rp.assignee_id,
+	SELECT p.id::text,
+	       COALESCE(p.recurrent_payment_id::text, ''),
+	       COALESCE(NULLIF(p.description, ''), rp.description, ''),
+	       (p.amount::numeric / 100)::numeric(20,2)::text,
+	       p.currency,
+	       p.due_date::text,
+	       (p.paid_date IS NOT NULL) AS paid,
+	       p.paid_date::text,
+	       (p.recurrent_payment_id IS NULL OR rp.stopped_at IS NOT NULL) AS ended,
+	       p.user_id::text,
 	       COALESCE(u.full_name, '')
-	FROM payment_occurrences o
-	JOIN recurring_payments rp ON rp.id = o.recurring_payment_id
-	LEFT JOIN users u ON u.id = rp.assignee_id`
+	FROM payments p
+	LEFT JOIN recurrent_payments rp ON rp.id = p.recurrent_payment_id
+	LEFT JOIN users u ON u.id = p.user_id`
 
 func scanOccurrence(rows interface{ Scan(dest ...any) error }) (model.ReminderOccurrence, error) {
 	var (
@@ -84,9 +86,10 @@ func scanOccurrence(rows interface{ Scan(dest ...any) error }) (model.ReminderOc
 // DueBetween — неоплаченные периоды активных платежей со сроком в [from, to].
 func (r *TelegramSourceRepository) DueBetween(ctx context.Context, from, to clock.Date) ([]model.ReminderOccurrence, error) {
 	rows, err := r.database.db.QueryContext(ctx, telegramSourceSelect+`
-		WHERE o.paid_date IS NULL
-		  AND rp.ended_at IS NULL
-		  AND o.due_date BETWEEN $1::date AND $2::date`, from.String(), to.String())
+		WHERE p.paid_date IS NULL
+		  AND p.recurrent_payment_id IS NOT NULL
+		  AND rp.stopped_at IS NULL
+		  AND p.due_date BETWEEN $1::date AND $2::date`, from.String(), to.String())
 	if err != nil {
 		return nil, fmt.Errorf("telegram source repository: due between: %w", err)
 	}
@@ -99,7 +102,7 @@ func (r *TelegramSourceRepository) GetByIDs(ctx context.Context, ids []string) (
 		return nil, nil
 	}
 	rows, err := r.database.db.QueryContext(ctx, telegramSourceSelect+`
-		WHERE o.id = ANY($1)`, pq.Array(ids))
+		WHERE p.id = ANY($1::uuid[])`, pq.Array(ids))
 	if err != nil {
 		return nil, fmt.Errorf("telegram source repository: get by ids: %w", err)
 	}

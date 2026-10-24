@@ -18,6 +18,12 @@ func New(databaseURL string) *DB {
 	}
 }
 
+// NewFromDB оборачивает уже открытый *sql.DB. Используется в интеграционных
+// тестах, которые сами открывают соединение к TEST_DATABASE_URL.
+func NewFromDB(db *sql.DB) *DB {
+	return &DB{db: db}
+}
+
 func (d *DB) Open() error {
 	db, err := sql.Open("postgres", d.databaseURL)
 	if err != nil {
@@ -45,4 +51,16 @@ func (d *DB) User() *UserRepository {
 
 func (d *DB) Persona() *PersonaRepository {
 	return &PersonaRepository{database: d}
+}
+
+func (d *DB) Payment() *PaymentRepository {
+	return &PaymentRepository{database: d}
+}
+
+func (d *DB) RecurrentPayment() *RecurrentPaymentRepository {
+	return &RecurrentPaymentRepository{database: d}
+}
+
+func (d *DB) Notifications() *NotificationsRepository {
+	return &NotificationsRepository{database: d}
 }

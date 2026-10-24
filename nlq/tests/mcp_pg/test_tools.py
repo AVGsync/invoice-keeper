@@ -18,7 +18,7 @@ from nlq.common.tool_specs import (
     SumOccurrencesArgs,
 )
 from nlq.mcp_server.policy import resolve_visibility
-from nlq.mcp_server.state import SCHEMA_OK, AppState, SchemaStatus
+from nlq.mcp_server.state import AppState
 from nlq.mcp_server.tools import (
     find_occurrences,
     find_people,
@@ -181,7 +181,7 @@ async def test_coverage_incomplete_next_month(seeded_state: AppState) -> None:
 
 
 async def test_category_ignored_when_column_absent(seeded_state: AppState) -> None:
-    # The default probed schema has category_available=False (B has not shipped it).
+    # B has no category column (decision #3): the filter is always unavailable.
     actor = _actor("admin")
     res = await find_recurring_payments.execute(
         FindRecurringPaymentsArgs(category="subscription"),
@@ -191,36 +191,24 @@ async def test_category_ignored_when_column_absent(seeded_state: AppState) -> No
     assert res["total"] >= 8  # filter ignored, all active payments returned
 
 
-async def test_category_applied_when_column_present(seeded_state: AppState) -> None:
-    seeded_state.schema = SchemaStatus(SCHEMA_OK, None, category_available=True)
-    actor = _actor("admin")
-    res = await find_recurring_payments.execute(
-        FindRecurringPaymentsArgs(category="subscription"),
-        seeded_state, actor, _vis(seeded_state, actor),
-    )
-    assert res["category_unavailable"] is False
-    titles = {r["title"] for r in res["rows"]}
-    assert "GitHub Team" in titles
-    assert "Аренда офиса" not in titles  # category 'office'
-
-
-async def test_sum_category_present(seeded_state: AppState) -> None:
-    seeded_state.schema = SchemaStatus(SCHEMA_OK, None, category_available=True)
+async def test_sum_category_ignored_when_column_absent(seeded_state: AppState) -> None:
+    # B has no category column: sum_occurrences reports it unavailable, not empty.
     actor = _actor("admin")
     res = await sum_occurrences.execute(
         SumOccurrencesArgs(status="any", category="infra"),
         seeded_state, actor, _vis(seeded_state, actor),
     )
-    # infra = Хостинг AWS (USD) + Интернет (RUB) only.
-    assert set(res["by_currency"]) == {"RUB", "USD"}
-    assert res["category_unavailable"] is False
+    assert res["category_unavailable"] is True
+    # All currencies still present because the category filter is dropped.
+    assert set(res["by_currency"]) == {"RUB", "USD", "EUR"}
 
 
-async def test_null_assignee_ok(seeded_state: AppState) -> None:
+async def test_occurrence_assignee_always_present(seeded_state: AppState) -> None:
+    # Every period carries a NOT NULL user_id, so assignee_name is always set.
     actor = _actor("admin")
     res = await find_occurrences.execute(
         FindOccurrencesArgs(status="any", title_query="Интернет"),
         seeded_state, actor, _vis(seeded_state, actor),
     )
     internet = [r for r in res["rows"] if r["title"] == "Интернет"]
-    assert internet and internet[0]["assignee_name"] is None
+    assert internet and internet[0]["assignee_name"] == "Анна Смирнова"

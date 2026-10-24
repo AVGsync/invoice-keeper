@@ -25,9 +25,10 @@ STATUS_SQL: Final[dict[str, str]] = {
 def category_col(available: bool) -> str:
     """SELECT expression for the optional B category column (decision #3).
 
-    When B's ``recurring_payments.category`` exists we read it; otherwise we
-    select ``NULL::text`` so the adapter still parses and the tool reports the
-    category filter as unavailable instead of failing.
+    B has no ``recurrent_payments.category`` column, so ``available`` is always
+    False and we select ``NULL::text``: the adapter still parses and the tool
+    reports the category filter as unavailable instead of failing. The hook is
+    kept in case B ships a category column later.
     """
     return "rp.category" if available else "NULL::text"
 
@@ -38,9 +39,9 @@ OCCURRENCE_ORDER_SQL: Final[dict[str, str]] = {
 DEFAULT_OCCURRENCE_ORDER: Final = "due_date"
 
 RECURRING_ORDER_SQL: Final[dict[str, str]] = {
-    "title": "rp.title",
-    "amount_desc": "rp.amount DESC, rp.title",
-    "next_due": "nx.next_due ASC NULLS LAST, rp.title",
+    "title": "rp.description",
+    "amount_desc": "rp.amount DESC, rp.description",
+    "next_due": "nx.next_due ASC NULLS LAST, rp.description",
 }
 DEFAULT_RECURRING_ORDER: Final = "title"
 

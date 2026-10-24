@@ -118,6 +118,14 @@ func (m *MemoryStore) SetEnded(occurrenceID string, ended bool) {
 	}
 }
 
+// Delete убирает период из источника (для тестов: имитирует удаление будущего
+// неоплаченного периода при остановке платежа, D7).
+func (m *MemoryStore) Delete(occurrenceID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.occs, occurrenceID)
+}
+
 // SetUnpaid снимает отметку оплаты (B это разрешает — проверяем reconcile-возврат).
 func (m *MemoryStore) SetUnpaid(occurrenceID string) {
 	m.mu.Lock()

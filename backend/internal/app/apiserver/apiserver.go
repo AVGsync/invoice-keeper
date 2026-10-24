@@ -13,7 +13,9 @@ import (
 
 	// Регистрирует сгенерированную swag спецификацию (make swagger).
 	_ "github.com/AVGsync/invoice-keeper/backend/docs"
+	"github.com/AVGsync/invoice-keeper/backend/internal/clock"
 	"github.com/AVGsync/invoice-keeper/backend/internal/infrastructure/security"
+	"github.com/AVGsync/invoice-keeper/backend/internal/notifications"
 	"github.com/AVGsync/invoice-keeper/backend/internal/repository/postgres"
 	"github.com/AVGsync/invoice-keeper/backend/internal/service"
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/api"
@@ -38,6 +40,13 @@ type APIServer struct {
 	// assistant — сервис NL-ассистента; nil, когда NLQ_ENABLED=false
 	// (см. assistant.go). Общий для HTTP-ручки и бота (порт NLAnswerer).
 	assistant *service.AssistantService
+	// mailer — SMTP-рассылка; не используется (решение №1: напоминания только в
+	// командный чат Telegram). nil, когда SMTP_HOST пуст.
+	mailer *notifications.SMTPMailer
+	// payments — сервис периодов (общий для HTTP и Telegram-адаптера).
+	payments *service.PaymentService
+	// scheduler — генератор периодов и пересчёт overdue (фоновый воркер + ensurer).
+	scheduler *service.PaymentScheduler
 }
 
 func New(config *Config) (*APIServer, error) {
@@ -46,10 +55,33 @@ func New(config *Config) (*APIServer, error) {
 		return nil, fmt.Errorf("apiserver: configure logger: %w", err)
 	}
 
+	// SMTP необязателен (решение №1: email не используется). Пустой SMTP_HOST —
+	// почта выключена, старт продолжается. Непустой host с неполной конфигурацией
+	// — ошибка (NewSMTPMailer сообщит, чего не хватает).
+	var mailer *notifications.SMTPMailer
+	if config.SMTPHost == "" {
+		slog.Info("smtp: disabled (SMTP_HOST is empty)")
+	} else {
+		mailer, err = notifications.NewSMTPMailer(
+			notifications.SMTPConfig{
+				Host:     config.SMTPHost,
+				Port:     config.SMTPPort,
+				Username: config.SMTPUsername,
+				Password: config.SMTPPassword,
+				From:     config.SMTPFrom,
+			},
+			logger,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("initialize SMTP mailer: %w", err)
+		}
+	}
+
 	return &APIServer{
 		config: config,
 		logger: logger,
 		router: chi.NewRouter(),
+		mailer: mailer,
 	}, nil
 }
 
@@ -124,8 +156,12 @@ func (s *APIServer) Start() error {
 // каждый как wg.Add(1); go worker.Run(ctx). Все слушают отмену ctx и
 // учитываются в wg, чтобы db.Close выполнился после их остановки (§5.3).
 func (s *APIServer) startBackgroundWorkers(ctx context.Context, wg *sync.WaitGroup) {
-	// Telegram-поллер/вебхук и засев командного чата (см. telegram.go). Движок
-	// напоминаний (reminder.Loop) подключится здесь на следующем этапе.
+	// Генератор периодов и пересчёт overdue — независимо от бота (см.
+	// payments_worker.go).
+	s.startPaymentsScheduler(ctx, wg)
+
+	// Telegram-поллер/вебхук, засев командного чата и движок напоминаний
+	// (см. telegram.go).
 	s.startTelegram(ctx, wg)
 }
 
@@ -179,6 +215,18 @@ func (s *APIServer) configureRouter() {
 	userService := service.NewUserService(s.db.User(), hasher, jwtManager, accessTTL, refreshTTL)
 	userHandler := handler.NewUserHandler(userService, accessTTL, refreshTTL)
 
+	clk := clock.New(s.config.Location())
+	paymentService := service.NewPaymentService(s.db.Payment(), clk)
+	scheduler := service.NewPaymentScheduler(s.db.RecurrentPayment(), s.db.Payment(), clk)
+	recPaymentService := service.NewRecurrentPaymentService(s.db.RecurrentPayment(), s.db.Payment(), clk)
+	// Сохраняем для Telegram-адаптера (paymentsPayer) и фонового воркера.
+	s.payments = paymentService
+	s.scheduler = scheduler
+	paymentHandler := handler.NewPaymentHandler(recPaymentService, paymentService, scheduler, clk)
+
+	notificationsService := service.NewNotificationsService(s.db.Notifications())
+	notificationsHandler := handler.NewNotificationsHandler(notificationsService)
+
 	personaService := service.NewPersonaService(s.db.Persona())
 	personaHandler := handler.NewPersonaHandler(personaService)
 
@@ -227,6 +275,8 @@ func (s *APIServer) configureRouter() {
 
 			s.mountUsers(r, mw, userHandler)
 			s.mountPersonas(r, mw, personaHandler)
+			s.mountPayments(r, mw, paymentHandler)
+			s.mountNotifications(r, mw, notificationsHandler)
 			s.mountAssistant(r, mw)
 		})
 	})

@@ -61,4 +61,4 @@ async def test_probe_schema_prepares_every_template(seeded_state: AppState) -> N
 
     status = await probe_schema(seeded_state.db)
     assert status.value == "ok"
-    assert status.category_available is True  # dev fixture ships the category column
+    assert status.category_available is False  # B has no category column (decision #3)

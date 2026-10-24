@@ -69,6 +69,12 @@ func endedText(occ model.ReminderOccurrence) string {
 		html.EscapeString(truncate(occ.Title, maxTitleLen)))
 }
 
+// deletedText — нейтральный текст, когда период удалён остановкой платежа
+// (исчез из источника, D7). Сам период восстановить нельзя, поэтому только текст.
+func deletedText() string {
+	return "Платёж отменён администратором"
+}
+
 // reminderKeyboard — клавиатура напоминания: кнопка «Оплачено» (callback p:<hex>)
 // и, если возможно построить ссылку, кнопка «Открыть» на Mini App.
 // callback_data = p:<uuid без дефисов>.

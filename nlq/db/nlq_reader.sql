@@ -38,21 +38,29 @@ REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM nlq_reader;
 GRANT SELECT (id, full_name, role, persona_id) ON public.users    TO nlq_reader;
 GRANT SELECT (id, name)                        ON public.personas TO nlq_reader;
 
--- 5. B's tables: only if they already exist. Table-level today; column-level
---    once B confirms the schema (В-B 3). A dropped column/table takes its grant
---    with it, so nothing here blocks B's migrations.
+-- 5. B's payment tables (backend/migrations 000006..000010): column-level
+--    allow-list, each guarded by to_regclass so it is a no-op until migrations
+--    have run. Migrations run before nlq-db-init, so 000010's columns
+--    (start_date, stopped_at, paid_date) already exist here. A dropped
+--    column/table takes its grant with it, so nothing here blocks B's
+--    migrations. "interval" is a reserved word -> must be quoted.
 DO $$
 BEGIN
-  IF to_regclass('public.recurring_payments') IS NOT NULL THEN
-    GRANT SELECT ON public.recurring_payments TO nlq_reader;
-    -- target: GRANT SELECT (id, title, amount, currency, assignee_id, ended_at)
-    --         ON public.recurring_payments TO nlq_reader;
+  IF to_regclass('public.recurrent_payments') IS NOT NULL THEN
+    GRANT SELECT (id, amount, currency, frequency, "interval", description,
+                  day_offset, start_date, stopped_at, created_at)
+        ON public.recurrent_payments TO nlq_reader;
   END IF;
-  IF to_regclass('public.payment_occurrences') IS NOT NULL THEN
-    GRANT SELECT ON public.payment_occurrences TO nlq_reader;
-    -- target: GRANT SELECT (id, recurring_payment_id, amount, currency, due_date, paid_at)
-    --         ON public.payment_occurrences TO nlq_reader;
+  IF to_regclass('public.user_recurrent_payments') IS NOT NULL THEN
+    GRANT SELECT (user_id, recurrent_payment_id)
+        ON public.user_recurrent_payments TO nlq_reader;
+  END IF;
+  IF to_regclass('public.payments') IS NOT NULL THEN
+    GRANT SELECT (id, user_id, recurrent_payment_id, amount, currency,
+                  description, due_date, paid_date, status)
+        ON public.payments TO nlq_reader;
   END IF;
 END $$;
 
--- refresh_tokens, telegram_*, and any future table: no grants, ever (§6.3).
+-- user_notification_settings (email), refresh_tokens, telegram_*, and any
+-- future table: no grants, ever (§6.3). The email column is never readable.

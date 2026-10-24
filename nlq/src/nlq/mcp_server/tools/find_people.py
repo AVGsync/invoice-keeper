@@ -18,9 +18,12 @@ from ..fragments import escape_like
 from ..policy import Visibility
 from ..state import AppState
 
-_ACTIVE_PAYMENTS_SUBQUERY = (
-    "(SELECT count(*) FROM recurring_payments rp "
-    "WHERE rp.assignee_id = u.id AND rp.ended_at IS NULL)"
+# Active recurrent payments assigned to a user, via the many-to-many link table
+# (decision #2/#15). selfcheck imports this so there is a single source of truth.
+ACTIVE_PAYMENTS_SUBQUERY = (
+    "(SELECT count(*) FROM user_recurrent_payments ur "
+    "JOIN recurrent_payments rp ON rp.id = ur.recurrent_payment_id "
+    "WHERE ur.user_id = u.id AND rp.stopped_at IS NULL)"
 )
 
 
@@ -31,7 +34,7 @@ async def execute(
     limit = min(args.limit or state.settings.nlq_max_rows, state.settings.nlq_max_rows)
 
     active_expr = (
-        _ACTIVE_PAYMENTS_SUBQUERY if state.schema.payments_available else "0"
+        ACTIVE_PAYMENTS_SUBQUERY if state.schema.payments_available else "0"
     )
     sql = load_sql("find_people.sql").format(active_payments=active_expr)
     rows = await state.db.ro_query(

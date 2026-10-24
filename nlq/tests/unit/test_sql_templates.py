@@ -22,7 +22,7 @@ def test_no_leftover_placeholders(category_available: bool) -> None:
 
 # Markers that only appear inside the occurrences_base fragment: if any of
 # them lands on a comment line, a multi-line fragment was spliced into a comment.
-_BASE_LEAK_MARKERS = ("FROM payment_occurrences", "JOIN recurring_payments")
+_BASE_LEAK_MARKERS = ("FROM payments p", "JOIN recurrent_payments")
 
 
 @pytest.mark.parametrize("category_available", [True, False])

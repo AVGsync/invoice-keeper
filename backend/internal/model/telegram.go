@@ -66,7 +66,7 @@ type ReminderOccurrence struct {
 	ID                 string
 	RecurringPaymentID string
 	Title              string
-	Amount             string // десятичная строка из NUMERIC, без float
+	Amount             string // десятичная строка из минимальных единиц (amount/100), без float
 	Currency           string // RUB|USD|EUR
 	DueDate            clock.Date
 	Paid               bool

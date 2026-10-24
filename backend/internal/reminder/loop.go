@@ -364,6 +364,12 @@ func (l *Loop) reconcile(ctx context.Context, today clock.Date) {
 	for _, row := range rows {
 		occ, ok := byID[row.OccurrenceID]
 		if !ok {
+			// Период исчез (остановка платежа удалила будущий неоплаченный период,
+			// D7). Правим сообщение в нейтральный текст и фиксируем ended, иначе
+			// строка вечно всплывает в OpenForReconcile (§5.6).
+			if row.ShownStatus != model.ShownStatusEnded {
+				l.editShown(ctx, row, deletedText(), emptyMarkup(), model.ShownStatusEnded, now)
+			}
 			continue
 		}
 		switch {

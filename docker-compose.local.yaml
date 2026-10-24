@@ -90,7 +90,7 @@ services:
       NLQ_DB_PASSWORD: ${NLQ_DB_PASSWORD:-nlq_local_password}
       POSTGRES_DB: ${POSTGRES_DB:-invoice_keeper}
       APP_ENV: local
-      NLQ_DEV_SCHEMA: ${NLQ_DEV_SCHEMA:-nlq_dev}
+      NLQ_DEV_SCHEMA: ${NLQ_DEV_SCHEMA:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -109,7 +109,7 @@ services:
       APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Moscow}
       NLQ_USER_SCOPE: ${NLQ_USER_SCOPE:-team}
       NLQ_MAX_ROWS: "20"
-      NLQ_DEV_SCHEMA: ${NLQ_DEV_SCHEMA:-nlq_dev}
+      NLQ_DEV_SCHEMA: ${NLQ_DEV_SCHEMA:-}
       NLQ_TODAY: ${NLQ_TODAY:-}
     ports:
       - "127.0.0.1:8900:8900" # MCP Inspector с токеном из `python -m nlq.devtoken`
