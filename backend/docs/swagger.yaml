@@ -42,6 +42,13 @@ definitions:
           $ref: '#/definitions/handler.PaymentCurrencySummary'
         type: array
     type: object
+  handler.testEmailRequest:
+    properties:
+      to:
+        description: Адрес получателя.
+        example: you@example.com
+        type: string
+    type: object
   model.Persona:
     properties:
       created_at:
@@ -1852,6 +1859,44 @@ paths:
       - CookieAuth: []
       - BearerAuth: []
       summary: Полное обновление настроек email-уведомлений
+      tags:
+      - Notifications
+  /notifications/test-email:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Проверка SMTP: отправляет короткое письмо на указанный адрес через настроенный `SMTP_HOST`. Только администратор.
+        Ответ `502` содержит текст ошибки SMTP-сервера (неверный ключ, неподтверждённый отправитель и т.п.).
+      parameters:
+      - description: Получатель
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.testEmailRequest'
+      responses:
+        "202":
+          description: Письмо отправлено
+        "400":
+          description: Некорректный адрес
+          schema:
+            type: string
+        "403":
+          description: Только администратор
+          schema:
+            type: string
+        "502":
+          description: SMTP-сервер отклонил письмо
+          schema:
+            type: string
+        "503":
+          description: SMTP не настроен
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Отправить тестовое письмо
       tags:
       - Notifications
   /payment-occurrences:

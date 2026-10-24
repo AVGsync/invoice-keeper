@@ -40,7 +40,7 @@ type APIServer struct {
 	assistant *service.AssistantService
 	// assistantHistory — история диалогов ассистента; есть всегда (ручки истории работают и при NLQ_ENABLED=false).
 	assistantHistory *service.AssistantHistoryService
-	// mailer — SMTP-рассылка; не используется.
+	// mailer — SMTP-клиент; пока только для тестового письма.
 	mailer *notifications.SMTPMailer
 	// payments — сервис периодов (общий для HTTP и Telegram-адаптера).
 	payments *service.PaymentService
@@ -218,6 +218,12 @@ func (s *APIServer) configureRouter() {
 
 	notificationsService := service.NewNotificationsService(s.db.Notifications())
 	notificationsHandler := handler.NewNotificationsHandler(notificationsService)
+	var testMailer handler.Mailer
+	if s.mailer != nil {
+		testMailer = s.mailer
+	}
+	testMailHandler := handler.NewTestMailHandler(testMailer)
+	testMailHandler.SetAuditRecorder(s.audit)
 
 	personaService := service.NewPersonaService(s.db.Persona())
 	personaHandler := handler.NewPersonaHandler(personaService)
@@ -273,7 +279,7 @@ func (s *APIServer) configureRouter() {
 			s.mountUsers(r, mw, userHandler)
 			s.mountPersonas(r, mw, personaHandler)
 			s.mountPayments(r, mw, paymentHandler, searchHandler, receiptHandler)
-			s.mountNotifications(r, mw, notificationsHandler)
+			s.mountNotifications(r, mw, notificationsHandler, testMailHandler)
 			s.mountAssistant(r, mw)
 			s.mountAudit(r, mw, auditHandler)
 		})

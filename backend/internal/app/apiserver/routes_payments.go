@@ -56,7 +56,9 @@ func (s *APIServer) mountPayments(r chi.Router, mw *middleware.Middleware, payme
 }
 
 // mountNotifications монтирует настройки email-уведомлений текущего пользователя.
-func (s *APIServer) mountNotifications(r chi.Router, mw *middleware.Middleware, notificationsHandler *handler.NotificationsHandler) {
+func (s *APIServer) mountNotifications(r chi.Router, mw *middleware.Middleware, notificationsHandler *handler.NotificationsHandler, testMailHandler *handler.TestMailHandler) {
+	r.With(mw.IsAdmin, mw.MaxBytes(defaultMaxRequestBody)).Post("/notifications/test-email", testMailHandler.Send())
+
 	r.Route("/notifications/settings", func(r chi.Router) {
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
 
