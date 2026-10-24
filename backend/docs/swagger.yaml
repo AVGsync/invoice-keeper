@@ -140,6 +140,15 @@ definitions:
         description: Когда создан.
         example: "2026-10-23T20:05:31Z"
         type: string
+      email_linked:
+        description: Привязана ли почта для уведомлений (есть настройки в user_notification_settings).
+        example: true
+        type: boolean
+      email_verified:
+        description: Подтверждён ли адрес почты кодом из письма; письма приходят только
+          на подтверждённый.
+        example: true
+        type: boolean
       full_name:
         description: Полное имя.
         example: Ольга Иванова

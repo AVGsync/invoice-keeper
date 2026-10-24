@@ -32,6 +32,8 @@ export interface User {
   telegram_linked?: boolean
   telegram_username?: string
   telegram_linked_at?: string
+  email_linked?: boolean
+  email_verified?: boolean
   created_at: string
 }
 

@@ -62,6 +62,10 @@ type User struct {
 	TelegramUsername string `json:"telegram_username,omitempty" example:"olga_iv"`
 	// Когда привязан Telegram; не задано, если не привязан.
 	TelegramLinkedAt *time.Time `json:"telegram_linked_at,omitempty" example:"2026-10-23T20:05:31Z"`
+	// Привязана ли почта для уведомлений (есть настройки в user_notification_settings).
+	EmailLinked bool `json:"email_linked" example:"true"`
+	// Подтверждён ли адрес почты кодом из письма; письма приходят только на подтверждённый.
+	EmailVerified bool `json:"email_verified" example:"true"`
 	// Когда создан.
 	CreatedAt time.Time `json:"created_at" example:"2026-10-23T20:05:31Z"`
 }

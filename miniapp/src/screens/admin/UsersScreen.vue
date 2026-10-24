@@ -55,6 +55,9 @@ useMainButton({
               : 'Telegram не привязан'
           }}
         </div>
+        <div class="sub hint tg" :class="{ on: u.email_verified }">
+          {{ u.email_verified ? 'Почта подтверждена' : u.email_linked ? 'Почта не подтверждена' : 'Почта не привязана' }}
+        </div>
       </component>
     </Section>
   </div>

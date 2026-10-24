@@ -3401,6 +3401,16 @@
                     "type": "string",
                     "example": "2026-10-23T20:05:31Z"
                 },
+                "email_linked": {
+                    "description": "Привязана ли почта для уведомлений (есть настройки в user_notification_settings).",
+                    "type": "boolean",
+                    "example": true
+                },
+                "email_verified": {
+                    "description": "Подтверждён ли адрес почты кодом из письма; письма приходят только на подтверждённый.",
+                    "type": "boolean",
+                    "example": true
+                },
                 "full_name": {
                     "description": "Полное имя.",
                     "type": "string",

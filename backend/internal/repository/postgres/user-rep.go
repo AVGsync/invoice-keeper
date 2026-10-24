@@ -19,10 +19,12 @@ type UserRepository struct {
 // userSelect — пользователь вместе с назначенной персоной (LEFT JOIN: персоны может не быть).
 const userSelect = `
 	SELECT u.id, u.full_name, u.login, u.password_hash, u.role, u.created_at, p.id, p.name,
-	       tl.user_id IS NOT NULL, COALESCE(tl.tg_username, ''), tl.linked_at
+	       tl.user_id IS NOT NULL, COALESCE(tl.tg_username, ''), tl.linked_at,
+	       ns.user_id IS NOT NULL, COALESCE(ns.email_verified, FALSE)
 	FROM users u
 	LEFT JOIN personas p ON p.id = u.persona_id
-	LEFT JOIN telegram_links tl ON tl.user_id = u.id`
+	LEFT JOIN telegram_links tl ON tl.user_id = u.id
+	LEFT JOIN user_notification_settings ns ON ns.user_id = u.id`
 
 func scanUser(row interface{ Scan(dest ...any) error }) (model.User, error) {
 	var (
@@ -42,6 +44,8 @@ func scanUser(row interface{ Scan(dest ...any) error }) (model.User, error) {
 		&user.TelegramLinked,
 		&user.TelegramUsername,
 		&user.TelegramLinkedAt,
+		&user.EmailLinked,
+		&user.EmailVerified,
 	)
 	if err == nil && personaID != nil && personaName != nil {
 		user.Persona = &model.PersonaRef{ID: *personaID, Name: *personaName}
