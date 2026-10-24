@@ -1,3 +1,7 @@
+<script setup lang="ts">
+definePageMeta({ redirect: '/login' })
+</script>
+
 <template>
-    <h1>hack2026</h1>
+  <div />
 </template>

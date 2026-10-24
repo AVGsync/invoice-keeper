@@ -59,3 +59,7 @@ GEMINI.md
 # Markdown
 *.md
 !README.md
+
+# UI test output
+tests/ui/shots
+tests/ui/results.json

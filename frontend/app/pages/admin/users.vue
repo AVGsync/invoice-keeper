@@ -1,0 +1,103 @@
+<script setup lang="ts">
+import type { Persona, User } from '~/types/api'
+
+definePageMeta({ layout: 'panel' })
+
+const api = useApi()
+
+const users = ref<User[]>([])
+const personas = ref<Persona[]>([])
+const loadError = ref('')
+// true until the first answer arrives
+const loading = ref(true)
+
+// which user modal is open. the persona modal can open on top of the user form
+const modal = ref<'newUser' | 'editUser'>()
+const personaOpen = ref(false)
+const editing = ref<User>()
+
+async function load() {
+  try {
+    const [userList, personaList] = await Promise.all([api.users.list(), api.personas.list()])
+    users.value = userList.items ?? []
+    personas.value = personaList.items ?? []
+    loadError.value = ''
+  }
+  catch (e) {
+    loadError.value = apiError(e)
+  }
+  finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
+
+function edit(user: User) {
+  editing.value = user
+  modal.value = 'editUser'
+}
+
+function done() {
+  modal.value = undefined
+  load()
+}
+
+async function personaCreated() {
+  personaOpen.value = false
+  await load()
+}
+</script>
+
+<template>
+  <div>
+    <AppPageHeader title="Пользователи" subtitle="Обычные пользователи команды. Администратор задаётся в .env">
+      <template #actions>
+        <UiButton variant="primary" class="new" @click="modal = 'newUser'">Новый пользователь</UiButton>
+      </template>
+    </AppPageHeader>
+
+    <UiState v-if="loadError" kind="error" class="card load-error" @retry="load">Не удалось загрузить: {{ loadError }}</UiState>
+
+    <div class="layout">
+      <UsersTable :users="users" :loading="loading" @edit="edit" />
+      <PersonasPanel :items="personas" :loading="loading" @add="personaOpen = true" />
+    </div>
+
+    <Transition name="modal">
+      <NewUserModal
+        v-if="modal === 'newUser'"
+        :personas="personas"
+        @close="modal = undefined"
+        @created="done"
+        @new-persona="personaOpen = true"
+      />
+    </Transition>
+    <Transition name="modal">
+      <EditUserModal v-if="modal === 'editUser' && editing" :user="editing" @close="modal = undefined" @saved="done" />
+    </Transition>
+    <Transition name="modal">
+      <PersonaModal v-if="personaOpen" @close="personaOpen = false" @saved="personaCreated" />
+    </Transition>
+  </div>
+</template>
+
+<style scoped>
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.layout > :first-child {
+  flex: 1;
+}
+
+.load-error {
+  margin-bottom: 16px;
+}
+
+.new {
+  width: 160px;
+}
+</style>

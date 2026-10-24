@@ -1,0 +1,227 @@
+/* colors and fonts from the figma board */
+:root {
+    --bg: #1a1a1a;
+    --surface: #262626;
+    --subtle: #404040;
+    --muted-bg: #303030;
+    --line: #737373;
+    --line-strong: #737373;
+
+    --ink: white;
+    --ink-2: #b3b1ac;
+    --ink-3: #9a9893;
+
+    --accent: #2f1fff;
+    /* accent used as text: the fill blue is too dark to read on a dark background.
+       in a light theme this can just be the same as --accent */
+    --accent-ink: #8c86ff;
+    /* status colours, light enough to read on the dark surfaces */
+    --red: #f0705c;
+    --red-bg: #2c0b06;
+    --green: #4cc27a;
+    --amber: #e8a33d;
+
+    /* the login receipt is always white paper, whatever the theme */
+    --paper: #ffffff;
+    --paper-ink: #141414;
+    --paper-ink-2: #5c5b57;
+    --paper-ink-3: #9a9893;
+    --paper-line: #d1cdc4;
+    --paper-accent: #2b3ef0;
+    --paper-red: #c4321c;
+    --paper-green: #1e7a3e;
+
+    --sans: "Geologica", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, monospace;
+    /* titles and the logo text */
+    --display: "Unbounded", system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.3;
+}
+
+button,
+input,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+p {
+    margin: 0;
+}
+
+.mono {
+    font-family: var(--mono);
+}
+
+.display {
+    font-family: var(--display);
+    font-weight: 400;
+}
+
+/* slanted geologica for the few accents: login subtitle, receipt caption, calendar note */
+.italic {
+    font-family: var(--sans);
+    font-style: oblique 12deg;
+    font-weight: 400;
+}
+
+.muted {
+    color: var(--ink-3);
+}
+
+.soft {
+    color: var(--ink-2);
+}
+
+.right {
+    text-align: right;
+}
+
+/* white box with a thin border, used for cards, tables, panels */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+
+/* small caps line like "ИТОГО ЗА МЕСЯЦ" */
+.kicker {
+    font-family: var(--mono);
+    font-size: 10px;
+    line-height: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+}
+
+.error-text {
+    font-size: 13px;
+    color: var(--red);
+}
+
+/* ---- animations ----
+   <Transition name="menu">  dropdowns, calendars, popovers: quick fade + small slide
+   <Transition name="modal"> modals: backdrop fades, window rises a little */
+.menu-enter-active,
+.menu-leave-active {
+    transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.menu-enter-from,
+.menu-leave-to {
+    opacity: 0;
+    transform: translateY(-4px);
+}
+
+.modal-enter-active,
+.modal-leave-active {
+    transition: opacity 0.18s ease;
+}
+
+.modal-enter-active .modal,
+.modal-leave-active .modal {
+    transition: transform 0.18s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+    opacity: 0;
+}
+
+.modal-enter-from .modal,
+.modal-leave-to .modal {
+    transform: translateY(8px) scale(0.98);
+}
+
+/* people who asked their system for less motion get none */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0s !important;
+        animation-duration: 0s !important;
+    }
+}
+
+/* view transitions (useViewTransition): only blocks with a view-transition-name animate,
+   everything else switches at once so it doesn't fight other animations */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+}
+
+::view-transition-group(*) {
+    animation-duration: 0.25s;
+    animation-timing-function: ease;
+}
+
+/* clicks during a transition still reach the page */
+::view-transition {
+    pointer-events: none;
+}
+
+/* «скоро»: features waiting for the backend. amber, dashed, can't be clicked,
+   the reason shows on hover (title). UiButton has a `soon` prop for this */
+.soon {
+    position: relative;
+    border: 1px dashed var(--amber) !important;
+    background: transparent !important;
+    color: var(--amber) !important;
+    cursor: not-allowed !important;
+}
+
+.soon::after {
+    content: 'скоро';
+    position: absolute;
+    top: -8px;
+    right: -6px;
+    padding: 1px 5px;
+    border-radius: 6px;
+    background: var(--amber);
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+/* text-only actions (no box around them): dashed underline instead of a border, no badge */
+.soon.text-action {
+    border: 0 !important;
+    text-decoration: underline dashed var(--amber);
+    text-underline-offset: 3px;
+}
+
+.soon.text-action::after {
+    content: none;
+}
