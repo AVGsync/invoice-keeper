@@ -17,6 +17,8 @@ import type {
   MiniAppAuthRequest,
   MiniAppAuthResponse,
   MiniAppLinkRequest,
+  TelegramLoginPollResponse,
+  TelegramLoginStartResponse,
   TelegramLinkCodeResponse,
   TelegramLinkResponse,
   TelegramTeamChatResponse,
@@ -52,6 +54,10 @@ export function useApi() {
       logout: () => api('/auth/logout', { method: 'POST' }),
       me: () => api<User>('/auth/me'),
       refresh: () => api('/auth/refresh', { method: 'POST' }),
+      // sign-in through the bot: start gives a deep link, poll waits for the confirmation button
+      telegramStart: () => api<TelegramLoginStartResponse>('/auth/telegram/start', { method: 'POST' }),
+      telegramPoll: (code: string) =>
+        api<TelegramLoginPollResponse>('/auth/telegram/poll', { method: 'POST', body: { code } }),
     },
 
     users: {

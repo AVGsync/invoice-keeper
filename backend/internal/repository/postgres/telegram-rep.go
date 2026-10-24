@@ -388,3 +388,82 @@ func (r *TelegramRepository) MaxUpdateID(ctx context.Context) (int64, error) {
 	}
 	return max.Int64, nil
 }
+
+// CreateWebLogin заводит запрос на вход через бота и возвращает его id.
+func (r *TelegramRepository) CreateWebLogin(ctx context.Context, codeHash string, expiresAt time.Time) (string, error) {
+	_, _ = r.database.db.ExecContext(ctx, `DELETE FROM telegram_web_logins WHERE expires_at < NOW() - INTERVAL '1 day'`)
+	var id string
+	err := r.database.db.QueryRowContext(ctx, `
+		INSERT INTO telegram_web_logins (code_hash, expires_at) VALUES ($1, $2) RETURNING id`,
+		codeHash, expiresAt).Scan(&id)
+	if err != nil {
+		return "", fmt.Errorf("telegram repository: create web login: %w", err)
+	}
+	return id, nil
+}
+
+// FindWebLogin отдаёт id ожидающего подтверждения запроса по хешу кода.
+func (r *TelegramRepository) FindWebLogin(ctx context.Context, codeHash string) (string, error) {
+	var id string
+	err := r.database.db.QueryRowContext(ctx, `
+		SELECT id FROM telegram_web_logins
+		WHERE code_hash = $1 AND status = 'pending' AND expires_at > NOW()`, codeHash).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", model.ErrTelegramCodeInvalid
+	}
+	if err != nil {
+		return "", fmt.Errorf("telegram repository: find web login: %w", err)
+	}
+	return id, nil
+}
+
+// ConfirmWebLogin подтверждает запрос от имени пользователя userID.
+func (r *TelegramRepository) ConfirmWebLogin(ctx context.Context, id, userID string) error {
+	res, err := r.database.db.ExecContext(ctx, `
+		UPDATE telegram_web_logins SET status = 'confirmed', user_id = $2
+		WHERE id = $1 AND status = 'pending' AND expires_at > NOW()`, id, userID)
+	if err != nil {
+		return fmt.Errorf("telegram repository: confirm web login: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return model.ErrTelegramCodeInvalid
+	}
+	return nil
+}
+
+// CancelWebLogin отклоняет ожидающий запрос.
+func (r *TelegramRepository) CancelWebLogin(ctx context.Context, id string) error {
+	_, err := r.database.db.ExecContext(ctx, `
+		UPDATE telegram_web_logins SET status = 'cancelled' WHERE id = $1 AND status = 'pending'`, id)
+	if err != nil {
+		return fmt.Errorf("telegram repository: cancel web login: %w", err)
+	}
+	return nil
+}
+
+// PollWebLogin возвращает pending, confirmed (запрос сжигается, userID заполнен) или invalid.
+func (r *TelegramRepository) PollWebLogin(ctx context.Context, codeHash string) (status, userID string, err error) {
+	err = r.database.db.QueryRowContext(ctx, `
+		UPDATE telegram_web_logins SET status = 'consumed'
+		WHERE code_hash = $1 AND status = 'confirmed' AND expires_at > NOW()
+		RETURNING user_id`, codeHash).Scan(&userID)
+	if err == nil {
+		return "confirmed", userID, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", "", fmt.Errorf("telegram repository: poll web login: %w", err)
+	}
+	var st string
+	err = r.database.db.QueryRowContext(ctx, `
+		SELECT status FROM telegram_web_logins WHERE code_hash = $1 AND expires_at > NOW()`, codeHash).Scan(&st)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "invalid", "", nil
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("telegram repository: poll web login: %w", err)
+	}
+	if st == "pending" {
+		return "pending", "", nil
+	}
+	return "invalid", "", nil
+}

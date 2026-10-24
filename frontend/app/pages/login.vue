@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const { login, home } = useAuth()
+const { login, afterTelegramLogin, home } = useAuth()
+const api = useApi()
 
 const form = reactive({ login: '', password: '' })
 const error = ref('')
@@ -19,6 +20,58 @@ async function submit() {
     busy.value = false
   }
 }
+
+// Telegram sign-in: open the bot, confirm with the button there, meanwhile poll every 2 seconds
+const tg = reactive({ waiting: false, link: '' })
+let tgTimer: ReturnType<typeof setTimeout> | undefined
+
+function tgStop() {
+  clearTimeout(tgTimer)
+  tg.waiting = false
+  tg.link = ''
+}
+
+async function tgPoll(code: string, until: number) {
+  try {
+    const res = await api.auth.telegramPoll(code)
+    if (res.status === 'ok') {
+      tgStop()
+      await afterTelegramLogin()
+      await navigateTo(home.value)
+      return
+    }
+  }
+  catch (e) {
+    tgStop()
+    const status = (e as { statusCode?: number }).statusCode
+    error.value = status === 410 ? 'Вход отменён или время вышло. Попробуйте ещё раз.' : apiError(e)
+    return
+  }
+  if (Date.now() > until) {
+    tgStop()
+    error.value = 'Время вышло. Попробуйте ещё раз.'
+    return
+  }
+  tgTimer = setTimeout(() => tgPoll(code, until), 2000)
+}
+
+async function tgLogin() {
+  error.value = ''
+  tgStop()
+  try {
+    const res = await api.auth.telegramStart()
+    tg.link = res.deep_link
+    tg.waiting = true
+    window.open(res.deep_link, '_blank', 'noopener')
+    tgTimer = setTimeout(() => tgPoll(res.code, Date.now() + res.expires_in * 1000), 2000)
+  }
+  catch (e) {
+    const status = (e as { statusCode?: number }).statusCode
+    error.value = status === 503 ? 'Вход через Telegram сейчас недоступен.' : apiError(e)
+  }
+}
+
+onBeforeUnmount(() => clearTimeout(tgTimer))
 </script>
 
 <template>
@@ -39,6 +92,13 @@ async function submit() {
 
         <UiButton variant="primary" size="lg" block class="submit" :disabled="busy">Войти</UiButton>
         <p v-if="error" class="error-text">{{ error }}</p>
+
+        <div class="or"><span>или</span></div>
+        <UiButton v-if="!tg.waiting" type="button" size="lg" block @click="tgLogin">Войти через Telegram</UiButton>
+        <div v-else class="tg-wait">
+          <p class="hint">Подтвердите вход в боте. Если Telegram не открылся, <a :href="tg.link" target="_blank" rel="noopener">откройте бота</a>.</p>
+          <UiButton type="button" size="sm" @click="tgStop">Отмена</UiButton>
+        </div>
       </form>
 
       <p class="footer mono">Europe/Moscow</p>
@@ -103,6 +163,41 @@ async function submit() {
 
 .submit {
   margin-top: 12px;
+}
+
+.hint {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 2px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.or::before,
+.or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.tg-wait {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.tg-wait a {
+  color: var(--ink-2);
+  text-decoration: underline;
 }
 
 .footer {

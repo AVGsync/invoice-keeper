@@ -31,6 +31,12 @@ export function useAuth() {
     user.value = await api.auth.me()
   }
 
+  // poll already set the cookies, only the profile is left to load
+  async function afterTelegramLogin() {
+    resetSession()
+    user.value = await api.auth.me()
+  }
+
   // cleared even if the request fails: the data must not stay for the next person
   async function logout() {
     try {
@@ -44,5 +50,5 @@ export function useAuth() {
 
   const home = computed(() => (user.value?.role === 'admin' ? '/admin/overview' : '/user/overview'))
 
-  return { user, load, login, logout, home }
+  return { user, load, login, afterTelegramLogin, logout, home }
 }

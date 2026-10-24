@@ -147,6 +147,18 @@ export interface TelegramLinkCodeResponse {
   expires_in?: number
 }
 
+// POST /auth/telegram/start
+export interface TelegramLoginStartResponse {
+  code: string
+  deep_link: string
+  expires_in: number
+}
+
+// POST /auth/telegram/poll: pending while the bot waits, ok once the cookies are set
+export interface TelegramLoginPollResponse {
+  status: 'pending' | 'ok'
+}
+
 // response.TelegramTeamChatResponse
 export interface TelegramTeamChatResponse {
   bound?: boolean

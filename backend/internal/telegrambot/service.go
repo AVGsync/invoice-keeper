@@ -65,6 +65,8 @@ type Service struct {
 	tokens TokenIssuer // выпуск access-токена Mini App; nil, когда бот выключен
 	hasher Hasher
 	cfg    Config
+	// webLogins — запросы на вход через бота; nil, когда не подключено.
+	webLogins WebLoginStore
 	// payments — операции движка напоминаний (кнопка «Оплачено», команды-сводки).
 	payments *reminder.BotService
 
@@ -450,6 +452,10 @@ func (s *Service) handleMessage(ctx context.Context, msg *telegram.Message) {
 			s.handleStartLink(ctx, msg, code)
 			return
 		}
+		if code, ok := strings.CutPrefix(arg, "login_"); ok && code != "" {
+			s.handleStartLogin(ctx, msg, code)
+			return
+		}
 		s.handleStart(ctx, msg)
 	case "/help":
 		s.reply(ctx, msg.Chat.ID, s.helpText())
@@ -664,6 +670,10 @@ func (s *Service) handleCallback(ctx context.Context, cb *telegram.CallbackQuery
 		s.confirmLink(ctx, cb, id)
 	case "lx":
 		s.cancelLink(ctx, cb, id)
+	case "wl":
+		s.confirmWebLogin(ctx, cb, id)
+	case "wx":
+		s.cancelWebLogin(ctx, cb, id)
 	case "p":
 		s.handlePaidCallback(ctx, cb, id)
 	default:

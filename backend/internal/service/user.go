@@ -110,34 +110,9 @@ func (s *UserService) AuthenticateUser(req request.LoginRequest, ctx context.Con
 		return "", "", ErrInvalidCredentials
 	}
 
-	tokenAccess, err := s.jwtManager.GenerateAccess(user.ID, user.Role)
+	tokenAccess, tokenRefresh, err := s.startSession(ctx, user)
 	if err != nil {
-		slog.Error("user service: authenticate user: failed to generate access token", "error", err)
-		return "", "", fmt.Errorf("user service: authenticate user: %w", err)
-	}
-
-	tokenRefresh, err := s.jwtManager.GenerateRefresh(user.ID, user.Role)
-	if err != nil {
-		slog.Error("user service: authenticate user: failed to generate refresh token", "error", err)
-		return "", "", fmt.Errorf("user service: authenticate user: %w", err)
-	}
-
-	hashRefresh, err := s.hasher.HashRefreshToken(tokenRefresh)
-	if err != nil {
-		slog.Error("user service: authenticate user: failed to hash refresh token", "error", err)
-		return "", "", fmt.Errorf("user service: authenticate user: %w", err)
-	}
-
-	err = s.repository.AddRefreshToken(
-		hashRefresh,
-		time.Now().Add(s.refreshTTL),
-		time.Now(),
-		nil,
-		ctx,
-	)
-	if err != nil {
-		slog.Error("user service: authenticate user: failed to add refresh token", "error", err)
-		return "", "", fmt.Errorf("user service: authenticate user: %w", err)
+		return "", "", err
 	}
 
 	s.audit.Record(ctx, audit.Entry{
@@ -150,6 +125,62 @@ func (s *UserService) AuthenticateUser(req request.LoginRequest, ctx context.Con
 	})
 
 	return tokenAccess, tokenRefresh, nil
+}
+
+// startSession выпускает пару токенов и сохраняет хеш refresh-токена.
+func (s *UserService) startSession(ctx context.Context, user model.User) (string, string, error) {
+	tokenAccess, err := s.jwtManager.GenerateAccess(user.ID, user.Role)
+	if err != nil {
+		slog.Error("user service: start session: failed to generate access token", "error", err)
+		return "", "", fmt.Errorf("user service: start session: %w", err)
+	}
+
+	tokenRefresh, err := s.jwtManager.GenerateRefresh(user.ID, user.Role)
+	if err != nil {
+		slog.Error("user service: start session: failed to generate refresh token", "error", err)
+		return "", "", fmt.Errorf("user service: start session: %w", err)
+	}
+
+	hashRefresh, err := s.hasher.HashRefreshToken(tokenRefresh)
+	if err != nil {
+		slog.Error("user service: start session: failed to hash refresh token", "error", err)
+		return "", "", fmt.Errorf("user service: start session: %w", err)
+	}
+
+	err = s.repository.AddRefreshToken(
+		hashRefresh,
+		time.Now().Add(s.refreshTTL),
+		time.Now(),
+		nil,
+		ctx,
+	)
+	if err != nil {
+		slog.Error("user service: start session: failed to add refresh token", "error", err)
+		return "", "", fmt.Errorf("user service: start session: %w", err)
+	}
+
+	return tokenAccess, tokenRefresh, nil
+}
+
+// IssueSession открывает сессию пользователя без пароля (вход через Telegram).
+func (s *UserService) IssueSession(ctx context.Context, userID string) (string, string, error) {
+	user, err := s.repository.GetUserByID(userID, ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("user service: issue session: %w", err)
+	}
+	access, refresh, err := s.startSession(ctx, user)
+	if err != nil {
+		return "", "", err
+	}
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionAuthLogin,
+		ActorID:    user.ID,
+		ActorRole:  user.Role,
+		EntityType: audit.EntityUser,
+		EntityID:   user.ID,
+		Payload:    map[string]any{"login": truncateLogin(user.Login, 64), "via": "telegram"},
+	})
+	return access, refresh, nil
 }
 
 // recordLoginFailure пишет неуспешный вход (actor неизвестен).

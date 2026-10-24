@@ -261,6 +261,11 @@ func (s *APIServer) configureRouter() {
 	s.assistant = s.buildAssistant()
 
 	s.tg = s.buildTelegram(userService, hasher)
+	var telegramLoginHandler *handler.TelegramLoginHandler
+	if s.tg != nil {
+		s.tg.service.SetWebLoginStore(s.db.Telegram())
+		telegramLoginHandler = handler.NewTelegramLoginHandler(s.tg.service, userService, accessTTL, refreshTTL)
+	}
 	if s.assistant != nil && s.tg != nil {
 		s.tg.service.AttachNLAnswerer(s.assistant)
 	}
@@ -279,7 +284,7 @@ func (s *APIServer) configureRouter() {
 			r.Get("/docs/*", httpSwagger.Handler(httpSwagger.URL("doc.json")))
 		}
 
-		s.mountAuth(r, mw, userHandler)
+		s.mountAuth(r, mw, userHandler, telegramLoginHandler)
 
 		r.With(mw.LimitByIP(60, time.Minute)).Get("/receipt-files/{id}", receiptHandler.ServeFile())
 
@@ -307,15 +312,20 @@ func (s *APIServer) configureRouter() {
 }
 
 // mountAuth монтирует публичную группу /auth (login, refresh, logout) с жёстким лимитом по IP против брутфорса.
-func (s *APIServer) mountAuth(r chi.Router, mw *middleware.Middleware, userHandler *handler.UserHandler) {
+func (s *APIServer) mountAuth(r chi.Router, mw *middleware.Middleware, userHandler *handler.UserHandler, tgLogin *handler.TelegramLoginHandler) {
 	r.Route("/auth", func(r chi.Router) {
 		r.Use(api.RequestIDMiddleware)
 		r.Use(mw.AuditContext)
-		r.Use(mw.LimitByIP(10, time.Minute))
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
-		r.Post("/login", userHandler.Login())
-		r.Post("/refresh", userHandler.RefreshToken())
-		r.Post("/logout", userHandler.Logout())
+		limit := mw.LimitByIP(10, time.Minute)
+		r.With(limit).Post("/login", userHandler.Login())
+		r.With(limit).Post("/refresh", userHandler.RefreshToken())
+		r.With(limit).Post("/logout", userHandler.Logout())
+		if tgLogin != nil {
+			r.With(mw.LimitByIP(10, time.Minute)).Post("/telegram/start", tgLogin.Start())
+			// сайт опрашивает раз в пару секунд
+			r.With(mw.LimitByIP(90, time.Minute)).Post("/telegram/poll", tgLogin.Poll())
+		}
 	})
 }
 
