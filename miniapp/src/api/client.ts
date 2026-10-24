@@ -66,6 +66,8 @@ export async function request<T>(
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    // Канал клиента для серверного аудита (трек C ставит по нему channel=miniapp).
+    'X-Client': 'miniapp',
     ...opts.headers,
   }
   let body: BodyInit | undefined

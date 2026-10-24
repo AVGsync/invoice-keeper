@@ -36,6 +36,7 @@ describe('request', () => {
     const init = fetchMock.mock.calls[0]![1]
     expect(init.headers['Authorization']).toBe('Bearer TOK')
     expect(init.headers['Accept']).toBe('application/json')
+    expect(init.headers['X-Client']).toBe('miniapp')
   })
 
   it('JSON-конверт → code/requestId', async () => {

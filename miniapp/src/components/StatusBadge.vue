@@ -25,20 +25,22 @@ const info = computed(() => statusInfo({ status: props.status, paid_late: props.
   white-space: nowrap;
   border: 1px solid transparent;
 }
-/* overdue — the only filled badge */
 .badge--overdue {
-  background: var(--snow);
-  color: var(--ink);
+  background: var(--red-bg);
+  color: var(--red-ink);
 }
 .badge--pending {
-  border-color: var(--line-strong);
-  background: var(--glass);
-  color: var(--bone-text);
+  background: var(--accent-bg);
+  color: var(--accent-ink);
 }
 .badge--paid {
   border: 0;
   padding-left: 0;
-  color: var(--muted);
+  color: var(--green-ink);
+}
+/* оплачено с опозданием — янтарный акцент */
+.badge--paid.late {
+  color: var(--amber-ink);
 }
 .badge--paid::before {
   content: '';

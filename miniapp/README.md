@@ -51,9 +51,38 @@ npm run dev        # http://localhost:5173/tg/
 - `VITE_APP_TIMEZONE` — таймзона «сегодня» (по умолчанию `Europe/Moscow`), должна совпадать
   с backend `APP_TIMEZONE`. Меняется только пересборкой образа (build-arg).
 
+## Темы
+
+Приложение поддерживает светлую и тёмную темы. Источник — `colorScheme` Telegram
+(событие `themeChanged`); вне Telegram берётся системная настройка
+`prefers-color-scheme`. Логика в `src/telegram/theme.ts`: `applyTheme()` вычисляет тему,
+ставит `html[data-theme]`, мета `theme-color`/`color-scheme` и красит хром Telegram
+(шапку, фон, нижнюю панель) цветом `CHROME[theme]`. Реактивный `theme` переприменяет
+цвета `MainButton` при смене темы. Ранний inline-скрипт в `index.html` выставляет
+`data-theme` до загрузки бандла, чтобы не было вспышки.
+
+Токены темы — в `src/styles/base.css`: блок `:root` держит тёмные значения (Dimension +
+акценты фронтенда), блок `:root[data-theme='light']` их переопределяет светлыми токенами,
+зеркалящими веб-фронтенд. Семантические токены: `--fill`/`--on-fill` (залитый контрол),
+`--on-horizon` (текст на hero-градиенте), `--accent`/`--accent-ink`/`--accent-bg`,
+`--red|green|amber` с вариантами `-ink` (текст) и `-bg` (заливка бейджа). Цветные
+hero-поверхности (`TodayScreen`, `Horizon`) не зависят от темы. Контраст текста ≥ 4.5:1 в
+обеих темах (в тёмной акцент как текст — всегда `--accent-ink`, не `--accent`).
+
+## Композер «Спросить»
+
+Экран «Спросить» использует не `MainButton`, а composer как в ChatGPT
+(`src/components/Composer.vue`): поле ввода с круглой кнопкой-стрелкой. `Enter` отправляет,
+`Shift+Enter` — перевод строки (чистая логика `src/lib/composer.ts`), во время стрима кнопка
+показывает «стоп» и кольцо-спиннер. Композер фиксирован над плавающей панелью вкладок; при
+фокусе (флаг `src/stores/ui.ts`) панель уезжает вниз, чтобы не висеть над клавиатурой.
+Высота композера пробрасывается в `--composer-h` (ResizeObserver) для отступа фида. История
+диалога (память ассистента) подтягивается `GET /assistant/history`, кнопка «Новый диалог» —
+`DELETE /assistant/history`.
+
 ## Структура
 
-- `src/api` — клиент (токен в памяти), эндпоинты (сверены со swagger), SSE и ассистент.
+- `src/api` — клиент (токен в памяти, заголовок `X-Client: miniapp`), эндпоинты (сверены со swagger), SSE и ассистент.
 - `src/lib` — чистые помощники (деньги, даты, статусы, агрегаты, права, расписание) с тестами.
 - `src/stores` — реактивные сторы (session, occurrences, recurring, users, assistant).
 - `src/telegram` — обёртка WebApp и разбор startapp.

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/request"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/response"
@@ -23,11 +24,16 @@ type PersonaRepository interface {
 // назначает пользователям при создании.
 type PersonaService struct {
 	repository PersonaRepository
+	// audit — журнал действий; по умолчанию Nop (конструктор не меняется).
+	audit audit.Recorder
 }
 
 func NewPersonaService(repository PersonaRepository) *PersonaService {
-	return &PersonaService{repository: repository}
+	return &PersonaService{repository: repository, audit: audit.Nop{}}
 }
+
+// SetAuditRecorder подключает журнал действий.
+func (s *PersonaService) SetAuditRecorder(r audit.Recorder) { s.audit = r }
 
 // trimmedOrNil: пустое после обрезки описание храним как NULL.
 func trimmedOrNil(s *string) *string {
@@ -59,6 +65,13 @@ func (s *PersonaService) CreatePersona(req request.CreatePersonaRequest, ctx con
 		slog.Error("persona service: create persona: failed to create persona", "error", err)
 		return model.Persona{}, fmt.Errorf("persona service: create persona: %w", err)
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionPersonaCreate,
+		EntityType: audit.EntityPersona,
+		EntityID:   persona.ID,
+		Payload:    map[string]any{"name": persona.Name, "description": persona.Description},
+	})
 	return persona, nil
 }
 
@@ -67,6 +80,7 @@ func (s *PersonaService) UpdatePersona(id string, req request.UpdatePersonaReque
 	if err != nil {
 		return model.Persona{}, fmt.Errorf("persona service: update persona: %w", err)
 	}
+	oldName, oldDescription := persona.Name, persona.Description
 	if req.Name != nil {
 		persona.Name = strings.TrimSpace(*req.Name)
 	}
@@ -78,13 +92,36 @@ func (s *PersonaService) UpdatePersona(id string, req request.UpdatePersonaReque
 		slog.Error("persona service: update persona: failed to update persona", "error", err)
 		return model.Persona{}, fmt.Errorf("persona service: update persona: %w", err)
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionPersonaUpdate,
+		EntityType: audit.EntityPersona,
+		EntityID:   id,
+		Changes: audit.Diff().
+			Add("name", oldName, persona.Name).
+			Add("description", oldDescription, persona.Description).
+			Map(),
+	})
 	return persona, nil
 }
 
 func (s *PersonaService) DeletePersona(id string, ctx context.Context) error {
+	// Имя читаем до удаления — в журнал пишем снимок названия.
+	name := ""
+	if p, err := s.repository.GetPersonaByID(id, ctx); err == nil {
+		name = p.Name
+	}
+
 	if err := s.repository.DeletePersona(id, ctx); err != nil {
 		slog.Error("persona service: delete persona: failed to delete persona", "error", err)
 		return fmt.Errorf("persona service: delete persona: %w", err)
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionPersonaDelete,
+		EntityType: audit.EntityPersona,
+		EntityID:   id,
+		Payload:    map[string]any{"name": name},
+	})
 	return nil
 }

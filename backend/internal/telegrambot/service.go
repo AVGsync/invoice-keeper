@@ -10,10 +10,12 @@ import (
 	"fmt"
 	"html"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/infrastructure/telegram"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 	"github.com/AVGsync/invoice-keeper/backend/internal/reminder"
@@ -82,6 +84,9 @@ type Service struct {
 	nlSem      chan struct{}
 	nlInflight map[string]struct{}
 	nlMu       sync.Mutex
+
+	// audit — журнал действий; по умолчанию Nop (конструктор не меняется).
+	audit audit.Recorder
 }
 
 // NewService собирает сервис бота. tokens и hasher нужны только входу в Mini App
@@ -93,8 +98,11 @@ func NewService(repo Repository, users UserReader, client BotAPI, tokens TokenIs
 	if cfg.InitDataMaxAge <= 0 {
 		cfg.InitDataMaxAge = 10 * time.Minute
 	}
-	return &Service{repo: repo, users: users, client: client, tokens: tokens, hasher: hasher, cfg: cfg}
+	return &Service{repo: repo, users: users, client: client, tokens: tokens, hasher: hasher, cfg: cfg, audit: audit.Nop{}}
 }
+
+// SetAuditRecorder подключает журнал действий. Вызывается из apiserver.
+func (s *Service) SetAuditRecorder(r audit.Recorder) { s.audit = r }
 
 // MiniAppResult — результат входа в Mini App: access-токен и профиль пользователя.
 type MiniAppResult struct {
@@ -114,18 +122,44 @@ type MiniAppResult struct {
 func (s *Service) MiniAppAuth(ctx context.Context, initData string) (MiniAppResult, error) {
 	id, err := s.validateInitData(initData)
 	if err != nil {
+		s.recordMiniAppAuthFailure(ctx, err)
 		return MiniAppResult{}, err
 	}
 
 	link, err := s.repo.GetLinkByTGUserID(ctx, id.UserID)
 	if err != nil {
 		if errors.Is(err, model.ErrTelegramNotLinked) {
+			s.recordMiniAppAuthFailure(ctx, err)
 			return MiniAppResult{}, err
 		}
 		return MiniAppResult{}, fmt.Errorf("telegram service: miniapp auth: %w", err)
 	}
 
-	return s.issueMiniApp(ctx, link.UserID, id.AllowsWriteToPM)
+	res, err := s.issueMiniApp(ctx, link.UserID, id.AllowsWriteToPM)
+	if err == nil {
+		s.audit.Record(ctx, audit.Entry{
+			Action:     audit.ActionAuthMiniApp,
+			ActorID:    link.UserID,
+			EntityType: audit.EntityUser,
+			EntityID:   link.UserID,
+		})
+	}
+	return res, err
+}
+
+// recordMiniAppAuthFailure пишет неуспешный вход в Mini App (канал miniapp из
+// контекста). Причины, которых нет в наборе (бот выключен), не аудируются.
+func (s *Service) recordMiniAppAuthFailure(ctx context.Context, err error) {
+	reason := miniAppAuthReason(err)
+	if reason == "" {
+		return
+	}
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionAuthMiniApp,
+		Outcome:    audit.OutcomeFailure,
+		EntityType: audit.EntityUser,
+		Payload:    map[string]any{"reason": reason},
+	})
 }
 
 // MiniAppLink привязывает Telegram к аккаунту по логину и паролю из Mini App и
@@ -136,26 +170,57 @@ func (s *Service) MiniAppAuth(ctx context.Context, initData string) (MiniAppResu
 func (s *Service) MiniAppLink(ctx context.Context, initData, login, password string) (MiniAppResult, error) {
 	id, err := s.validateInitData(initData)
 	if err != nil {
+		s.recordMiniAppLinkFailure(ctx, "", err)
 		return MiniAppResult{}, err
 	}
 
 	// Несуществующий логин и неверный пароль не различаем (защита от перечисления).
 	user, err := s.users.GetUserByLogin(login, ctx)
 	if err != nil {
+		s.recordMiniAppLinkFailure(ctx, "", ErrMiniAppInvalidCredentials)
 		return MiniAppResult{}, ErrMiniAppInvalidCredentials
 	}
 	if !s.hasher.CheckPassword(password, user.PasswordHash) {
+		s.recordMiniAppLinkFailure(ctx, user.ID, ErrMiniAppInvalidCredentials)
 		return MiniAppResult{}, ErrMiniAppInvalidCredentials
 	}
 
 	if err := s.repo.UpsertLink(ctx, user.ID, id.UserID, id.Username); err != nil {
 		if errors.Is(err, model.ErrTelegramAlreadyLinked) {
+			s.recordMiniAppLinkFailure(ctx, user.ID, err)
 			return MiniAppResult{}, err
 		}
 		return MiniAppResult{}, fmt.Errorf("telegram service: miniapp link: %w", err)
 	}
 
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionTelegramLink,
+		ActorID:    user.ID,
+		EntityType: audit.EntityTelegramLink,
+		EntityID:   user.ID,
+		Payload:    map[string]any{"via": "miniapp", "tg_username": id.Username},
+	})
 	return s.issueMiniApp(ctx, user.ID, id.AllowsWriteToPM)
+}
+
+// recordMiniAppLinkFailure пишет неуспешную привязку через Mini App. actorID —
+// если известен (ошибка пароля/уже привязан); для ошибок initData пусто.
+func (s *Service) recordMiniAppLinkFailure(ctx context.Context, actorID string, err error) {
+	reason := miniAppLinkReason(err)
+	if reason == "" {
+		return
+	}
+	entry := audit.Entry{
+		Action:     audit.ActionTelegramLink,
+		Outcome:    audit.OutcomeFailure,
+		ActorID:    actorID,
+		EntityType: audit.EntityTelegramLink,
+		Payload:    map[string]any{"reason": reason},
+	}
+	if actorID != "" {
+		entry.EntityID = actorID
+	}
+	s.audit.Record(ctx, entry)
 }
 
 // validateInitData — общая проверка подписи initData для обоих Mini App-потоков.
@@ -244,7 +309,16 @@ func (s *Service) CreateLinkCode(ctx context.Context, userID string) (deepLink s
 	}
 
 	deepLink = fmt.Sprintf("https://t.me/%s?start=link_%s", s.cfg.BotUsername, code)
-	return deepLink, int(s.cfg.LinkCodeTTL.Seconds()), nil
+	expiresIn = int(s.cfg.LinkCodeTTL.Seconds())
+
+	// Сам код в журнал не пишем — только факт создания ссылки и её срок.
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionTelegramLinkCode,
+		EntityType: audit.EntityTelegramLink,
+		EntityID:   userID,
+		Payload:    map[string]any{"expires_in": expiresIn},
+	})
+	return deepLink, expiresIn, nil
 }
 
 // GetLinkStatus возвращает состояние привязки пользователя.
@@ -274,6 +348,12 @@ func (s *Service) Unlink(ctx context.Context, userID string) error {
 		}
 		return fmt.Errorf("telegram service: unlink: %w", err)
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionTelegramUnlink,
+		EntityType: audit.EntityTelegramLink,
+		EntityID:   userID,
+	})
 	return nil
 }
 
@@ -305,8 +385,15 @@ func (s *Service) SendTeamChatTest(ctx context.Context) error {
 	}
 	chat, err := s.repo.GetActiveChat(ctx)
 	if err != nil {
+		s.audit.Record(ctx, audit.Entry{
+			Action:     audit.ActionTelegramTeamChatTest,
+			Outcome:    audit.OutcomeFailure,
+			EntityType: audit.EntityTelegramChat,
+			Payload:    map[string]any{"reason": "no_team_chat"},
+		})
 		return err
 	}
+	chatIDStr := strconv.FormatInt(chat.TGChatID, 10)
 	cctx, cancel := context.WithTimeout(ctx, sendTimeout)
 	defer cancel()
 	_, err = s.client.SendMessage(cctx, telegram.SendMessageParams{
@@ -315,8 +402,21 @@ func (s *Service) SendTeamChatTest(ctx context.Context) error {
 		ParseMode: "HTML",
 	})
 	if err != nil {
+		s.audit.Record(ctx, audit.Entry{
+			Action:     audit.ActionTelegramTeamChatTest,
+			Outcome:    audit.OutcomeFailure,
+			EntityType: audit.EntityTelegramChat,
+			EntityID:   chatIDStr,
+			Payload:    map[string]any{"reason": "send_failed"},
+		})
 		return fmt.Errorf("telegram service: team chat test: %w", err)
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionTelegramTeamChatTest,
+		EntityType: audit.EntityTelegramChat,
+		EntityID:   chatIDStr,
+	})
 	return nil
 }
 
@@ -386,6 +486,8 @@ func (s *Service) handleMessage(ctx context.Context, msg *telegram.Message) {
 	switch cmd {
 	case "/ask":
 		s.handleAsk(ctx, msg, arg)
+	case "/new", "/reset":
+		s.handleReset(ctx, msg)
 	case "/start":
 		if code, ok := strings.CutPrefix(arg, "link_"); ok && code != "" {
 			s.handleStartLink(ctx, msg, code)
@@ -502,6 +604,11 @@ func (s *Service) handleUnlink(ctx context.Context, msg *telegram.Message) {
 		s.reply(ctx, msg.Chat.ID, "Не удалось отвязать. Попробуйте позже.")
 		return
 	}
+	s.audit.Record(s.botCtx(ctx, link.UserID, ""), audit.Entry{
+		Action:     audit.ActionTelegramUnlink,
+		EntityType: audit.EntityTelegramLink,
+		EntityID:   link.UserID,
+	})
 	s.reply(ctx, msg.Chat.ID, "Аккаунт отвязан. Кнопка «Оплачено», команды бота и вход в Mini App больше недоступны.")
 }
 
@@ -537,6 +644,16 @@ func (s *Service) handleBind(ctx context.Context, msg *telegram.Message) {
 		s.reply(ctx, msg.Chat.ID, "Не удалось привязать чат. Попробуйте позже.")
 		return
 	}
+	bindPayload := map[string]any{"title": msg.Chat.Title, "type": msg.Chat.Type}
+	if hadPrev {
+		bindPayload["previous_chat_id"] = prev.TGChatID
+	}
+	s.audit.Record(s.botCtx(ctx, link.UserID, user.Role), audit.Entry{
+		Action:     audit.ActionTelegramTeamChatBind,
+		EntityType: audit.EntityTelegramChat,
+		EntityID:   strconv.FormatInt(msg.Chat.ID, 10),
+		Payload:    bindPayload,
+	})
 	s.reply(ctx, msg.Chat.ID, "Готово. Этот чат теперь командный — напоминания будут приходить сюда.")
 	if hadPrev {
 		s.reply(ctx, prev.TGChatID, "Этот чат больше не командный: напоминания переключены на другую группу.")
@@ -579,6 +696,11 @@ func (s *Service) handleUnbind(ctx context.Context, msg *telegram.Message) {
 		slog.Error("telegram bot: unbind chat", "error", err)
 		return
 	}
+	s.audit.Record(s.botCtx(ctx, link.UserID, user.Role), audit.Entry{
+		Action:     audit.ActionTelegramTeamChatUnbind,
+		EntityType: audit.EntityTelegramChat,
+		EntityID:   strconv.FormatInt(msg.Chat.ID, 10),
+	})
 	s.reply(ctx, msg.Chat.ID, "Командный чат отвязан. Напоминания сюда больше не придут.")
 }
 
@@ -609,12 +731,29 @@ func (s *Service) handlePaidCallback(ctx context.Context, cb *telegram.CallbackQ
 		s.answer(ctx, cb.ID, "Привяжите Telegram в профиле на сайте.", true)
 		return
 	}
-	var name string
+	var name, role string
 	if u, uerr := s.users.GetUserByID(link.UserID, ctx); uerr == nil {
 		name = u.FullName
+		role = u.Role
 	}
-	text, alert := s.payments.MarkPaidCallback(ctx, occHex, link.UserID, name)
+	// Канал bot прокидываем в контекст: занесётся и occurrence.confirm (пишется
+	// в PaymentService.MarkOccurrencePaid), и bot.paid_button ниже.
+	bctx := s.botCtx(ctx, link.UserID, role)
+	text, alert := s.payments.MarkPaidCallback(bctx, occHex, link.UserID, name)
 	s.answer(ctx, cb.ID, text, alert)
+
+	// Кнопка «Оплачено» аудируется при каждом нажатии: outcome по флагу alert.
+	outcome := audit.OutcomeSuccess
+	if alert {
+		outcome = audit.OutcomeFailure
+	}
+	s.audit.Record(bctx, audit.Entry{
+		Action:     audit.ActionBotPaidButton,
+		Outcome:    outcome,
+		EntityType: audit.EntityOccurrence,
+		EntityID:   occurrenceIDFromHex(occHex),
+		Payload:    map[string]any{"answer": text},
+	})
 }
 
 // handleSummary отвечает read-only сводкой (/today, /week, /overdue). Сводка —
@@ -672,6 +811,13 @@ func (s *Service) confirmLink(ctx context.Context, cb *telegram.CallbackQuery, c
 
 	if err := s.repo.UpsertLink(ctx, userID, cb.From.ID, cb.From.Username); err != nil {
 		if errors.Is(err, model.ErrTelegramAlreadyLinked) {
+			s.audit.Record(s.botCtx(ctx, userID, ""), audit.Entry{
+				Action:     audit.ActionTelegramLink,
+				Outcome:    audit.OutcomeFailure,
+				EntityType: audit.EntityTelegramLink,
+				EntityID:   userID,
+				Payload:    map[string]any{"reason": "already_linked"},
+			})
 			s.answer(ctx, cb.ID, "Этот Telegram уже привязан к другому аккаунту.", true)
 			s.editCallbackMessage(ctx, cb, "Этот Telegram уже привязан к другому аккаунту. Отвяжите там командой /unlink.")
 			return
@@ -680,6 +826,12 @@ func (s *Service) confirmLink(ctx context.Context, cb *telegram.CallbackQuery, c
 		s.answer(ctx, cb.ID, "Ошибка привязки, попробуйте позже.", true)
 		return
 	}
+	s.audit.Record(s.botCtx(ctx, userID, ""), audit.Entry{
+		Action:     audit.ActionTelegramLink,
+		EntityType: audit.EntityTelegramLink,
+		EntityID:   userID,
+		Payload:    map[string]any{"via": "bot", "tg_username": cb.From.Username},
+	})
 	s.answer(ctx, cb.ID, "Готово", false)
 	s.editCallbackMessage(ctx, cb, "Готово. Telegram привязан: доступны кнопка «Оплачено», команды бота и вход в Mini App. Напоминания приходят в командный чат.")
 }
@@ -789,6 +941,7 @@ func (s *Service) helpText() string {
 	b.WriteString("/overdue — просроченные платежи\n")
 	if s.nl != nil {
 		b.WriteString("/ask &lt;вопрос&gt; — спросить ассистента (в личке можно просто написать вопрос)\n")
+		b.WriteString("/new — начать новый диалог с ассистентом\n")
 	}
 	b.WriteString("/chatid — показать ID чата\n")
 	b.WriteString("/help — эта справка")

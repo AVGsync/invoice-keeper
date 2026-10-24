@@ -16,16 +16,25 @@ import (
 type fakeNL struct {
 	mu     sync.Mutex
 	calls  []nlCall
+	resets []resetCall
 	answer model.AssistantAnswer
 	err    error
 	delay  time.Duration
 }
 
 type nlCall struct {
-	userID, channel, question string
+	userID, channel, conversation, question string
 }
 
 func (f *fakeNL) Ask(ctx context.Context, userID, channel, question string) (model.AssistantAnswer, error) {
+	return f.record(ctx, userID, channel, conversationForChannelTest(channel), question)
+}
+
+func (f *fakeNL) AskIn(ctx context.Context, userID, conversation, question string) (model.AssistantAnswer, error) {
+	return f.record(ctx, userID, "bot", conversation, question)
+}
+
+func (f *fakeNL) record(ctx context.Context, userID, channel, conversation, question string) (model.AssistantAnswer, error) {
 	if f.delay > 0 {
 		select {
 		case <-time.After(f.delay):
@@ -34,9 +43,26 @@ func (f *fakeNL) Ask(ctx context.Context, userID, channel, question string) (mod
 		}
 	}
 	f.mu.Lock()
-	f.calls = append(f.calls, nlCall{userID, channel, question})
+	f.calls = append(f.calls, nlCall{userID, channel, conversation, question})
 	f.mu.Unlock()
 	return f.answer, f.err
+}
+
+// resetConv фиксирует вызовы ResetConversation.
+type resetCall struct{ userID, channel, conversation string }
+
+func (f *fakeNL) ResetConversation(ctx context.Context, userID, channel, conversation string) (int, error) {
+	f.mu.Lock()
+	f.resets = append(f.resets, resetCall{userID, channel, conversation})
+	f.mu.Unlock()
+	return len(f.resets), nil
+}
+
+func conversationForChannelTest(channel string) string {
+	if channel == "bot" {
+		return "tg:dm"
+	}
+	return channel
 }
 
 func (f *fakeNL) callCount() int {

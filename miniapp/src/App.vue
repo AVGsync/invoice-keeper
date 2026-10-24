@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { session } from './stores/session'
+import { ui } from './stores/ui'
 import { occurrences } from './stores/occurrences'
 import { getWebApp, supports } from './telegram/webapp'
 import { useBackButton } from './composables/useBackButton'
@@ -26,7 +27,9 @@ onMounted(() => {
 
 // Панель живёт всю сессию и уезжает вниз на экранах без вкладок — без пересоздания.
 const showTabBar = computed(() => session.phase === 'ready')
-const tabBarAway = computed(() => !route.meta.tab)
+// Панель уезжает вниз на экранах без вкладок и когда фокус в композере «Спросить»
+// (чтобы не висеть над экранной клавиатурой).
+const tabBarAway = computed(() => !route.meta.tab || ui.composerFocused)
 const isFatal = computed(() =>
   ['no_telegram', 'expired', 'invalid', 'disabled', 'rate_limited', 'offline'].includes(
     session.phase,

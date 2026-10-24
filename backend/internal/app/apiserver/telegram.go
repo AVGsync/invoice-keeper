@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/clock"
 	"github.com/AVGsync/invoice-keeper/backend/internal/infrastructure/telegram"
 	"github.com/AVGsync/invoice-keeper/backend/internal/reminder"
@@ -60,6 +61,8 @@ func (s *APIServer) buildTelegram(tokens telegrambot.TokenIssuer, hasher telegra
 			InitDataMaxAge: s.config.TelegramInitDataMaxAge,
 		},
 	)
+	// Журнал действий бота (привязки, командный чат, «Оплачено»).
+	service.SetAuditRecorder(s.audit)
 
 	rt := &telegramRuntime{
 		service: service,
@@ -157,6 +160,8 @@ func (s *APIServer) mountTelegramMiniApp(r chi.Router, mw *middleware.Middleware
 	h := s.tg.handler
 	r.Group(func(r chi.Router) {
 		r.Use(api.RequestIDMiddleware)
+		// Канал для этих ручек всегда miniapp (вход/привязка из Mini App).
+		r.Use(mw.AuditContextFor(audit.ChannelMiniApp))
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
 
 		r.With(mw.LimitByIPJSON(30, time.Minute)).Post("/telegram/miniapp/auth", h.MiniAppAuth())
@@ -174,6 +179,7 @@ func (s *APIServer) mountTelegram(r chi.Router, mw *middleware.Middleware) {
 	r.Group(func(r chi.Router) {
 		r.Use(api.RequestIDMiddleware)
 		r.Use(mw.AuthJSON)
+		r.Use(mw.AuditContext)
 		r.Use(mw.LimitByUserJSON(120, time.Minute))
 		r.Use(mw.IsUserOrAdminJSON)
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))

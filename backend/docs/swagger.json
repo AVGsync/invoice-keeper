@@ -146,6 +146,129 @@
                 }
             }
         },
+        "/assistant/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Последние ходы диалога (вопрос, короткий ответ, статус) по возрастанию\nвремени. in_context — попадёт ли ход в контекст следующего вопроса.\nРаботает и при выключенном ассистенте. Только свои ходы.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ассистент"
+                ],
+                "summary": "История диалога с ассистентом",
+                "parameters": [
+                    {
+                        "enum": [
+                            "web",
+                            "miniapp",
+                            "bot"
+                        ],
+                        "type": "string",
+                        "description": "Канал: web (по умолчанию), miniapp или bot",
+                        "name": "channel",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Область диалога (для bot: tg:dm или tg:\u003cchat_id\u003e)",
+                        "name": "conversation",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Сколько ходов вернуть (1..50, по умолчанию 20)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "История диалога",
+                        "schema": {
+                            "$ref": "#/definitions/response.AssistantHistoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный параметр (bad_request)",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или просрочен токен",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаляет ходы одного разговора (или все разговоры пользователя при\nchannel=all). Работает и при выключенном ассистенте. Только свои ходы.",
+                "tags": [
+                    "Ассистент"
+                ],
+                "summary": "Очистить историю диалога с ассистентом",
+                "parameters": [
+                    {
+                        "enum": [
+                            "web",
+                            "miniapp",
+                            "bot",
+                            "all"
+                        ],
+                        "type": "string",
+                        "description": "Канал: web (по умолчанию), miniapp, bot или all",
+                        "name": "channel",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Область диалога (для bot: tg:dm или tg:\u003cchat_id\u003e)",
+                        "name": "conversation",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "История очищена"
+                    },
+                    "400": {
+                        "description": "Неверный параметр (bad_request)",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Нет или просрочен токен",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/assistant/status": {
             "get": {
                 "security": [
@@ -172,6 +295,190 @@
                         "description": "Нет или просрочен токен",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/audit-log": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Полный журнал действий пользователей с фильтрами, сортировкой и\nпагинацией. Доступно только роли `admin`. Фильтры: actor_id, action\n(точный код или префикс с `*`, напр. `recurring.*`), entity_type,\nentity_id, channel, outcome, from/to (YYYY-MM-DD в зоне приложения\nлибо RFC3339), q (подстрока по действию, сущности, payload/changes,\nФИО актора). Мульти-значения — через запятую или повтором.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Audit"
+                ],
+                "summary": "Журнал действий (админ)",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "ID акторов (UUID)",
+                        "name": "actor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Действия (код или префикс с *)",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Типы сущностей",
+                        "name": "entity_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID сущности",
+                        "name": "entity_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "web",
+                                "miniapp",
+                                "bot",
+                                "system"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Каналы",
+                        "name": "channel",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "success",
+                            "failure"
+                        ],
+                        "type": "string",
+                        "description": "Исход",
+                        "name": "outcome",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "С (YYYY-MM-DD или RFC3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "По (YYYY-MM-DD или RFC3339)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Поиск (≤100 символов)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Порядок",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "1..200 (дефолт 50)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "0..100000 (дефолт 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.AuditLogResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный параметр",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав (требуется admin)",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/audit-log/actions": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Список всех кодов действий с русскими метками и типом сущности —\nдля построения фильтров в UI. Доступно любому авторизованному.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Audit"
+                ],
+                "summary": "Каталог действий журнала",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.AuditActionsResponse"
                         }
                     }
                 }
@@ -302,6 +609,146 @@
                         "description": "Не удалось выпустить новые токены",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/me/activity": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Записи журнала только текущего пользователя (actor_id берётся из\nJWT; параметр actor_id игнорируется). Остальные фильтры — как у\nGET /audit-log. Доступно любому авторизованному.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Audit"
+                ],
+                "summary": "Мои действия",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Действия (код или префикс с *)",
+                        "name": "action",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Типы сущностей",
+                        "name": "entity_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID сущности",
+                        "name": "entity_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "web",
+                                "miniapp",
+                                "bot",
+                                "system"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Каналы",
+                        "name": "channel",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "success",
+                            "failure"
+                        ],
+                        "type": "string",
+                        "description": "Исход",
+                        "name": "outcome",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "С (YYYY-MM-DD или RFC3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "По (YYYY-MM-DD или RFC3339)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Поиск (≤100 символов)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Порядок",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "1..200 (дефолт 50)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "0..100000 (дефолт 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.AuditLogResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный параметр",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     }
                 }
@@ -729,6 +1176,194 @@
                     },
                     "500": {
                         "description": "Не удалось получить платежи",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-occurrences/search": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Серверный поиск с фильтрами, сортировкой и пагинацией. Права как у GET /payment-occurrences.\namount_min/amount_max — в минимальных единицах и только вместе с ровно одной currency.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Поиск периодов платежей",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Подстрока описания или ФИО ответственного",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "overdue",
+                                "pending",
+                                "paid",
+                                "ended"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Статусы",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "RUB",
+                                "USD",
+                                "EUR"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Валюты",
+                        "name": "currency",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "me"
+                        ],
+                        "type": "string",
+                        "description": "me — только периоды текущего пользователя",
+                        "name": "assignee",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "UUID ответственных (взаимоисключимо с assignee=me)",
+                        "name": "assignee_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "UUID персон ответственного",
+                        "name": "persona_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID шаблона",
+                        "name": "recurrent_payment_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Нижняя граница due_date (YYYY-MM-DD)",
+                        "name": "due_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Верхняя граница due_date (YYYY-MM-DD)",
+                        "name": "due_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Нижняя граница paid_date (YYYY-MM-DD)",
+                        "name": "paid_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Верхняя граница paid_date (YYYY-MM-DD)",
+                        "name": "paid_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Минимальная сумма (минимальные единицы, требует ровно одну currency)",
+                        "name": "amount_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Максимальная сумма (минимальные единицы, требует ровно одну currency)",
+                        "name": "amount_max",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "due_date",
+                            "amount",
+                            "created_at",
+                            "description",
+                            "paid_date"
+                        ],
+                        "type": "string",
+                        "description": "Поле сортировки",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Направление",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "1..200, по умолчанию 50",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "0..100000, по умолчанию 0",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.PaymentSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный параметр (текст ошибки)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Не удалось получить данные авторизации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось выполнить поиск",
                         "schema": {
                             "type": "string"
                         }
@@ -1269,6 +1904,206 @@
                     },
                     "500": {
                         "description": "Не удалось создать регулярный платеж",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/recurring-payments/search": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Серверный поиск шаблонов с фильтрами, сортировкой и пагинацией. Права как у GET /recurring-payments.\namount_min/amount_max — в минимальных единицах и только вместе с ровно одной currency.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Recurring Payments"
+                ],
+                "summary": "Поиск регулярных платежей",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Подстрока описания или ФИО ответственного",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "RUB",
+                                "USD",
+                                "EUR"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Валюты",
+                        "name": "currency",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "weekly",
+                                "monthly"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Периодичность",
+                        "name": "frequency",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "me"
+                        ],
+                        "type": "string",
+                        "description": "me — только шаблоны текущего пользователя",
+                        "name": "assignee",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "UUID ответственных (взаимоисключимо с assignee=me)",
+                        "name": "assignee_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "UUID персон ответственного",
+                        "name": "persona_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "active",
+                                "stopped"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Статус шаблона",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "true ≡ status=active,stopped; по умолчанию только активные",
+                        "name": "include_stopped",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Минимальная сумма (минимальные единицы, требует ровно одну currency)",
+                        "name": "amount_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Максимальная сумма (минимальные единицы, требует ровно одну currency)",
+                        "name": "amount_max",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Нижняя граница start_date (YYYY-MM-DD)",
+                        "name": "start_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Верхняя граница start_date (YYYY-MM-DD)",
+                        "name": "start_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Нижняя граница ближайшего срока (YYYY-MM-DD)",
+                        "name": "next_due_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Верхняя граница ближайшего срока (YYYY-MM-DD)",
+                        "name": "next_due_to",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "description",
+                            "amount",
+                            "created_at",
+                            "next_due",
+                            "start_date"
+                        ],
+                        "type": "string",
+                        "description": "Поле сортировки",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Направление",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "1..200, по умолчанию 50",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "0..100000, по умолчанию 0",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.RecurringPaymentSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный параметр (текст ошибки)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Не удалось получить данные авторизации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Не удалось выполнить поиск",
                         "schema": {
                             "type": "string"
                         }
@@ -1871,6 +2706,20 @@
         }
     },
     "definitions": {
+        "audit.ActionInfo": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "entity_type": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.PatchPaymentOccurrenceRequest": {
             "type": "object",
             "properties": {
@@ -2456,6 +3305,117 @@
                 }
             }
         },
+        "response.AssistantHistoryItem": {
+            "type": "object",
+            "properties": {
+                "answer_id": {
+                    "description": "AnswerID совпадает с X-Request-Id ответа.",
+                    "type": "string",
+                    "example": "f16cc96e-aaf4-44fb-a462-836ed4d0b135"
+                },
+                "answer_text": {
+                    "description": "Короткий текст ответа после grounding.",
+                    "type": "string",
+                    "example": "Просрочено 2 платежа."
+                },
+                "created_at": {
+                    "description": "Момент хода (RFC3339).",
+                    "type": "string",
+                    "example": "2026-10-24T09:00:00Z"
+                },
+                "error_code": {
+                    "description": "Код ошибки при неуспехе (иначе null).",
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "timeout"
+                },
+                "id": {
+                    "description": "ID хода.",
+                    "type": "string",
+                    "example": "dddddddd-0000-4000-8000-000000000001"
+                },
+                "in_context": {
+                    "description": "Попадает ли ход в контекст следующего вопроса (та же логика, что при\nотправке агенту).",
+                    "type": "boolean",
+                    "example": true
+                },
+                "mode": {
+                    "description": "Режим: llm | rules | fake.",
+                    "type": "string",
+                    "example": "llm"
+                },
+                "question": {
+                    "description": "Текст вопроса.",
+                    "type": "string",
+                    "example": "что просрочено?"
+                },
+                "status": {
+                    "description": "Статус: ok | partial | error.",
+                    "type": "string",
+                    "enum": [
+                        "ok",
+                        "partial",
+                        "error"
+                    ],
+                    "example": "ok"
+                }
+            }
+        },
+        "response.AssistantHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "description": "Канал: web | miniapp | bot.",
+                    "type": "string",
+                    "example": "miniapp"
+                },
+                "conversation": {
+                    "description": "Область диалога.",
+                    "type": "string",
+                    "example": "miniapp"
+                },
+                "items": {
+                    "description": "Ходы по возрастанию времени.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.AssistantHistoryItem"
+                    }
+                },
+                "memory": {
+                    "description": "Сводка о памяти диалога.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/response.AssistantMemoryInfo"
+                        }
+                    ]
+                },
+                "total": {
+                    "description": "Всего ходов в разговоре.",
+                    "type": "integer",
+                    "example": 12
+                }
+            }
+        },
+        "response.AssistantMemoryInfo": {
+            "type": "object",
+            "properties": {
+                "context_turns": {
+                    "description": "Сколько последних ходов идёт в контекст промпта (NLQ_MEMORY_TURNS).",
+                    "type": "integer",
+                    "example": 4
+                },
+                "enabled": {
+                    "description": "Включена ли память (NLQ_MEMORY_ENABLED).",
+                    "type": "boolean",
+                    "example": true
+                },
+                "ttl_seconds": {
+                    "description": "Срок жизни контекста в секундах (NLQ_MEMORY_TTL).",
+                    "type": "integer",
+                    "example": 7200
+                }
+            }
+        },
         "response.AssistantStatusResponse": {
             "type": "object",
             "properties": {
@@ -2481,10 +3441,122 @@
                     "type": "boolean",
                     "example": true
                 },
+                "memory": {
+                    "description": "Сводка о памяти диалога (из конфига): включена ли, сколько ходов в контекст,\nсрок жизни контекста (SPEC §D.5).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/response.AssistantMemoryInfo"
+                        }
+                    ]
+                },
                 "mode": {
                     "description": "Режим «мозга» агента: openrouter | rules | fake. Пусто, если агент недоступен.",
                     "type": "string",
                     "example": "openrouter"
+                }
+            }
+        },
+        "response.AuditActionsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/audit.ActionInfo"
+                    }
+                }
+            }
+        },
+        "response.AuditActor": {
+            "type": "object",
+            "properties": {
+                "full_name": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "id": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string",
+                    "x-nullable": true
+                }
+            }
+        },
+        "response.AuditLogItem": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "action_label": {
+                    "type": "string"
+                },
+                "actor": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/response.AuditActor"
+                        }
+                    ],
+                    "x-nullable": true
+                },
+                "changes": {
+                    "type": "object"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "entity_id": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "entity_type": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "outcome": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "object"
+                },
+                "request_id": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "user_agent": {
+                    "type": "string",
+                    "x-nullable": true
+                }
+            }
+        },
+        "response.AuditLogResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.AuditLogItem"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -2623,6 +3695,27 @@
                 }
             }
         },
+        "response.PaymentSearchResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.PaymentResponse"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "description": "всего по фильтру, без учёта limit/offset",
+                    "type": "integer"
+                }
+            }
+        },
         "response.PersonaListResponse": {
             "type": "object",
             "properties": {
@@ -2637,6 +3730,92 @@
                     "description": "Сколько всего персон.",
                     "type": "integer",
                     "example": 1
+                }
+            }
+        },
+        "response.RecurringPaymentItem": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "Сумма в минимальных денежных единицах",
+                    "type": "integer"
+                },
+                "assignee_id": {
+                    "description": "AssigneeID — ответственный (user_recurrent_payments, ровно один); nil, если не назначен.",
+                    "type": "string"
+                },
+                "assignee_name": {
+                    "description": "AssigneeName — полное имя ответственного (для списков и бота).",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "day_offset": {
+                    "description": "Для monthly: день месяца (1–31)\nДля weekly: день недели (0–6)",
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "frequency": {
+                    "description": "weekly, monthly",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "interval": {
+                    "description": "Каждые N недель или месяцев",
+                    "type": "integer"
+                },
+                "next_due_date": {
+                    "description": "NextDueDate — ближайший неоплаченный срок ≥ сегодня; null, если его нет.",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "start_date": {
+                    "description": "StartDate — ближайшая дата оплаты (якорь графика), \"YYYY-MM-DD\".",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Status — active (stopped_at IS NULL) или stopped.",
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "stopped"
+                    ]
+                },
+                "stopped_at": {
+                    "description": "StoppedAt — момент мягкой остановки; nil у активного шаблона.",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.RecurringPaymentSearchResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.RecurringPaymentItem"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },

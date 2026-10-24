@@ -18,8 +18,10 @@ from .errors import BadArgs
 Period = Literal[
     "today",
     "this_week",
+    "last_week",
     "next_7_days",
     "this_month",
+    "last_month",
     "next_month",
     "this_year",
     "custom",
@@ -29,8 +31,10 @@ PERIODS: Final = frozenset(
     {
         "today",
         "this_week",
+        "last_week",
         "next_7_days",
         "this_month",
+        "last_month",
         "next_month",
         "this_year",
         "custom",
@@ -92,6 +96,9 @@ def resolve_period(
     if period == "this_week":
         monday = today_ - timedelta(days=today_.weekday())
         return monday, monday + timedelta(days=6)
+    if period == "last_week":
+        monday = today_ - timedelta(days=today_.weekday()) - timedelta(days=7)
+        return monday, monday + timedelta(days=6)
     if period == "next_7_days":
         return today_, today_ + timedelta(days=6)
     if period == "this_month":
@@ -99,6 +106,9 @@ def resolve_period(
             date(today_.year, today_.month, 1),
             date(today_.year, today_.month, _month_last_day(today_.year, today_.month)),
         )
+    if period == "last_month":
+        end = date(today_.year, today_.month, 1) - timedelta(days=1)
+        return date(end.year, end.month, 1), end
     if period == "next_month":
         start = _first_of_next_month(today_)
         return start, date(start.year, start.month, _month_last_day(start.year, start.month))

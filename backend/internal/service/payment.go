@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/clock"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/request"
@@ -37,14 +38,20 @@ type PaymentRepository interface {
 type PaymentService struct {
 	repository PaymentRepository
 	clk        clock.Clock
+	// audit — журнал действий; по умолчанию Nop (конструктор не меняется).
+	audit audit.Recorder
 }
 
 func NewPaymentService(repository PaymentRepository, clk clock.Clock) *PaymentService {
 	return &PaymentService{
 		repository: repository,
 		clk:        clk,
+		audit:      audit.Nop{},
 	}
 }
+
+// SetAuditRecorder подключает журнал действий.
+func (s *PaymentService) SetAuditRecorder(r audit.Recorder) { s.audit = r }
 
 // validCurrency — только RUB/USD/EUR (D12).
 func validCurrency(currency string) bool {
@@ -125,6 +132,8 @@ func (s *PaymentService) UpdatePayment(
 		return fmt.Errorf("%w: paid payment cannot be edited", ErrInvalidPayment)
 	}
 
+	oldAmount, oldCurrency, oldDescription := payment.Amount, payment.Currency, payment.Description
+
 	if req.Amount != nil {
 		payment.Amount = *req.Amount
 	}
@@ -148,6 +157,17 @@ func (s *PaymentService) UpdatePayment(
 			"payment_id", id, "error", err)
 		return fmt.Errorf("payment service: update payment: %w", err)
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionOccurrenceUpdate,
+		EntityType: audit.EntityOccurrence,
+		EntityID:   id,
+		Changes: audit.Diff().
+			Add("amount", oldAmount, payment.Amount).
+			Add("currency", oldCurrency, payment.Currency).
+			Add("description", oldDescription, payment.Description).
+			Map(),
+	})
 
 	return nil
 }

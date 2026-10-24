@@ -1,22 +1,53 @@
 :root {
   color-scheme: dark;
 
-  /* palette — Dimension: dusk-lit workspace, almost achromatic */
+  /* palette — Dimension (dark): dusk-lit workspace + frontend accents.
+     :root holds the dark defaults; :root[data-theme='light'] overrides below. */
   --void: #0a0a0a; /* canvas */
   --graphite: #161616; /* elevated panels, grouped lists, inputs */
   --graphite-2: #1f1f1f; /* pressed / selected on graphite */
-  --glass: rgba(212, 212, 212, 0.1); /* frosted overlay */
-  --snow: #ffffff; /* the only filled control (CTA, active pill) */
+  --glass: rgba(212, 212, 212, 0.1); /* frosted overlay, ghost buttons */
+  --press: rgba(255, 255, 255, 0.06); /* pressed fill */
   --bone-text: #ededed; /* primary text */
   --ash-text: #c2c2c2; /* secondary text */
   --muted: #9a9a9a; /* tertiary text, labels (≈7:1 on void) */
-  --slate: #686868; /* disabled, decorative only */
+  --slate: #686868; /* disabled, decorative only — never text */
   --line: rgba(255, 255, 255, 0.08); /* hairline inside panels */
   --line-strong: rgba(255, 255, 255, 0.14); /* control outlines */
-  --ink: #161616; /* text on snow */
-  --violet: 107, 98, 242; /* rgb of the only chromatic accent */
 
-  /* signature gradients — only hero / spotlight, never on controls */
+  /* the one filled control (CTA, active pill) and the text on it */
+  --fill: #ffffff;
+  --on-fill: #161616;
+  --on-horizon: #ffffff; /* text over the hero gradient — always white */
+
+  /* accents (frontend palette); *-ink is the text/icon variant, *-bg the tint */
+  --accent: #3b82f6; /* fills, markers, borders */
+  --accent-ink: #60a5fa; /* accent as text/icon, links */
+  --accent-bg: #172036;
+  --red: #f87171;
+  --red-ink: #f87171;
+  --red-bg: #2a1212;
+  --green: #4ade80;
+  --green-ink: #4ade80;
+  --green-bg: #0f2418;
+  --amber: #fbbf24;
+  --amber-ink: #fbbf24;
+  --amber-bg: #2a1f0a;
+
+  --focus-ring: #3b82f6;
+  --dock-bg: rgba(22, 22, 22, 0.72); /* floating dock & composer */
+  --dock-shadow: rgba(255, 255, 255, 0.02) 0 3px 4.5px, rgba(0, 0, 0, 0.3) 0 10px 24px,
+    rgba(0, 0, 0, 0.2) 0 4px 6px;
+  --pill: rgba(255, 255, 255, 0.1); /* active tab indicator */
+  --pill-ring: rgba(255, 255, 255, 0.06);
+  --shimmer: rgba(255, 255, 255, 0.05); /* skeleton sweep */
+  --spot-1: rgba(107, 98, 242, 0.18); /* body::before spotlight, inner stop */
+  --spot-2: rgba(107, 98, 242, 0.06); /* outer stop */
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23ededed' stroke-width='1.5'/%3E%3C/svg%3E");
+
+  --violet: 107, 98, 242; /* legacy rgb accent (hero only) */
+
+  /* signature gradients — only hero / spotlight, never on controls (theme-independent) */
   --horizon: linear-gradient(115deg, #c2552b 0%, #a2456a 38%, #5b4bd0 70%, #2f5bd8 100%);
   --dusk-wash: linear-gradient(
     90deg,
@@ -27,33 +58,34 @@
     transparent 100%
   );
 
-  /* legacy names used by components — remapped onto the new palette */
+  /* legacy names used by components — remapped onto the semantic palette */
+  --snow: var(--fill);
+  --ink: var(--on-fill);
   --bone: var(--bone-text);
   --obsidian: var(--void);
   --veil: var(--graphite);
   --veil-weak: var(--graphite);
   --ash: var(--line-strong);
   --fog: var(--muted);
-  --press: rgba(255, 255, 255, 0.06);
 
   --c-bg: var(--void);
   --c-text: var(--bone-text);
   --c-hint: var(--muted);
-  --c-link: var(--bone-text);
+  --c-link: var(--accent-ink);
   --c-section: var(--graphite);
   --c-secondary-bg: var(--graphite);
   --c-section-header: var(--muted);
-  --c-destructive: var(--bone-text);
-  --c-primary: var(--snow);
-  --c-primary-text: var(--ink);
-  --c-overdue: var(--bone-text);
-  --c-pending: var(--bone-text);
-  --c-paid: var(--muted);
+  --c-destructive: var(--red-ink);
+  --c-primary: var(--fill);
+  --c-primary-text: var(--on-fill);
+  --c-overdue: var(--red-ink);
+  --c-pending: var(--accent-ink);
+  --c-paid: var(--green-ink);
   --c-ended: var(--muted);
   --c-line: var(--line);
   --c-surface: var(--graphite);
-  --c-inverse-bg: var(--snow);
-  --c-inverse-text: var(--ink);
+  --c-inverse-bg: var(--fill);
+  --c-inverse-text: var(--on-fill);
 
   /* type — Geist everywhere (DM Sans has no Cyrillic); 500 is the loudest weight */
   --font: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
@@ -98,6 +130,50 @@
   --dur-focus: 0.2s;
 }
 
+/* Светлая тема — зеркало светлых токенов веб-фронтенда. Хром и акценты по теме. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --void: #ffffff;
+  --graphite: #f5f5f5;
+  --graphite-2: #ebebeb;
+  --glass: rgba(23, 23, 23, 0.05);
+  --press: rgba(0, 0, 0, 0.05);
+  --bone-text: #171717;
+  --ash-text: #404040;
+  --muted: #666666;
+  --slate: #a3a3a3;
+  --line: rgba(0, 0, 0, 0.09);
+  --line-strong: rgba(0, 0, 0, 0.17);
+
+  --fill: #0a0a0a;
+  --on-fill: #ffffff;
+  --on-horizon: #ffffff;
+
+  --accent: #2563eb;
+  --accent-ink: #1d4ed8;
+  --accent-bg: #dbeafe;
+  --red: #dc2626;
+  --red-ink: #b91c1c;
+  --red-bg: #fef2f2;
+  --green: #15803d;
+  --green-ink: #166534;
+  --green-bg: #dcfce7;
+  --amber: #b45309;
+  --amber-ink: #92400e;
+  --amber-bg: #fef3c7;
+
+  --focus-ring: #2563eb;
+  --dock-bg: rgba(255, 255, 255, 0.8);
+  --dock-shadow: 0 10px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --pill: rgba(0, 0, 0, 0.06);
+  --pill-ring: rgba(0, 0, 0, 0.06);
+  --shimmer: rgba(0, 0, 0, 0.05);
+  --spot-1: rgba(37, 99, 235, 0.07);
+  --spot-2: rgba(37, 99, 235, 0.02);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23171717' stroke-width='1.5'/%3E%3C/svg%3E");
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
@@ -128,12 +204,7 @@ body::before {
   position: fixed;
   inset: -20vh -30vw auto;
   height: 60vh;
-  background: radial-gradient(
-    closest-side,
-    rgba(var(--violet), 0.18),
-    rgba(var(--violet), 0.06) 55%,
-    transparent
-  );
+  background: radial-gradient(closest-side, var(--spot-1), var(--spot-2) 55%, transparent);
   pointer-events: none;
   z-index: 0;
 }
@@ -275,7 +346,7 @@ select {
   padding: 12px 14px;
   width: 100%;
   min-height: 48px;
-  caret-color: var(--snow);
+  caret-color: var(--accent);
   transition:
     border-color var(--dur-focus) var(--ease-press),
     background-color var(--dur-focus) var(--ease-press);
@@ -284,7 +355,7 @@ input:not([type='radio']):not([type='checkbox']):focus,
 textarea:focus,
 select:focus {
   outline: none;
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: var(--accent);
   background: var(--graphite-2);
 }
 ::placeholder {
@@ -295,16 +366,19 @@ textarea {
   resize: none;
 }
 input[type='date'] {
-  color-scheme: dark;
+  color-scheme: inherit;
 }
 select {
   appearance: none;
   padding-right: 36px;
-  background: var(--graphite) no-repeat right 14px center / 12px
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23ededed' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-color: var(--graphite);
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px;
 }
 select option {
-  background: #161616;
+  background: var(--graphite);
 }
 
 .row-active {
@@ -343,15 +417,12 @@ select option {
   display: flex;
   padding: var(--tb-pad);
   min-height: var(--tabbar-h);
-  background: rgba(22, 22, 22, 0.72);
+  background: var(--dock-bg);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
   backdrop-filter: blur(20px) saturate(140%);
   border: 1px solid var(--line-strong);
   border-radius: 28px;
-  box-shadow:
-    rgba(255, 255, 255, 0.02) 0 3px 4.5px,
-    rgba(0, 0, 0, 0.3) 0 10px 24px,
-    rgba(0, 0, 0, 0.2) 0 4px 6px;
+  box-shadow: var(--dock-shadow);
   z-index: 50;
   transition:
     transform 0.4s var(--ease-drawer),
@@ -370,12 +441,12 @@ select option {
 }
 
 :focus-visible {
-  outline: 2px solid rgba(var(--violet), 0.9);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 ::selection {
-  background: rgba(var(--violet), 0.45);
-  color: var(--snow);
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--bone-text);
 }
 
 /* ---- motion ---- */

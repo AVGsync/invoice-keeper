@@ -64,3 +64,11 @@ func (d *DB) RecurrentPayment() *RecurrentPaymentRepository {
 func (d *DB) Notifications() *NotificationsRepository {
 	return &NotificationsRepository{database: d}
 }
+
+func (d *DB) Audit() *AuditRepository {
+	return &AuditRepository{database: d}
+}
+
+func (d *DB) AssistantHistory() *AssistantHistoryRepository {
+	return &AssistantHistoryRepository{database: d}
+}

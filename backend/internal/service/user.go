@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/request"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/response"
@@ -50,6 +51,9 @@ type UserService struct {
 	jwtManager JWTManager
 	accessTTL  time.Duration
 	refreshTTL time.Duration
+	// audit — журнал действий; по умолчанию Nop (конструктор не меняется, тесты
+	// не ломаются). Боевой рекордер ставит apiserver через SetAuditRecorder.
+	audit audit.Recorder
 }
 
 func NewUserService(repository UserRepository, hasher Hasher, jwtManager JWTManager, accessTTL, refreshTTL time.Duration) *UserService {
@@ -59,7 +63,21 @@ func NewUserService(repository UserRepository, hasher Hasher, jwtManager JWTMana
 		jwtManager: jwtManager,
 		accessTTL:  accessTTL,
 		refreshTTL: refreshTTL,
+		audit:      audit.Nop{},
 	}
+}
+
+// SetAuditRecorder подключает журнал действий. Вызывается из apiserver после
+// сборки сервиса.
+func (s *UserService) SetAuditRecorder(r audit.Recorder) { s.audit = r }
+
+// truncateLogin обрезает логин до n рун — логин в payload журнала не раздуваем.
+func truncateLogin(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
 }
 
 // IssueAccessForUser выпускает только access-токен для пользователя userID.
@@ -89,10 +107,12 @@ func (s *UserService) AuthenticateUser(req request.LoginRequest, ctx context.Con
 	user, err := s.repository.GetUserByLogin(req.Login, ctx)
 	if err != nil {
 		slog.Error("user service: authenticate user: failed to get user by login", "error", err)
+		s.recordLoginFailure(ctx, req.Login)
 		return "", "", fmt.Errorf("user service: authenticate user: %w", err)
 	}
 
 	if !s.hasher.CheckPassword(req.Password, user.PasswordHash) {
+		s.recordLoginFailure(ctx, req.Login)
 		return "", "", ErrInvalidCredentials
 	}
 
@@ -126,7 +146,30 @@ func (s *UserService) AuthenticateUser(req request.LoginRequest, ctx context.Con
 		return "", "", fmt.Errorf("user service: authenticate user: %w", err)
 	}
 
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionAuthLogin,
+		ActorID:    user.ID,
+		ActorRole:  user.Role,
+		EntityType: audit.EntityUser,
+		EntityID:   user.ID,
+		Payload:    map[string]any{"login": truncateLogin(user.Login, 64)},
+	})
+
 	return tokenAccess, tokenRefresh, nil
+}
+
+// recordLoginFailure пишет неуспешный вход (actor неизвестен). reason всегда
+// invalid_credentials — «нет логина» и «неверный пароль» не различаем.
+func (s *UserService) recordLoginFailure(ctx context.Context, login string) {
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionAuthLogin,
+		Outcome:    audit.OutcomeFailure,
+		EntityType: audit.EntityUser,
+		Payload: map[string]any{
+			"login":  truncateLogin(login, 64),
+			"reason": "invalid_credentials",
+		},
+	})
 }
 
 func (s *UserService) ValidateRefreshToken(token string) (model.RefreshToken, string, error) {
@@ -207,18 +250,28 @@ func (s *UserService) GenerateAccessRefreshTokens(refreshToken model.RefreshToke
 
 }
 
-func (s *UserService) RevokeRefreshToken(token string) error {
+func (s *UserService) RevokeRefreshToken(ctx context.Context, token string) error {
 	tokenHash, err := s.hasher.HashRefreshToken(token)
 	if err != nil {
 		slog.Error("user service: revoke refresh token: failed to hash refresh token", "error", err)
 		return fmt.Errorf("user service: revoke refresh token: %w", err)
 	}
 
-	err = s.repository.RevokeRefreshToken(tokenHash, context.Background())
+	err = s.repository.RevokeRefreshToken(tokenHash, ctx)
 	if err != nil {
 		slog.Error("user service: revoke refresh token: failed to revoke refresh token", "error", err)
 		return fmt.Errorf("user service: revoke refresh token: %w", err)
 	}
+
+	// Актора берём из самого refresh-токена (без БД): он уже отозван, но подпись
+	// ещё читается. Не распарсился — пишем выход без актора.
+	entry := audit.Entry{Action: audit.ActionAuthLogout, EntityType: audit.EntityUser}
+	if claims, verr := s.jwtManager.ValidateRefresh(token); verr == nil {
+		entry.ActorID = claims.UserID
+		entry.ActorRole = claims.Role
+		entry.EntityID = claims.UserID
+	}
+	s.audit.Record(ctx, entry)
 
 	return nil
 }
@@ -245,6 +298,22 @@ func (s *UserService) CreateUser(user request.CreateUserRequest, ctx context.Con
 		slog.Error("user service: create user: failed to create user", "error", err)
 		return fmt.Errorf("user service: create user: %w", err)
 	}
+
+	// id присваивает БД — читаем его обратно по логину (уникальному).
+	payload := map[string]any{"login": newUser.Login, "full_name": newUser.FullName}
+	if user.PersonaID != nil {
+		payload["persona_id"] = *user.PersonaID
+	}
+	entry := audit.Entry{
+		Action:     audit.ActionUserCreate,
+		EntityType: audit.EntityUser,
+		Payload:    payload,
+	}
+	if created, gerr := s.repository.GetUserByLogin(newUser.Login, ctx); gerr == nil {
+		entry.EntityID = created.ID
+	}
+	s.audit.Record(ctx, entry)
+
 	return nil
 }
 
@@ -285,6 +354,13 @@ func (s *UserService) DeleteUserByID(id string, ctx context.Context) error {
 		slog.Error("user service: delete user by id: failed to delete user", "error", err)
 		return fmt.Errorf("user service: delete user by id: %w", err)
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionUserDelete,
+		EntityType: audit.EntityUser,
+		EntityID:   id,
+		Payload:    map[string]any{"login": user.Login, "full_name": user.FullName},
+	})
 	return nil
 }
 
@@ -310,6 +386,7 @@ func (s *UserService) UpdateUserByID(ctx context.Context, userID string, req req
 		return model.ErrAdminImmutable
 	}
 
+	oldFullName, oldLogin := user.FullName, user.Login
 	if req.FullName != nil {
 		user.FullName = *req.FullName
 	}
@@ -317,5 +394,18 @@ func (s *UserService) UpdateUserByID(ctx context.Context, userID string, req req
 		user.Login = *req.Login
 	}
 
-	return s.repository.UpdateUser(user, ctx)
+	if err := s.repository.UpdateUser(user, ctx); err != nil {
+		return err
+	}
+
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionUserUpdate,
+		EntityType: audit.EntityUser,
+		EntityID:   userID,
+		Changes: audit.Diff().
+			Add("login", oldLogin, user.Login).
+			Add("full_name", oldFullName, user.FullName).
+			Map(),
+	})
+	return nil
 }

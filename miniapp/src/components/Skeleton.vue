@@ -25,7 +25,7 @@ withDefaults(defineProps<{ rows?: number }>(), { rows: 4 })
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05) 50%, transparent);
+  background: linear-gradient(90deg, transparent, var(--shimmer) 50%, transparent);
   transform: translateX(-100%);
   animation: shimmer 1.5s linear infinite;
 }

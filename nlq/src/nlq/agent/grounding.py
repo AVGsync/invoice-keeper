@@ -132,9 +132,28 @@ _NUMERIC_KEYS = frozenset(
         "cnt",
         "days_overdue",
         "active_payments",
+        # Новые инструменты (SPEC §D.6): память, сравнение периодов, нагрузка.
+        "numbers",
+        "a_total",
+        "b_total",
+        "delta",
+        "delta_pct",
+        "a_count",
+        "b_count",
+        "a_display",
+        "b_display",
+        "delta_display",
+        "overdue_count",
+        "users_count",
+        "paid_count_12m",
+        "interval",
     }
 )
-_DATE_KEYS = frozenset({"due_date", "next_due", "coverage_until", "today", "from", "to"})
+_DATE_KEYS = frozenset(
+    {"due_date", "next_due", "coverage_until", "today", "from", "to", "start_date", "last_paid_date"}
+)
+# Значение "YYYY-MM" (monthly_breakdown) добавляет год и месяц.
+_MONTH_KEYS = frozenset({"month"})
 
 
 def _harvest(allowed: set[str], value: Any, key: str | None = None) -> None:
@@ -152,6 +171,12 @@ def _harvest(allowed: set[str], value: Any, key: str | None = None) -> None:
             _harvest(allowed, item, key)
     elif key in _DATE_KEYS and isinstance(value, str):
         _add_date_components(allowed, value)
+    elif key in _MONTH_KEYS and isinstance(value, str):
+        # "2026-10" → добавить 2026 и 10 (день отсутствует).
+        m = re.match(r"^(\d{4})-(\d{1,2})$", value)
+        if m:
+            allowed.add(str(int(m.group(1))))
+            allowed.add(str(int(m.group(2))))
     elif key in _NUMERIC_KEYS:
         if isinstance(value, (int, float)):
             _add(allowed, value)

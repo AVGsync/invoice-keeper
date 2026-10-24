@@ -43,7 +43,8 @@ withDefaults(defineProps<{ size?: 'mark' | 'hero' }>(), { size: 'hero' })
     linear-gradient(140deg, #e0703a 0%, #b44a7a 38%, #6b62f2 68%, #2f5bd8 100%);
 }
 .disc {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  /* ободок на цветном диске бренда — всегда белый (on-horizon одинаков в обеих темах) */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-horizon) 18%, transparent);
 }
 .glow {
   filter: blur(18px);

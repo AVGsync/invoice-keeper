@@ -20,7 +20,7 @@ defineEmits<{ retry: [] }>()
 .err-text {
   color: var(--bone);
   font-size: var(--fs-body-l);
-  border-left: 2px solid rgba(var(--violet), 0.9);
+  border-left: 2px solid var(--red);
   padding-left: var(--sp-3);
   margin: 0 0 var(--sp-4);
 }

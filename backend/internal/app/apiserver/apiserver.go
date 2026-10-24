@@ -13,6 +13,7 @@ import (
 
 	// Регистрирует сгенерированную swag спецификацию (make swagger).
 	_ "github.com/AVGsync/invoice-keeper/backend/docs"
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/clock"
 	"github.com/AVGsync/invoice-keeper/backend/internal/infrastructure/security"
 	"github.com/AVGsync/invoice-keeper/backend/internal/notifications"
@@ -40,6 +41,9 @@ type APIServer struct {
 	// assistant — сервис NL-ассистента; nil, когда NLQ_ENABLED=false
 	// (см. assistant.go). Общий для HTTP-ручки и бота (порт NLAnswerer).
 	assistant *service.AssistantService
+	// assistantHistory — история диалогов ассистента; есть всегда (ручки истории
+	// работают и при NLQ_ENABLED=false). См. assistant.go.
+	assistantHistory *service.AssistantHistoryService
 	// mailer — SMTP-рассылка; не используется (решение №1: напоминания только в
 	// командный чат Telegram). nil, когда SMTP_HOST пуст.
 	mailer *notifications.SMTPMailer
@@ -47,6 +51,9 @@ type APIServer struct {
 	payments *service.PaymentService
 	// scheduler — генератор периодов и пересчёт overdue (фоновый воркер + ensurer).
 	scheduler *service.PaymentScheduler
+	// audit — журнал действий; общий для HTTP и бота. Создаётся в начале
+	// configureRouter и подключается сервисам через SetAuditRecorder.
+	audit *audit.Logger
 }
 
 func New(config *Config) (*APIServer, error) {
@@ -207,6 +214,10 @@ func (s *APIServer) ensureAdminAccount() error {
 }
 
 func (s *APIServer) configureRouter() {
+	// Журнал действий общий для HTTP и бота; создаём первым, чтобы все сервисы
+	// (и бот в buildTelegram) получили рекордер при сборке.
+	s.audit = audit.NewLogger(s.db.Audit())
+
 	hasher := security.NewHasher()
 	accessTTL := time.Duration(s.config.TTLAccessToken) * time.Second
 	refreshTTL := time.Duration(s.config.TTLRefreshToken) * time.Second
@@ -224,11 +235,24 @@ func (s *APIServer) configureRouter() {
 	s.scheduler = scheduler
 	paymentHandler := handler.NewPaymentHandler(recPaymentService, paymentService, scheduler, clk)
 
+	searchService := service.NewPaymentSearchService(s.db.Payment(), s.db.RecurrentPayment(), clk)
+	searchHandler := handler.NewSearchHandler(searchService, clk)
+
 	notificationsService := service.NewNotificationsService(s.db.Notifications())
 	notificationsHandler := handler.NewNotificationsHandler(notificationsService)
 
 	personaService := service.NewPersonaService(s.db.Persona())
 	personaHandler := handler.NewPersonaHandler(personaService)
+
+	// Подключаем журнал действий ко всем доменным сервисам и к user-хендлеру
+	// (события, которых не видит сервис — неуспешный refresh).
+	userService.SetAuditRecorder(s.audit)
+	userHandler.SetAuditRecorder(s.audit)
+	paymentService.SetAuditRecorder(s.audit)
+	recPaymentService.SetAuditRecorder(s.audit)
+	notificationsService.SetAuditRecorder(s.audit)
+	personaService.SetAuditRecorder(s.audit)
+	auditHandler := handler.NewAuditHandler(service.NewAuditService(s.db.Audit()), clk)
 
 	mw := middleware.NewMiddleware(jwtManager, s.config.AllowedOrigins)
 
@@ -268,6 +292,7 @@ func (s *APIServer) configureRouter() {
 		r.Group(func(r chi.Router) {
 			r.Use(api.RequestIDMiddleware)
 			r.Use(mw.Auth)
+			r.Use(mw.AuditContext)
 			r.Use(mw.LimitByUser(120, time.Minute))
 			r.Use(mw.IsUserOrAdmin)
 
@@ -275,9 +300,10 @@ func (s *APIServer) configureRouter() {
 
 			s.mountUsers(r, mw, userHandler)
 			s.mountPersonas(r, mw, personaHandler)
-			s.mountPayments(r, mw, paymentHandler)
+			s.mountPayments(r, mw, paymentHandler, searchHandler)
 			s.mountNotifications(r, mw, notificationsHandler)
 			s.mountAssistant(r, mw)
+			s.mountAudit(r, mw, auditHandler)
 		})
 	})
 }
@@ -286,6 +312,10 @@ func (s *APIServer) configureRouter() {
 // лимитом по IP против брутфорса.
 func (s *APIServer) mountAuth(r chi.Router, mw *middleware.Middleware, userHandler *handler.UserHandler) {
 	r.Route("/auth", func(r chi.Router) {
+		// request_id и метаданные журнала нужны и публичным auth-ручкам (вход,
+		// выход, refresh пишут события аудита).
+		r.Use(api.RequestIDMiddleware)
+		r.Use(mw.AuditContext)
 		// Жёсткий лимит по IP против брутфорса логина/refresh. Значения — под тюнинг.
 		r.Use(mw.LimitByIP(10, time.Minute))
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))

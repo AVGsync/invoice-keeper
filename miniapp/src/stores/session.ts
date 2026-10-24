@@ -1,5 +1,6 @@
 import { reactive, computed } from 'vue'
-import { getWebApp, applyTheme, initHeader, haptic } from '../telegram/webapp'
+import { getWebApp, initSafeAreaEvents, haptic } from '../telegram/webapp'
+import { applyTheme } from '../telegram/theme'
 import { setToken, registerReauth } from '../api/client'
 import { ApiError } from '../api/errors'
 import { miniAppAuth, miniAppLink, getMe } from '../api/endpoints'
@@ -124,7 +125,7 @@ export async function boot(): Promise<void> {
   tg.ready()
   tg.expand()
   applyTheme()
-  initHeader()
+  initSafeAreaEvents()
 
   await doAuth()
 }

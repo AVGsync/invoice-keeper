@@ -11,6 +11,9 @@ type AssistantStatusResponse struct {
 	Mode string `json:"mode,omitempty" example:"openrouter"`
 	// Примеры вопросов для подсказки в UI.
 	Examples []string `json:"examples" example:"Что просрочено?,Сколько платим в долларах в этом месяце?,Кто отвечает за аренду?"`
+	// Сводка о памяти диалога (из конфига): включена ли, сколько ходов в контекст,
+	// срок жизни контекста (SPEC §D.5).
+	Memory AssistantMemoryInfo `json:"memory"`
 }
 
 // AssistantAnswerResponse документирует конверт ответа агента (§7.9) для swagger.

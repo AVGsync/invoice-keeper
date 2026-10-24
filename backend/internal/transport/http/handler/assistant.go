@@ -32,10 +32,11 @@ type AssistantUseCase interface {
 // AssistantHandler — HTTP-контракт ассистента.
 type AssistantHandler struct {
 	useCase AssistantUseCase
+	memory  response.AssistantMemoryInfo
 }
 
-func NewAssistantHandler(useCase AssistantUseCase) *AssistantHandler {
-	return &AssistantHandler{useCase: useCase}
+func NewAssistantHandler(useCase AssistantUseCase, memory response.AssistantMemoryInfo) *AssistantHandler {
+	return &AssistantHandler{useCase: useCase, memory: memory}
 }
 
 // parseAskRequest читает и валидирует тело вопроса. channel bot по HTTP запрещён.
@@ -256,6 +257,7 @@ func (h *AssistantHandler) Status() http.HandlerFunc {
 		out := response.AssistantStatusResponse{
 			Enabled:  h.useCase.Enabled(),
 			Examples: h.useCase.Examples(),
+			Memory:   h.memory,
 		}
 		if out.Enabled {
 			out.Healthy, out.Mode = h.useCase.Status(r.Context())

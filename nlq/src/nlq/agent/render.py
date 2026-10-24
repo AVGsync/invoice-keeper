@@ -117,11 +117,152 @@ def _people_list_block(payload: dict[str, Any]) -> dict[str, Any]:
     return {"type": "people_list", "title": "Сотрудники", "items": items}
 
 
+_CUR_ORDER = ("RUB", "USD", "EUR")
+
+
+def _fmt_month(value: str | None) -> str:
+    if not value:
+        return ""
+    try:
+        y, m = value.split("-")
+        return f"{int(m):02d}.{int(y)}"
+    except (ValueError, AttributeError):
+        return value
+
+
+def _ordered_currencies(seen: list[str]) -> list[str]:
+    known = [c for c in _CUR_ORDER if c in seen]
+    extra = [c for c in seen if c not in _CUR_ORDER]
+    return known + extra
+
+
+def _monthly_breakdown_block(payload: dict[str, Any]) -> dict[str, Any]:
+    """Pivot the per-(month,currency) rows into a month × currency table."""
+    rows = payload.get("rows", [])
+    months: list[str] = []
+    currencies: list[str] = []
+    cell: dict[tuple[str, str], str] = {}
+    for r in rows:
+        mo = r.get("month", "")
+        cur = r.get("currency", "")
+        if mo not in months:
+            months.append(mo)
+        if cur not in currencies:
+            currencies.append(cur)
+        cell[(mo, cur)] = r.get("display", "")
+    order = _ordered_currencies(currencies)
+    columns = [{"key": "month", "label": "Месяц"}]
+    columns += [{"key": cur, "label": cur, "align": "end"} for cur in order]
+    table_rows: list[dict[str, Any]] = []
+    for mo in months:
+        row: dict[str, Any] = {"month": _fmt_month(mo)}
+        for cur in order:
+            row[cur] = cell.get((mo, cur)) or None
+        table_rows.append(row)
+    return {
+        "type": "table",
+        "kind": "monthly_breakdown",
+        "title": "Суммы по месяцам",
+        "columns": columns,
+        "rows": table_rows,
+        "coverage_until": payload.get("coverage_until"),
+        "coverage_incomplete": bool(payload.get("coverage_incomplete", False)),
+    }
+
+
+def _compare_periods_block(payload: dict[str, Any]) -> dict[str, Any]:
+    by = payload.get("by_currency", {})
+    columns = [
+        {"key": "currency", "label": "Валюта"},
+        {"key": "a", "label": "Было (A)", "align": "end"},
+        {"key": "b", "label": "Стало (B)", "align": "end"},
+        {"key": "delta", "label": "Изменение", "align": "end"},
+    ]
+    table_rows: list[dict[str, Any]] = []
+    for cur in _ordered_currencies(list(by.keys())):
+        v = by.get(cur) or {}
+        table_rows.append(
+            {
+                "currency": cur,
+                "a": v.get("a_display"),
+                "b": v.get("b_display"),
+                "delta": v.get("delta_display"),
+            }
+        )
+    return {
+        "type": "table",
+        "kind": "compare_periods",
+        "title": "Сравнение периодов",
+        "columns": columns,
+        "rows": table_rows,
+        "a": payload.get("a"),
+        "b": payload.get("b"),
+    }
+
+
+def _workload_block(payload: dict[str, Any]) -> dict[str, Any]:
+    columns = [
+        {"key": "name", "label": "Кто"},
+        {"key": "currency", "label": "Валюта"},
+        {"key": "count", "label": "Платежей", "align": "end"},
+        {"key": "total", "label": "Сумма", "align": "end"},
+    ]
+    table_rows: list[dict[str, Any]] = []
+    for r in payload.get("rows", []):
+        table_rows.append(
+            {
+                "name": r.get("name"),
+                "currency": r.get("currency"),
+                "count": str(r.get("count", 0)),
+                "total": r.get("display"),
+            }
+        )
+    return {
+        "type": "table",
+        "kind": "workload",
+        "title": "Нагрузка по платежам",
+        "columns": columns,
+        "rows": table_rows,
+        "truncated": bool(payload.get("groups_truncated", False)),
+    }
+
+
+def _list_personas_block(payload: dict[str, Any]) -> dict[str, Any]:
+    columns = [
+        {"key": "persona", "label": "Должность"},
+        {"key": "users_count", "label": "Сотрудников", "align": "end"},
+        {"key": "active_payments", "label": "Активных платежей", "align": "end"},
+    ]
+    table_rows: list[dict[str, Any]] = []
+    for r in payload.get("rows", []):
+        ap = r.get("active_payments")
+        table_rows.append(
+            {
+                "persona": r.get("persona"),
+                "users_count": str(r.get("users_count", 0)),
+                "active_payments": None if ap is None else str(ap),
+            }
+        )
+    return {
+        "type": "table",
+        "kind": "personas",
+        "title": "Должности",
+        "columns": columns,
+        "rows": table_rows,
+        "total": int(payload.get("total", len(table_rows))),
+    }
+
+
 _BUILDERS = {
     "find_occurrences": _occurrence_block,
     "sum_occurrences": _currency_totals_block,
     "find_recurring_payments": _payment_list_block,
     "find_people": _people_list_block,
+    "get_payment_details": _payment_list_block,
+    "monthly_breakdown": _monthly_breakdown_block,
+    "compare_periods": _compare_periods_block,
+    "workload": _workload_block,
+    "list_personas": _list_personas_block,
 }
 
 
@@ -228,6 +369,26 @@ _FOLLOWUPS: dict[str, list[str]] = {
         "За что они отвечают?",
         "Что просрочено?",
     ],
+    "get_payment_details": [
+        "Когда ближайший срок оплаты?",
+        "Кто за это отвечает?",
+    ],
+    "monthly_breakdown": [
+        "Сравни с прошлым месяцем",
+        "Что просрочено?",
+    ],
+    "compare_periods": [
+        "Покажи по месяцам",
+        "Что просрочено?",
+    ],
+    "workload": [
+        "У кого больше всего просрочено?",
+        "Сколько платим в этом месяце?",
+    ],
+    "list_personas": [
+        "Какая нагрузка по должностям?",
+        "Кто отвечает за аренду?",
+    ],
 }
 
 
@@ -288,4 +449,10 @@ def _template_for_block(block: dict[str, Any]) -> str:
                 f"Суммы со сроком {_fmt_date(period['from'])}–{_fmt_date(period['to'])} — {body}."
             )
         return "Суммы по валютам — " + body + "."
+    if kind == "table":
+        n = len(block.get("rows", []))
+        title = block.get("title", "Данные")
+        if n == 0:
+            return f"{title}: данных не найдено."
+        return f"{title}: подробности в таблице ниже."
     return ""

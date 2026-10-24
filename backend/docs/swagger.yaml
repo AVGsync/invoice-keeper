@@ -1,5 +1,14 @@
 basePath: /api/v1
 definitions:
+  audit.ActionInfo:
+    properties:
+      action:
+        type: string
+      entity_type:
+        type: string
+      label:
+        type: string
+    type: object
   handler.PatchPaymentOccurrenceRequest:
     properties:
       action:
@@ -442,6 +451,91 @@ definitions:
         example: Просрочено 4 платежа.
         type: string
     type: object
+  response.AssistantHistoryItem:
+    properties:
+      answer_id:
+        description: AnswerID совпадает с X-Request-Id ответа.
+        example: f16cc96e-aaf4-44fb-a462-836ed4d0b135
+        type: string
+      answer_text:
+        description: Короткий текст ответа после grounding.
+        example: Просрочено 2 платежа.
+        type: string
+      created_at:
+        description: Момент хода (RFC3339).
+        example: "2026-10-24T09:00:00Z"
+        type: string
+      error_code:
+        description: Код ошибки при неуспехе (иначе null).
+        example: timeout
+        type: string
+        x-nullable: true
+      id:
+        description: ID хода.
+        example: dddddddd-0000-4000-8000-000000000001
+        type: string
+      in_context:
+        description: |-
+          Попадает ли ход в контекст следующего вопроса (та же логика, что при
+          отправке агенту).
+        example: true
+        type: boolean
+      mode:
+        description: 'Режим: llm | rules | fake.'
+        example: llm
+        type: string
+      question:
+        description: Текст вопроса.
+        example: что просрочено?
+        type: string
+      status:
+        description: 'Статус: ok | partial | error.'
+        enum:
+        - ok
+        - partial
+        - error
+        example: ok
+        type: string
+    type: object
+  response.AssistantHistoryResponse:
+    properties:
+      channel:
+        description: 'Канал: web | miniapp | bot.'
+        example: miniapp
+        type: string
+      conversation:
+        description: Область диалога.
+        example: miniapp
+        type: string
+      items:
+        description: Ходы по возрастанию времени.
+        items:
+          $ref: '#/definitions/response.AssistantHistoryItem'
+        type: array
+      memory:
+        allOf:
+        - $ref: '#/definitions/response.AssistantMemoryInfo'
+        description: Сводка о памяти диалога.
+      total:
+        description: Всего ходов в разговоре.
+        example: 12
+        type: integer
+    type: object
+  response.AssistantMemoryInfo:
+    properties:
+      context_turns:
+        description: Сколько последних ходов идёт в контекст промпта (NLQ_MEMORY_TURNS).
+        example: 4
+        type: integer
+      enabled:
+        description: Включена ли память (NLQ_MEMORY_ENABLED).
+        example: true
+        type: boolean
+      ttl_seconds:
+        description: Срок жизни контекста в секундах (NLQ_MEMORY_TTL).
+        example: 7200
+        type: integer
+    type: object
   response.AssistantStatusResponse:
     properties:
       enabled:
@@ -462,11 +556,86 @@ definitions:
           всегда false.
         example: true
         type: boolean
+      memory:
+        allOf:
+        - $ref: '#/definitions/response.AssistantMemoryInfo'
+        description: |-
+          Сводка о памяти диалога (из конфига): включена ли, сколько ходов в контекст,
+          срок жизни контекста (SPEC §D.5).
       mode:
         description: 'Режим «мозга» агента: openrouter | rules | fake. Пусто, если
           агент недоступен.'
         example: openrouter
         type: string
+    type: object
+  response.AuditActionsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/audit.ActionInfo'
+        type: array
+    type: object
+  response.AuditActor:
+    properties:
+      full_name:
+        type: string
+        x-nullable: true
+      id:
+        type: string
+      role:
+        type: string
+        x-nullable: true
+    type: object
+  response.AuditLogItem:
+    properties:
+      action:
+        type: string
+      action_label:
+        type: string
+      actor:
+        allOf:
+        - $ref: '#/definitions/response.AuditActor'
+        x-nullable: true
+      changes:
+        type: object
+      channel:
+        type: string
+      created_at:
+        type: string
+      entity_id:
+        type: string
+        x-nullable: true
+      entity_type:
+        type: string
+        x-nullable: true
+      id:
+        type: integer
+      ip:
+        type: string
+        x-nullable: true
+      outcome:
+        type: string
+      payload:
+        type: object
+      request_id:
+        type: string
+        x-nullable: true
+      user_agent:
+        type: string
+        x-nullable: true
+    type: object
+  response.AuditLogResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.AuditLogItem'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
     type: object
   response.ErrorResponse:
     properties:
@@ -560,6 +729,20 @@ definitions:
       user_id:
         type: string
     type: object
+  response.PaymentSearchResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.PaymentResponse'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        description: всего по фильтру, без учёта limit/offset
+        type: integer
+    type: object
   response.PersonaListResponse:
     properties:
       items:
@@ -570,6 +753,71 @@ definitions:
       total:
         description: Сколько всего персон.
         example: 1
+        type: integer
+    type: object
+  response.RecurringPaymentItem:
+    properties:
+      amount:
+        description: Сумма в минимальных денежных единицах
+        type: integer
+      assignee_id:
+        description: AssigneeID — ответственный (user_recurrent_payments, ровно один);
+          nil, если не назначен.
+        type: string
+      assignee_name:
+        description: AssigneeName — полное имя ответственного (для списков и бота).
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      day_offset:
+        description: |-
+          Для monthly: день месяца (1–31)
+          Для weekly: день недели (0–6)
+        type: integer
+      description:
+        type: string
+      frequency:
+        description: weekly, monthly
+        type: string
+      id:
+        format: uuid
+        type: string
+      interval:
+        description: Каждые N недель или месяцев
+        type: integer
+      next_due_date:
+        description: NextDueDate — ближайший неоплаченный срок ≥ сегодня; null, если
+          его нет.
+        type: string
+        x-nullable: true
+      start_date:
+        description: StartDate — ближайшая дата оплаты (якорь графика), "YYYY-MM-DD".
+        type: string
+      status:
+        description: Status — active (stopped_at IS NULL) или stopped.
+        enum:
+        - active
+        - stopped
+        type: string
+      stopped_at:
+        description: StoppedAt — момент мягкой остановки; nil у активного шаблона.
+        type: string
+      updated_at:
+        type: string
+    type: object
+  response.RecurringPaymentSearchResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.RecurringPaymentItem'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
         type: integer
     type: object
   response.TelegramLinkCodeResponse:
@@ -742,6 +990,91 @@ paths:
       summary: Вопрос ассистенту со стримингом (SSE)
       tags:
       - Ассистент
+  /assistant/history:
+    delete:
+      description: |-
+        Удаляет ходы одного разговора (или все разговоры пользователя при
+        channel=all). Работает и при выключенном ассистенте. Только свои ходы.
+      parameters:
+      - description: 'Канал: web (по умолчанию), miniapp, bot или all'
+        enum:
+        - web
+        - miniapp
+        - bot
+        - all
+        in: query
+        name: channel
+        type: string
+      - description: 'Область диалога (для bot: tg:dm или tg:<chat_id>)'
+        in: query
+        name: conversation
+        type: string
+      responses:
+        "204":
+          description: История очищена
+        "400":
+          description: Неверный параметр (bad_request)
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Нет или просрочен токен
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Очистить историю диалога с ассистентом
+      tags:
+      - Ассистент
+    get:
+      description: |-
+        Последние ходы диалога (вопрос, короткий ответ, статус) по возрастанию
+        времени. in_context — попадёт ли ход в контекст следующего вопроса.
+        Работает и при выключенном ассистенте. Только свои ходы.
+      parameters:
+      - description: 'Канал: web (по умолчанию), miniapp или bot'
+        enum:
+        - web
+        - miniapp
+        - bot
+        in: query
+        name: channel
+        type: string
+      - description: 'Область диалога (для bot: tg:dm или tg:<chat_id>)'
+        in: query
+        name: conversation
+        type: string
+      - description: Сколько ходов вернуть (1..50, по умолчанию 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: История диалога
+          schema:
+            $ref: '#/definitions/response.AssistantHistoryResponse'
+        "400":
+          description: Неверный параметр (bad_request)
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Нет или просрочен токен
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: internal_error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: История диалога с ассистентом
+      tags:
+      - Ассистент
   /assistant/status:
     get:
       description: |-
@@ -763,6 +1096,134 @@ paths:
       summary: Состояние ассистента
       tags:
       - Ассистент
+  /audit-log:
+    get:
+      description: |-
+        Полный журнал действий пользователей с фильтрами, сортировкой и
+        пагинацией. Доступно только роли `admin`. Фильтры: actor_id, action
+        (точный код или префикс с `*`, напр. `recurring.*`), entity_type,
+        entity_id, channel, outcome, from/to (YYYY-MM-DD в зоне приложения
+        либо RFC3339), q (подстрока по действию, сущности, payload/changes,
+        ФИО актора). Мульти-значения — через запятую или повтором.
+      parameters:
+      - collectionFormat: csv
+        description: ID акторов (UUID)
+        in: query
+        items:
+          type: string
+        name: actor_id
+        type: array
+      - collectionFormat: csv
+        description: Действия (код или префикс с *)
+        in: query
+        items:
+          type: string
+        name: action
+        type: array
+      - collectionFormat: csv
+        description: Типы сущностей
+        in: query
+        items:
+          type: string
+        name: entity_type
+        type: array
+      - description: ID сущности
+        in: query
+        name: entity_id
+        type: string
+      - collectionFormat: csv
+        description: Каналы
+        in: query
+        items:
+          enum:
+          - web
+          - miniapp
+          - bot
+          - system
+          type: string
+        name: channel
+        type: array
+      - description: Исход
+        enum:
+        - success
+        - failure
+        in: query
+        name: outcome
+        type: string
+      - description: С (YYYY-MM-DD или RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: По (YYYY-MM-DD или RFC3339)
+        in: query
+        name: to
+        type: string
+      - description: Поиск (≤100 символов)
+        in: query
+        name: q
+        type: string
+      - description: Порядок
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      - description: 1..200 (дефолт 50)
+        in: query
+        name: limit
+        type: integer
+      - description: 0..100000 (дефолт 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AuditLogResponse'
+        "400":
+          description: Некорректный параметр
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Недостаточно прав (требуется admin)
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Журнал действий (админ)
+      tags:
+      - Audit
+  /audit-log/actions:
+    get:
+      description: |-
+        Список всех кодов действий с русскими метками и типом сущности —
+        для построения фильтров в UI. Доступно любому авторизованному.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AuditActionsResponse'
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Каталог действий журнала
+      tags:
+      - Audit
   /auth/login:
     post:
       consumes:
@@ -885,6 +1346,102 @@ paths:
       summary: Обновление токенов (ротация)
       tags:
       - Auth
+  /me/activity:
+    get:
+      description: |-
+        Записи журнала только текущего пользователя (actor_id берётся из
+        JWT; параметр actor_id игнорируется). Остальные фильтры — как у
+        GET /audit-log. Доступно любому авторизованному.
+      parameters:
+      - collectionFormat: csv
+        description: Действия (код или префикс с *)
+        in: query
+        items:
+          type: string
+        name: action
+        type: array
+      - collectionFormat: csv
+        description: Типы сущностей
+        in: query
+        items:
+          type: string
+        name: entity_type
+        type: array
+      - description: ID сущности
+        in: query
+        name: entity_id
+        type: string
+      - collectionFormat: csv
+        description: Каналы
+        in: query
+        items:
+          enum:
+          - web
+          - miniapp
+          - bot
+          - system
+          type: string
+        name: channel
+        type: array
+      - description: Исход
+        enum:
+        - success
+        - failure
+        in: query
+        name: outcome
+        type: string
+      - description: С (YYYY-MM-DD или RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: По (YYYY-MM-DD или RFC3339)
+        in: query
+        name: to
+        type: string
+      - description: Поиск (≤100 символов)
+        in: query
+        name: q
+        type: string
+      - description: Порядок
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      - description: 1..200 (дефолт 50)
+        in: query
+        name: limit
+        type: integer
+      - description: 0..100000 (дефолт 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.AuditLogResponse'
+        "400":
+          description: Некорректный параметр
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Не авторизован
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - CookieAuth: []
+      - BearerAuth: []
+      summary: Мои действия
+      tags:
+      - Audit
   /me/telegram:
     delete:
       description: Удаляет привязку Telegram текущего пользователя.
@@ -1288,6 +1845,136 @@ paths:
       security:
       - BearerAuth: []
       summary: Изменить платеж
+      tags:
+      - Payments
+  /payment-occurrences/search:
+    get:
+      description: |-
+        Серверный поиск с фильтрами, сортировкой и пагинацией. Права как у GET /payment-occurrences.
+        amount_min/amount_max — в минимальных единицах и только вместе с ровно одной currency.
+      parameters:
+      - description: Подстрока описания или ФИО ответственного
+        in: query
+        name: q
+        type: string
+      - collectionFormat: csv
+        description: Статусы
+        in: query
+        items:
+          enum:
+          - overdue
+          - pending
+          - paid
+          - ended
+          type: string
+        name: status
+        type: array
+      - collectionFormat: csv
+        description: Валюты
+        in: query
+        items:
+          enum:
+          - RUB
+          - USD
+          - EUR
+          type: string
+        name: currency
+        type: array
+      - description: me — только периоды текущего пользователя
+        enum:
+        - me
+        in: query
+        name: assignee
+        type: string
+      - collectionFormat: csv
+        description: UUID ответственных (взаимоисключимо с assignee=me)
+        in: query
+        items:
+          type: string
+        name: assignee_id
+        type: array
+      - collectionFormat: csv
+        description: UUID персон ответственного
+        in: query
+        items:
+          type: string
+        name: persona_id
+        type: array
+      - description: UUID шаблона
+        in: query
+        name: recurrent_payment_id
+        type: string
+      - description: Нижняя граница due_date (YYYY-MM-DD)
+        in: query
+        name: due_from
+        type: string
+      - description: Верхняя граница due_date (YYYY-MM-DD)
+        in: query
+        name: due_to
+        type: string
+      - description: Нижняя граница paid_date (YYYY-MM-DD)
+        in: query
+        name: paid_from
+        type: string
+      - description: Верхняя граница paid_date (YYYY-MM-DD)
+        in: query
+        name: paid_to
+        type: string
+      - description: Минимальная сумма (минимальные единицы, требует ровно одну currency)
+        in: query
+        name: amount_min
+        type: integer
+      - description: Максимальная сумма (минимальные единицы, требует ровно одну currency)
+        in: query
+        name: amount_max
+        type: integer
+      - description: Поле сортировки
+        enum:
+        - due_date
+        - amount
+        - created_at
+        - description
+        - paid_date
+        in: query
+        name: sort
+        type: string
+      - description: Направление
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      - description: 1..200, по умолчанию 50
+        in: query
+        name: limit
+        type: integer
+      - description: 0..100000, по умолчанию 0
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.PaymentSearchResponse'
+        "400":
+          description: Некорректный параметр (текст ошибки)
+          schema:
+            type: string
+        "403":
+          description: Не удалось получить данные авторизации
+          schema:
+            type: string
+        "500":
+          description: Не удалось выполнить поиск
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Поиск периодов платежей
       tags:
       - Payments
   /payments/summary:
@@ -1698,6 +2385,144 @@ paths:
       security:
       - BearerAuth: []
       summary: Обновить регулярный платеж
+      tags:
+      - Recurring Payments
+  /recurring-payments/search:
+    get:
+      description: |-
+        Серверный поиск шаблонов с фильтрами, сортировкой и пагинацией. Права как у GET /recurring-payments.
+        amount_min/amount_max — в минимальных единицах и только вместе с ровно одной currency.
+      parameters:
+      - description: Подстрока описания или ФИО ответственного
+        in: query
+        name: q
+        type: string
+      - collectionFormat: csv
+        description: Валюты
+        in: query
+        items:
+          enum:
+          - RUB
+          - USD
+          - EUR
+          type: string
+        name: currency
+        type: array
+      - collectionFormat: csv
+        description: Периодичность
+        in: query
+        items:
+          enum:
+          - weekly
+          - monthly
+          type: string
+        name: frequency
+        type: array
+      - description: me — только шаблоны текущего пользователя
+        enum:
+        - me
+        in: query
+        name: assignee
+        type: string
+      - collectionFormat: csv
+        description: UUID ответственных (взаимоисключимо с assignee=me)
+        in: query
+        items:
+          type: string
+        name: assignee_id
+        type: array
+      - collectionFormat: csv
+        description: UUID персон ответственного
+        in: query
+        items:
+          type: string
+        name: persona_id
+        type: array
+      - collectionFormat: csv
+        description: Статус шаблона
+        in: query
+        items:
+          enum:
+          - active
+          - stopped
+          type: string
+        name: status
+        type: array
+      - description: true ≡ status=active,stopped; по умолчанию только активные
+        in: query
+        name: include_stopped
+        type: boolean
+      - description: Минимальная сумма (минимальные единицы, требует ровно одну currency)
+        in: query
+        name: amount_min
+        type: integer
+      - description: Максимальная сумма (минимальные единицы, требует ровно одну currency)
+        in: query
+        name: amount_max
+        type: integer
+      - description: Нижняя граница start_date (YYYY-MM-DD)
+        in: query
+        name: start_from
+        type: string
+      - description: Верхняя граница start_date (YYYY-MM-DD)
+        in: query
+        name: start_to
+        type: string
+      - description: Нижняя граница ближайшего срока (YYYY-MM-DD)
+        in: query
+        name: next_due_from
+        type: string
+      - description: Верхняя граница ближайшего срока (YYYY-MM-DD)
+        in: query
+        name: next_due_to
+        type: string
+      - description: Поле сортировки
+        enum:
+        - description
+        - amount
+        - created_at
+        - next_due
+        - start_date
+        in: query
+        name: sort
+        type: string
+      - description: Направление
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
+      - description: 1..200, по умолчанию 50
+        in: query
+        name: limit
+        type: integer
+      - description: 0..100000, по умолчанию 0
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.RecurringPaymentSearchResponse'
+        "400":
+          description: Некорректный параметр (текст ошибки)
+          schema:
+            type: string
+        "403":
+          description: Не удалось получить данные авторизации
+          schema:
+            type: string
+        "500":
+          description: Не удалось выполнить поиск
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Поиск регулярных платежей
       tags:
       - Recurring Payments
   /telegram/miniapp/auth:

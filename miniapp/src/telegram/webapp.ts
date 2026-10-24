@@ -148,45 +148,15 @@ export function setClosingConfirmation(on: boolean): void {
   else tg.disableClosingConfirmation()
 }
 
-// Тема зафиксирована тёмной: дизайн dark-only, поэтому colorScheme и --tg-theme-*
-// намеренно не используются. Обёртка красит хром Telegram в #0a0a0a и подписывается
-// на события (Telegram может сбросить цвета хрома при смене темы — переприменяем).
-export const CHROME_BG = '#0a0a0a'
-
-function syncChrome(tg: TgWebApp): void {
-  try {
-    if (supports('6.9')) tg.setHeaderColor(CHROME_BG)
-  } catch {
-    /* старые клиенты: поддерживают только keyword */
-  }
-  try {
-    if (supports('6.1')) tg.setBackgroundColor(CHROME_BG)
-  } catch {
-    /* noop */
-  }
-  try {
-    if (supports('7.10') && typeof tg.setBottomBarColor === 'function') tg.setBottomBarColor(CHROME_BG)
-  } catch {
-    /* noop */
-  }
-}
-
-export function applyTheme(): void {
+// Тема и покраска хрома Telegram вынесены в ./theme.ts (applyTheme). Здесь
+// подписываемся лишь на события safe-area (их переменные обновляет сам SDK).
+export function initSafeAreaEvents(): void {
   const tg = getWebApp()
   if (!tg) return
-  document.documentElement.dataset.theme = 'dark'
-  tg.onEvent('themeChanged', () => {
-    syncChrome(tg)
-  })
   tg.onEvent('safeAreaChanged', () => {
     /* переменные обновляются самим SDK */
   })
   tg.onEvent('contentSafeAreaChanged', () => {
     /* то же */
   })
-}
-
-export function initHeader(): void {
-  const tg = getWebApp()
-  if (tg) syncChrome(tg)
 }

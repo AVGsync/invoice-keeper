@@ -31,6 +31,10 @@ from .state import (
     SchemaStatus,
 )
 from .tools.find_people import ACTIVE_PAYMENTS_SUBQUERY
+from .tools.list_personas import (
+    ACTIVE_PAYMENTS_SUBQUERY as PERSONAS_ACTIVE_PAYMENTS_SUBQUERY,
+)
+from .tools.workload import _GROUP_NAME as WORKLOAD_GROUP_NAME
 
 _CATEGORY_PROBE = """
 SELECT EXISTS (
@@ -67,6 +71,20 @@ def _rendered_templates(category_available: bool) -> list[str]:
         )
     for active in (ACTIVE_PAYMENTS_SUBQUERY, "0"):
         out.append(load_sql("find_people.sql").format(active_payments=active))
+    # §D.7: новые инструменты. get_payment_details не имеет плейсхолдеров.
+    out.append(load_sql("get_payment_details.sql"))
+    for status in STATUS_SQL.values():
+        out.append(
+            load_sql("monthly_breakdown.sql").format(base=base, status_sql=status)
+        )
+        for group_name in WORKLOAD_GROUP_NAME.values():
+            out.append(
+                load_sql("workload.sql").format(
+                    base=base, status_sql=status, group_name=group_name
+                )
+            )
+    for active in (PERSONAS_ACTIVE_PAYMENTS_SUBQUERY, "0"):
+        out.append(load_sql("list_personas.sql").format(active_payments=active))
     out.append(load_sql("horizon.sql"))
     out.append(load_sql("run_rate.sql"))
     return out

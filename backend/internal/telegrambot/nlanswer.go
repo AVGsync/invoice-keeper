@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/infrastructure/telegram"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 	"github.com/AVGsync/invoice-keeper/backend/internal/service"
@@ -26,7 +27,8 @@ func (s *Service) handleFreeText(ctx context.Context, msg *telegram.Message, que
 			"Привяжите Telegram в профиле на сайте, и я смогу отвечать на вопросы о платежах. Команды: /help.")
 		return
 	}
-	s.dispatchNL(ctx, msg.Chat.ID, link.UserID, question)
+	// Свободный текст — всегда личка (§4.4): разговор tg:dm.
+	s.dispatchNL(ctx, msg.Chat.ID, link.UserID, "tg:dm", question)
 }
 
 // handleAsk обрабатывает команду /ask <вопрос> (§4.4, решение №8). В группе —
@@ -45,6 +47,9 @@ func (s *Service) handleAsk(ctx context.Context, msg *telegram.Message, arg stri
 		return
 	}
 
+	// Разговор: личка → tg:dm; командный чат → tg:<chat_id> (своя история у
+	// каждого пользователя в группе, SPEC §D.1).
+	conversation := "tg:dm"
 	switch msg.Chat.Type {
 	case "group", "supergroup":
 		// В группе отвечаем только в активном командном чате (решение №8).
@@ -53,6 +58,7 @@ func (s *Service) handleAsk(ctx context.Context, msg *telegram.Message, arg stri
 			s.reply(ctx, msg.Chat.ID, "Команда /ask работает в личке или в командном чате.")
 			return
 		}
+		conversation = fmt.Sprintf("tg:%d", msg.Chat.ID)
 	case "private":
 		// ок
 	default:
@@ -68,12 +74,57 @@ func (s *Service) handleAsk(ctx context.Context, msg *telegram.Message, arg stri
 		s.reply(ctx, msg.Chat.ID, "Привяжите Telegram в профиле на сайте, затем повторите вопрос.")
 		return
 	}
-	s.dispatchNL(ctx, msg.Chat.ID, link.UserID, question)
+	s.dispatchNL(ctx, msg.Chat.ID, link.UserID, conversation, question)
+}
+
+// handleReset обрабатывает команды /new и /reset: начинает новый диалог,
+// очищая память разговора пользователя (личка → tg:dm; командный чат →
+// tg:<chat_id>). Без привязки — подсказка; при выключенном ассистенте — короткое
+// сообщение (SPEC §D.5).
+func (s *Service) handleReset(ctx context.Context, msg *telegram.Message) {
+	if s.nl == nil {
+		if msg.Chat.Type == "private" {
+			s.reply(ctx, msg.Chat.ID, "Ассистент сейчас недоступен.")
+		}
+		return
+	}
+
+	conversation := "tg:dm"
+	switch msg.Chat.Type {
+	case "group", "supergroup":
+		chat, err := s.repo.GetActiveChat(ctx)
+		if err != nil || chat.TGChatID != msg.Chat.ID {
+			s.reply(ctx, msg.Chat.ID, "Команда работает в личке или в командном чате.")
+			return
+		}
+		conversation = fmt.Sprintf("tg:%d", msg.Chat.ID)
+	case "private":
+		// ок
+	default:
+		return
+	}
+
+	if msg.From == nil {
+		return
+	}
+	link, err := s.repo.GetLinkByTGUserID(ctx, msg.From.ID)
+	if err != nil {
+		s.reply(ctx, msg.Chat.ID, "Привяжите Telegram в профиле на сайте.")
+		return
+	}
+
+	// Канал bot для журнала действий (history_clear).
+	rctx := audit.WithMeta(ctx, audit.Meta{Channel: audit.ChannelBot, ActorID: link.UserID})
+	if _, err := s.nl.ResetConversation(rctx, link.UserID, audit.ChannelBot, conversation); err != nil {
+		s.reply(ctx, msg.Chat.ID, "Не удалось начать новый диалог, попробуйте позже.")
+		return
+	}
+	s.reply(ctx, msg.Chat.ID, "Начинаем новый диалог: прошлые вопросы больше не учитываются.")
 }
 
 // dispatchNL запускает NL-ответ в фоне, не блокируя цикл апдейтов. singleflight
 // по userID и семафор горутин не дают долгому LLM накапливать работу (§4.4).
-func (s *Service) dispatchNL(ctx context.Context, chatID int64, userID, question string) {
+func (s *Service) dispatchNL(ctx context.Context, chatID int64, userID, conversation, question string) {
 	if utf8.RuneCountInString(question) > nlQuestionMaxRunes {
 		s.reply(ctx, chatID, "Вопрос слишком длинный, сократите до 500 символов.")
 		return
@@ -114,12 +165,12 @@ func (s *Service) dispatchNL(ctx context.Context, chatID int64, userID, question
 			s.nlMu.Unlock()
 			<-s.nlSem
 		}()
-		s.answerNL(root, chatID, userID, question)
+		s.answerNL(root, chatID, userID, conversation, question)
 	}()
 }
 
 // answerNL спрашивает ассистента, показывая «печатает…», и отправляет ответ.
-func (s *Service) answerNL(root context.Context, chatID int64, userID, question string) {
+func (s *Service) answerNL(root context.Context, chatID int64, userID, conversation, question string) {
 	askCtx, cancel := context.WithTimeout(root, nlAskTimeout)
 	defer cancel()
 
@@ -132,7 +183,7 @@ func (s *Service) answerNL(root context.Context, chatID int64, userID, question 
 		s.typingLoop(root, chatID, stop)
 	}()
 
-	ans, err := s.nl.Ask(askCtx, userID, "bot", question)
+	ans, err := s.nl.AskIn(askCtx, userID, conversation, question)
 	close(stop)
 	<-typingDone
 	if err != nil {
@@ -313,6 +364,35 @@ func renderBlock(block map[string]any) string {
 			return ""
 		}
 		return strings.Join(lines, "\n")
+	case "table":
+		cols := asSlice(block["columns"])
+		rows := asSlice(block["rows"])
+		if len(cols) == 0 || len(rows) == 0 {
+			return ""
+		}
+		var lines []string
+		if title := asString(block["title"]); title != "" {
+			lines = append(lines, "<b>"+html.EscapeString(title)+"</b>")
+		}
+		for _, r := range itemsUpTo(rows, maxLines) {
+			row := asMap(r)
+			var cells []string
+			for _, c := range cols {
+				col := asMap(c)
+				key := asString(col["key"])
+				label := asString(col["label"])
+				val, ok := row[key]
+				cell := "—"
+				if ok {
+					if s := asString(val); s != "" {
+						cell = s
+					}
+				}
+				cells = append(cells, html.EscapeString(label)+": "+html.EscapeString(cell))
+			}
+			lines = append(lines, "• "+strings.Join(cells, ", "))
+		}
+		return joinWithMore(lines, len(rows), maxLines)
 	default:
 		return ""
 	}

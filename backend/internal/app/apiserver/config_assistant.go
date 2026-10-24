@@ -33,6 +33,21 @@ type AssistantConfig struct {
 	// ключ живёт только в backend; агент и MCP знают лишь публичный (§8.2).
 	NLQActorKey string `envconfig:"NLQ_ACTOR_PRIVATE_KEY"`
 
+	// --- Память диалога (SPEC §D.3). Валидируется независимо от NLQEnabled:
+	// ручки истории доступны по HTTP и при выключенном ассистенте. ---
+
+	// Читать/писать историю и слать history агенту. При false память не работает.
+	NLQMemoryEnabled bool `envconfig:"NLQ_MEMORY_ENABLED" default:"true"`
+	// Сколько последних успешных ходов идёт в промпт (in_prompt), 0..8.
+	NLQMemoryTurns int `envconfig:"NLQ_MEMORY_TURNS" default:"4"`
+	// Максимальный возраст хода для попадания в промпт.
+	NLQMemoryTTL time.Duration `envconfig:"NLQ_MEMORY_TTL" default:"2h"`
+	// Сколько ходов передаётся агенту всего (in_prompt:false видит только
+	// recall_conversation), NLQMemoryTurns..50.
+	NLQMemoryMaxTurns int `envconfig:"NLQ_MEMORY_MAX_TURNS" default:"20"`
+	// Сколько ходов разговора хранить; прочее prune после вставки, ≥ MaxTurns.
+	NLQHistoryKeep int `envconfig:"NLQ_HISTORY_KEEP" default:"100"`
+
 	// actorKey — разобранный приватный ключ. Заполняется в validateAssistant,
 	// чтобы процесс падал на старте при неверном ключе, а не на первом вопросе.
 	actorKey ed25519.PrivateKey
@@ -42,6 +57,30 @@ type AssistantConfig struct {
 // Config.Validate. При выключенной фиче не требует ничего: приложение обязано
 // работать без ассистента.
 func (c *Config) validateAssistant() error {
+	// Программно собранный Config (минуя envconfig) может не содержать дефолтов
+	// памяти — подставляем их, чтобы валидация не ломала такие конфиги в тестах.
+	// Загрузка из env всегда проставляет дефолты, поэтому там это no-op.
+	if c.NLQMemoryTurns == 0 && c.NLQMemoryTTL == 0 && c.NLQMemoryMaxTurns == 0 && c.NLQHistoryKeep == 0 {
+		c.NLQMemoryTurns = 4
+		c.NLQMemoryTTL = 2 * time.Hour
+		c.NLQMemoryMaxTurns = 20
+		c.NLQHistoryKeep = 100
+	}
+
+	// Поля памяти проверяются всегда: ручки истории работают и при NLQ_ENABLED=false.
+	if c.NLQMemoryTurns < 0 || c.NLQMemoryTurns > 8 {
+		return fmt.Errorf("NLQ_MEMORY_TURNS must be between 0 and 8")
+	}
+	if c.NLQMemoryTTL <= 0 {
+		return fmt.Errorf("NLQ_MEMORY_TTL must be positive")
+	}
+	if c.NLQMemoryMaxTurns < c.NLQMemoryTurns || c.NLQMemoryMaxTurns > 50 {
+		return fmt.Errorf("NLQ_MEMORY_MAX_TURNS must be between NLQ_MEMORY_TURNS and 50")
+	}
+	if c.NLQHistoryKeep < c.NLQMemoryMaxTurns {
+		return fmt.Errorf("NLQ_HISTORY_KEEP must be >= NLQ_MEMORY_MAX_TURNS")
+	}
+
 	if !c.NLQEnabled {
 		return nil
 	}

@@ -260,6 +260,79 @@ cd miniapp && npm ci && npm run dev   # http://localhost:5173/tg/
 - **Права (D10):** чтение — вся команда; шаблоны — только админ; отметка оплаты/даты — ответственный
   или админ (проверяется в сервисе, общем для веба и бота). Валюты суммируются по отдельности.
 
+### Поиск платежей
+
+Серверный поиск с фильтрами, сортировкой и пагинацией — чтобы фронт не тянул весь список и фильтровал на
+клиенте. Права те же, что у списков (любой авторизованный). Существующие ручки списков не меняются.
+
+| Метод | Путь | Ответ |
+|---|---|---|
+| GET | `/payment-occurrences/search` | `{ items, total, limit, offset }` (элемент — как в `/payment-occurrences`) |
+| GET | `/recurring-payments/search` | `{ items, total, limit, offset }` (элемент — шаблон + `next_due_date`, `status`) |
+
+Мульти-значения принимаются через запятую (`status=paid,overdue`) и повтором (`status=paid&status=overdue`);
+пустые элементы отбрасываются, дубликаты схлопываются. Неизвестные параметры игнорируются. Ошибка валидации —
+`400` с текстом проблемы.
+
+Периоды (`/payment-occurrences/search`): `q` (подстрока описания периода/шаблона или ФИО ответственного,
+ILIKE, спецсимволы `% _ \` экранируются), `status` (`overdue,pending,paid,ended` — эффективный статус, как в
+списке), `currency` (`RUB,USD,EUR`), `assignee=me` или `assignee_id` (UUID, взаимоисключимо), `persona_id`
+(персона ответственного), `recurrent_payment_id`, `due_from`/`due_to`, `paid_from`/`paid_to` (YYYY-MM-DD,
+включительно), `amount_min`/`amount_max` (минимальные единицы, только вместе с ровно одной `currency` — суммы
+разных валют не сравниваются), `sort` (`due_date|amount|created_at|description|paid_date`), `order`
+(`asc|desc`), `limit` (1..200, деф. 50), `offset` (0..100000, деф. 0).
+
+Шаблоны (`/recurring-payments/search`): `q`, `currency`, `frequency` (`weekly,monthly`), `assignee`/
+`assignee_id`, `persona_id`, `status` (`active,stopped`) или `include_stopped` (`true|false`,
+взаимоисключимо; по умолчанию только активные), `amount_min`/`amount_max`, `start_from`/`start_to`,
+`next_due_from`/`next_due_to` (по ближайшему неоплаченному сроку `next_due_date` ≥ сегодня — шаблоны без него
+исключаются), `sort` (`description|amount|created_at|next_due|start_date`), `order`, `limit`, `offset`.
+
+Пример:
+
+```bash
+curl -s -H "Authorization: Bearer $T" \
+  'http://localhost:8080/api/v1/payment-occurrences/search?status=overdue&currency=USD&sort=amount&order=desc&limit=20' | jq '.total'
+```
+
+## Журнал действий
+
+Каждое значимое действие пользователя (веб, Mini App, бот, система) пишется в
+таблицу `audit_log`. Что фиксируется: вход/выход и неуспешный refresh, создание,
+изменение и удаление пользователей и персон, создание/изменение/остановка
+регулярных платежей, отметка оплаты, снятие оплаты, изменение даты оплаты и
+периода, изменение настроек уведомлений, привязка/отвязка Telegram и командного
+чата, нажатие кнопки «Оплачено» в боте, вопросы ассистенту (без текста вопроса и
+ответа). Чувствительные данные не пишутся: пароли, хеши, токены, коды привязки,
+initData вырезаются, email маскируется (`o***@example.com`).
+
+Канал определяется так: заголовок `X-Client: miniapp|web` → он; иначе Bearer-токен
+→ `miniapp`; иначе (cookie) → `web`; действия бота → `bot`; фон → `system`.
+
+Запись выполняется **best-effort** и синхронно после успешной мутации
+(`context.WithoutCancel`, таймаут 2 с): сбой журналирования логируется, но не
+откатывает основное действие и не меняет ответ. Основание: репозитории не делят
+общую транзакцию, а журнал действий — не финансовый леджер.
+
+Ручки чтения (ошибки — JSON):
+
+| Метод/путь | Права | Описание |
+|---|---|---|
+| `GET /api/v1/audit-log` | admin | весь журнал с фильтрами |
+| `GET /api/v1/me/activity` | любой авторизованный | только свои записи |
+| `GET /api/v1/audit-log/actions` | любой авторизованный | каталог действий для фильтров UI |
+
+Фильтры обеих лент: `actor_id` (только `/audit-log`), `action` (точный код или
+префикс с `*`, напр. `recurring.*`), `entity_type`, `entity_id`, `channel`,
+`outcome`, `from`/`to` (`YYYY-MM-DD` в зоне приложения либо RFC3339), `q`
+(подстрока по действию, сущности, payload/changes, ФИО актора), `order`,
+`limit` (1..200), `offset`. Ответ — конверт `{items, total, limit, offset}`.
+
+```bash
+curl -s -b AccessToken=$ADMIN \
+  'http://localhost:8080/api/v1/audit-log?action=occurrence.*&channel=miniapp&limit=5' | jq '.items[0]'
+```
+
 ## Демо-данные
 
 Модуль платежей (`recurrent_payments`, `payments`) интегрирован; дефолт — работа по базе:

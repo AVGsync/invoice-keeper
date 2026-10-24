@@ -108,8 +108,8 @@ function pick(date: string): void {
   font-weight: 500;
 }
 .cell.selected {
-  background: rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+  background: var(--accent-bg);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 .cell:active {
   background: var(--press);
@@ -129,21 +129,21 @@ function pick(date: string): void {
   height: 5px;
 }
 .mk--overdue {
-  background: var(--snow);
+  background: var(--red);
   border-radius: 1px;
 }
 .mk--pending {
-  border: 1px solid var(--bone);
+  border: 1px solid var(--accent);
   border-radius: 50%;
 }
 .mk--paid {
-  background: var(--fog);
+  background: var(--green);
   border-radius: 50%;
 }
 .mk--ended {
   width: 6px;
   height: 1px;
-  background: var(--fog);
+  background: var(--muted);
 }
 .legend {
   display: flex;

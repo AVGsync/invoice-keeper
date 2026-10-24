@@ -12,6 +12,7 @@ import type {
   TelegramLinkResponse,
   AssistantStatus,
   AssistantEnvelope,
+  AssistantHistoryResponse,
 } from './types'
 
 // Auth
@@ -96,4 +97,16 @@ export function ask(question: string, signal?: AbortSignal): Promise<AssistantEn
     body: { question, channel: 'miniapp' },
     signal,
   })
+}
+
+// История диалога (память ассистента, трек D). Канал всегда miniapp.
+export function assistantHistory(
+  limit = 20,
+  signal?: AbortSignal,
+): Promise<AssistantHistoryResponse> {
+  return request('GET', '/assistant/history', { query: { channel: 'miniapp', limit }, signal })
+}
+
+export function clearAssistantHistory(): Promise<void> {
+  return request('DELETE', '/assistant/history', { query: { channel: 'miniapp' } })
 }

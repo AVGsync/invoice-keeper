@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/clock"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
@@ -36,13 +37,36 @@ func (s *PaymentService) MarkOccurrencePaid(
 	paidDate clock.Date,
 	actor PaymentActor,
 ) error {
-	if _, err := s.checkActor(ctx, id, actor); err != nil {
+	payment, err := s.checkActor(ctx, id, actor)
+	if err != nil {
 		return err
 	}
 	if paidDate.After(s.clk.Today()) {
 		return fmt.Errorf("%w: paid date is in the future", ErrInvalidPayment)
 	}
-	return s.repository.MarkPaymentAsPaid(id, paidDate.String(), ctx)
+	if err := s.repository.MarkPaymentAsPaid(id, paidDate.String(), ctx); err != nil {
+		return err
+	}
+
+	// paid_late = оплачено позже срока. Срок парсим; при ошибке считаем вовремя.
+	paidLate := false
+	if due, derr := clock.ParseDate(payment.DueDate); derr == nil {
+		paidLate = paidDate.After(due)
+	}
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionOccurrenceConfirm,
+		EntityType: audit.EntityOccurrence,
+		EntityID:   id,
+		Payload: map[string]any{
+			"paid_date":   paidDate.String(),
+			"due_date":    payment.DueDate,
+			"amount":      payment.Amount,
+			"currency":    payment.Currency,
+			"description": payment.Description,
+			"paid_late":   paidLate,
+		},
+	})
+	return nil
 }
 
 // ChangeOccurrencePaidDate меняет фактическую дату уже оплаченного периода.
@@ -52,13 +76,28 @@ func (s *PaymentService) ChangeOccurrencePaidDate(
 	paidDate clock.Date,
 	actor PaymentActor,
 ) error {
-	if _, err := s.checkActor(ctx, id, actor); err != nil {
+	payment, err := s.checkActor(ctx, id, actor)
+	if err != nil {
 		return err
 	}
 	if paidDate.After(s.clk.Today()) {
 		return fmt.Errorf("%w: paid date is in the future", ErrInvalidPayment)
 	}
-	return s.repository.ChangePaidDate(id, paidDate.String(), ctx)
+	if err := s.repository.ChangePaidDate(id, paidDate.String(), ctx); err != nil {
+		return err
+	}
+
+	var oldPaid any
+	if payment.PaidDate != nil {
+		oldPaid = *payment.PaidDate
+	}
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionOccurrencePaidDateChange,
+		EntityType: audit.EntityOccurrence,
+		EntityID:   id,
+		Changes:    audit.Diff().Add("paid_date", oldPaid, paidDate.String()).Map(),
+	})
+	return nil
 }
 
 // MarkOccurrenceUnpaid снимает оплату и очищает дату. Идемпотентна.
@@ -67,10 +106,28 @@ func (s *PaymentService) MarkOccurrenceUnpaid(
 	id string,
 	actor PaymentActor,
 ) error {
-	if _, err := s.checkActor(ctx, id, actor); err != nil {
+	payment, err := s.checkActor(ctx, id, actor)
+	if err != nil {
 		return err
 	}
-	return s.repository.MarkPaymentAsUnpaid(id, s.clk.Today().String(), ctx)
+	if err := s.repository.MarkPaymentAsUnpaid(id, s.clk.Today().String(), ctx); err != nil {
+		return err
+	}
+
+	entry := audit.Entry{
+		Action:     audit.ActionOccurrenceCancel,
+		EntityType: audit.EntityOccurrence,
+		EntityID:   id,
+	}
+	if payment.PaidDate != nil {
+		// Был оплачен — фиксируем снятие оплаты (paid_date → null).
+		entry.Changes = audit.Diff().Add("paid_date", *payment.PaidDate, nil).Map()
+	} else {
+		// Не был оплачен — операция ничего не изменила.
+		entry.Payload = map[string]any{"noop": true}
+	}
+	s.audit.Record(ctx, entry)
+	return nil
 }
 
 // EffectiveStatus вычисляет статус периода из paid_date, due_date и «сегодня»

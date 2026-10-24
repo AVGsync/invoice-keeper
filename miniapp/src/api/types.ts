@@ -199,12 +199,44 @@ export interface PeopleListBlock {
   items: PeopleListItem[]
 }
 
+export interface TableBlock {
+  type: 'table'
+  kind?: string
+  title?: string
+  columns: { key: string; label: string; align?: 'start' | 'end' }[]
+  rows: Record<string, string | null>[]
+  total?: number
+  truncated?: boolean
+}
+
 export type AssistantBlock =
   | OccurrenceListBlock
   | CurrencyTotalsBlock
   | PaymentListBlock
   | PeopleListBlock
+  | TableBlock
   | { type: string; [k: string]: unknown }
+
+// История диалога ассистента (память, трек D).
+export interface AssistantHistoryItem {
+  id: string
+  answer_id: string
+  question: string
+  answer_text: string
+  status: 'ok' | 'partial' | 'error'
+  error_code?: string
+  mode: string
+  created_at: string
+  in_context: boolean
+}
+
+export interface AssistantHistoryResponse {
+  channel: string
+  conversation: string
+  items: AssistantHistoryItem[]
+  total: number
+  memory: { enabled: boolean; context_turns: number; ttl_seconds: number }
+}
 
 export interface AssistantMeta {
   model?: string

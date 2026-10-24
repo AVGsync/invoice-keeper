@@ -17,10 +17,31 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 Status = Literal["overdue", "upcoming", "unpaid", "paid", "any"]
 Currency = Literal["RUB", "USD", "EUR"]
 PeriodArg = Literal[
-    "today", "this_week", "next_7_days", "this_month", "next_month", "this_year", "custom"
+    "today",
+    "this_week",
+    "last_week",
+    "next_7_days",
+    "this_month",
+    "last_month",
+    "next_month",
+    "this_year",
+    "custom",
+]
+_PERIOD_ENUM = [
+    "today",
+    "this_week",
+    "last_week",
+    "next_7_days",
+    "this_month",
+    "last_month",
+    "next_month",
+    "this_year",
+    "custom",
 ]
 
 _DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}$"
+_STATUS_ENUM = ["overdue", "upcoming", "unpaid", "paid", "any"]
+_CURRENCY_ENUM = ["RUB", "USD", "EUR"]
 
 
 class _Args(BaseModel):
@@ -83,6 +104,7 @@ class FindRecurringPaymentsArgs(_Args):
     max_amount: float | None = Field(default=None, ge=0)
     assignee_id: str | None = None
     include_ended: bool = False
+    frequency: Literal["weekly", "monthly"] | None = None
     sort: Literal["title", "amount_desc", "next_due"] | None = None
     limit: int | None = Field(default=None, ge=1, le=20)
 
@@ -108,6 +130,81 @@ def _require_currency_for_amounts(
 ) -> None:
     if (min_amount is not None or max_amount is not None) and currency is None:
         raise ValueError("min_amount/max_amount require a currency")
+
+
+class GetPaymentDetailsArgs(_Args):
+    title_query: str = Field(min_length=1, max_length=64)
+    assignee_id: str | None = None
+    include_ended: bool = False
+
+    @model_validator(mode="after")
+    def _check(self) -> GetPaymentDetailsArgs:
+        _validate_assignee(self.assignee_id)
+        return self
+
+
+class MonthlyBreakdownArgs(_Args):
+    status: Status
+    months: int = Field(default=6, ge=1, le=12)
+    date_from: str | None = Field(default=None, pattern=_DATE_PATTERN)
+    date_to: str | None = Field(default=None, pattern=_DATE_PATTERN)
+    currency: Currency | None = None
+    assignee_id: str | None = None
+    title_query: str | None = Field(default=None, min_length=1, max_length=64)
+
+    @model_validator(mode="after")
+    def _check(self) -> MonthlyBreakdownArgs:
+        if (self.date_from is None) != (self.date_to is None):
+            raise ValueError("date_from and date_to must be given together")
+        _validate_assignee(self.assignee_id)
+        return self
+
+
+class ComparePeriodsArgs(_Args):
+    status: Status
+    period_a: PeriodArg
+    a_from: str | None = Field(default=None, pattern=_DATE_PATTERN)
+    a_to: str | None = Field(default=None, pattern=_DATE_PATTERN)
+    period_b: PeriodArg
+    b_from: str | None = Field(default=None, pattern=_DATE_PATTERN)
+    b_to: str | None = Field(default=None, pattern=_DATE_PATTERN)
+    currency: Currency | None = None
+    assignee_id: str | None = None
+    title_query: str | None = Field(default=None, min_length=1, max_length=64)
+
+    @model_validator(mode="after")
+    def _check(self) -> ComparePeriodsArgs:
+        if self.period_a == "custom" and (self.a_from is None or self.a_to is None):
+            raise ValueError("period_a=custom requires a_from and a_to")
+        if self.period_b == "custom" and (self.b_from is None or self.b_to is None):
+            raise ValueError("period_b=custom requires b_from and b_to")
+        _validate_assignee(self.assignee_id)
+        return self
+
+
+class WorkloadArgs(_Args):
+    group_by: Literal["assignee", "persona"]
+    status: Status = "unpaid"
+    period: PeriodArg | None = None
+    date_from: str | None = Field(default=None, pattern=_DATE_PATTERN)
+    date_to: str | None = Field(default=None, pattern=_DATE_PATTERN)
+    currency: Currency | None = None
+
+    @model_validator(mode="after")
+    def _check(self) -> WorkloadArgs:
+        if self.period != "custom" and (self.date_from is not None or self.date_to is not None):
+            raise ValueError("date_from/date_to are only allowed with period=custom")
+        return self
+
+
+class ListPersonasArgs(_Args):
+    query: str | None = Field(default=None, min_length=1, max_length=64)
+    limit: int | None = Field(default=None, ge=1, le=20)
+
+
+class RecallConversationArgs(_Args):
+    query: str | None = Field(default=None, min_length=1, max_length=100)
+    limit: int = Field(default=3, ge=1, le=5)
 
 
 # --- Flat JSON schemas for the LLM (OpenAI function-calling format) ---
@@ -136,10 +233,7 @@ FIND_OCCURRENCES_SCHEMA: Final[dict[str, Any]] = {
                 },
                 "period": {
                     "type": "string",
-                    "enum": [
-                        "today", "this_week", "next_7_days", "this_month",
-                        "next_month", "this_year", "custom",
-                    ],
+                    "enum": _PERIOD_ENUM,
                     "description": (
                         "Готовый интервал по сроку оплаты. custom — тогда обязательны "
                         "date_from и date_to. Не указывай, если интервал не нужен"
@@ -204,13 +298,7 @@ SUM_OCCURRENCES_SCHEMA: Final[dict[str, Any]] = {
                     "type": "string",
                     "enum": ["overdue", "upcoming", "unpaid", "paid", "any"],
                 },
-                "period": {
-                    "type": "string",
-                    "enum": [
-                        "today", "this_week", "next_7_days", "this_month",
-                        "next_month", "this_year", "custom",
-                    ],
-                },
+                "period": {"type": "string", "enum": _PERIOD_ENUM},
                 "date_from": {"type": "string", "pattern": _DATE_PATTERN},
                 "date_to": {"type": "string", "pattern": _DATE_PATTERN},
                 "currency": {"type": "string", "enum": ["RUB", "USD", "EUR"]},
@@ -277,6 +365,11 @@ FIND_RECURRING_PAYMENTS_SCHEMA: Final[dict[str, Any]] = {
                     "type": "boolean",
                     "description": "Включить завершённые платежи. По умолчанию нет",
                 },
+                "frequency": {
+                    "type": "string",
+                    "enum": ["weekly", "monthly"],
+                    "description": "Периодичность: weekly — еженедельные, monthly — ежемесячные",
+                },
                 "sort": {"type": "string", "enum": ["title", "amount_desc", "next_due"]},
                 "limit": {"type": "integer", "minimum": 1, "maximum": 20},
             },
@@ -335,19 +428,177 @@ REPLY_WITHOUT_DATA_SCHEMA: Final[dict[str, Any]] = {
     },
 }
 
+GET_PAYMENT_DETAILS_SCHEMA: Final[dict[str, Any]] = {
+    "type": "function",
+    "function": {
+        "name": "get_payment_details",
+        "description": (
+            "Подробности по одному регулярному платежу: сумма, периодичность, ответственный, "
+            "ближайший срок, когда платили в последний раз, сколько просрочено и сколько раз "
+            "оплачено за год. Используй для «подробнее про …», «когда последний раз платили за …»."
+        ),
+        "parameters": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "title_query": {"type": "string", "description": "Слово из названия платежа"},
+                "assignee_id": {"type": "string", "description": "id из find_people или me"},
+                "include_ended": {"type": "boolean", "description": "Включить завершённые"},
+            },
+            "required": ["title_query"],
+        },
+    },
+}
+
+MONTHLY_BREAKDOWN_SCHEMA: Final[dict[str, Any]] = {
+    "type": "function",
+    "function": {
+        "name": "monthly_breakdown",
+        "description": (
+            "Суммы по месяцам отдельно по каждой валюте: динамика расходов. Используй для "
+            "«по месяцам», «как менялись расходы», «динамика»."
+        ),
+        "parameters": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "status": {"type": "string", "enum": _STATUS_ENUM},
+                "months": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12,
+                    "description": "Сколько последних месяцев (по умолчанию 6)",
+                },
+                "date_from": {"type": "string", "pattern": _DATE_PATTERN},
+                "date_to": {"type": "string", "pattern": _DATE_PATTERN},
+                "currency": {"type": "string", "enum": _CURRENCY_ENUM},
+                "assignee_id": {"type": "string", "description": "id из find_people или me"},
+                "title_query": {"type": "string", "description": "Слово из названия платежа"},
+            },
+            "required": ["status"],
+        },
+    },
+}
+
+COMPARE_PERIODS_SCHEMA: Final[dict[str, Any]] = {
+    "type": "function",
+    "function": {
+        "name": "compare_periods",
+        "description": (
+            "Сравнить суммы двух периодов по каждой валюте (стало больше или меньше). "
+            "period_a — более ранний период, period_b — более поздний."
+        ),
+        "parameters": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "status": {"type": "string", "enum": _STATUS_ENUM},
+                "period_a": {"type": "string", "enum": _PERIOD_ENUM},
+                "a_from": {"type": "string", "pattern": _DATE_PATTERN},
+                "a_to": {"type": "string", "pattern": _DATE_PATTERN},
+                "period_b": {"type": "string", "enum": _PERIOD_ENUM},
+                "b_from": {"type": "string", "pattern": _DATE_PATTERN},
+                "b_to": {"type": "string", "pattern": _DATE_PATTERN},
+                "currency": {"type": "string", "enum": _CURRENCY_ENUM},
+                "assignee_id": {"type": "string", "description": "id из find_people или me"},
+                "title_query": {"type": "string", "description": "Слово из названия платежа"},
+            },
+            "required": ["status", "period_a", "period_b"],
+        },
+    },
+}
+
+WORKLOAD_SCHEMA: Final[dict[str, Any]] = {
+    "type": "function",
+    "function": {
+        "name": "workload",
+        "description": (
+            "Нагрузка по платежам: сколько и на какую сумму приходится на каждого сотрудника "
+            "или должность, отдельно по валютам. Используй для «у кого больше всего платежей», "
+            "«нагрузка по сотрудникам/должностям»."
+        ),
+        "parameters": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "group_by": {
+                    "type": "string",
+                    "enum": ["assignee", "persona"],
+                    "description": "assignee — по сотрудникам; persona — по должностям",
+                },
+                "status": {"type": "string", "enum": _STATUS_ENUM},
+                "period": {"type": "string", "enum": _PERIOD_ENUM},
+                "date_from": {"type": "string", "pattern": _DATE_PATTERN},
+                "date_to": {"type": "string", "pattern": _DATE_PATTERN},
+                "currency": {"type": "string", "enum": _CURRENCY_ENUM},
+            },
+            "required": ["group_by"],
+        },
+    },
+}
+
+LIST_PERSONAS_SCHEMA: Final[dict[str, Any]] = {
+    "type": "function",
+    "function": {
+        "name": "list_personas",
+        "description": (
+            "Список должностей (персон): сколько сотрудников и активных платежей на каждой. "
+            "Используй для «какие есть должности»."
+        ),
+        "parameters": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "query": {"type": "string", "description": "Слово из названия должности"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+            "required": [],
+        },
+    },
+}
+
+RECALL_CONVERSATION_SCHEMA: Final[dict[str, Any]] = {
+    "type": "function",
+    "function": {
+        "name": "recall_conversation",
+        "description": (
+            "Вспомнить прошлые вопросы и ответы этого диалога, если нужного нет в показанной "
+            "истории. Возвращает краткие записи прошлых ходов (вопрос, ответ, факты, числа)."
+        ),
+        "parameters": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "query": {"type": "string", "description": "Слова для поиска по прошлым ходам"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 5},
+            },
+            "required": [],
+        },
+    },
+}
+
 # tool name -> (pydantic model, flat schema)
 MCP_TOOLS: Final[dict[str, tuple[type[_Args], dict[str, Any]]]] = {
     "find_occurrences": (FindOccurrencesArgs, FIND_OCCURRENCES_SCHEMA),
     "sum_occurrences": (SumOccurrencesArgs, SUM_OCCURRENCES_SCHEMA),
     "find_recurring_payments": (FindRecurringPaymentsArgs, FIND_RECURRING_PAYMENTS_SCHEMA),
     "find_people": (FindPeopleArgs, FIND_PEOPLE_SCHEMA),
+    "get_payment_details": (GetPaymentDetailsArgs, GET_PAYMENT_DETAILS_SCHEMA),
+    "monthly_breakdown": (MonthlyBreakdownArgs, MONTHLY_BREAKDOWN_SCHEMA),
+    "compare_periods": (ComparePeriodsArgs, COMPARE_PERIODS_SCHEMA),
+    "workload": (WorkloadArgs, WORKLOAD_SCHEMA),
+    "list_personas": (ListPersonasArgs, LIST_PERSONAS_SCHEMA),
 }
 
 LOCAL_TOOLS: Final[dict[str, tuple[type[_Args], dict[str, Any]]]] = {
     "reply_without_data": (ReplyWithoutDataArgs, REPLY_WITHOUT_DATA_SCHEMA),
+    "recall_conversation": (RecallConversationArgs, RECALL_CONVERSATION_SCHEMA),
 }
+
+# Local tools that still return data (executed in-process, not via MCP), §D.6.
+LOCAL_DATA_TOOLS: Final[frozenset[str]] = frozenset({"recall_conversation"})
 
 ALL_TOOLS: Final[dict[str, tuple[type[_Args], dict[str, Any]]]] = {**MCP_TOOLS, **LOCAL_TOOLS}
 
-# Schemas passed to OpenRouter on every request (4 MCP + 1 local), §7.1.
+# Schemas passed to OpenRouter on every request (9 MCP + 2 local), §7.1 / §D.7.
 LLM_TOOL_SCHEMAS: Final[list[dict[str, Any]]] = [schema for _, schema in ALL_TOOLS.values()]

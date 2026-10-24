@@ -10,9 +10,12 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from . import memory as mem
 from .grounding import build_allowed_numbers, clean_text, is_grounded
 from .render import build_blocks, build_followups, build_notes, template_text
 from .types import LoopTelemetry, ToolResult
+
+_EMPTY_MEMORY: dict[str, Any] = {"v": 1, "tools": [], "facts": "", "numbers": []}
 
 # status / error_code closed sets (§7.9).
 STATUS_OK = "ok"
@@ -38,6 +41,8 @@ def finalize_answer(
     telemetry: LoopTelemetry,
     latency_ms: int,
     local_message: str | None = None,
+    history_numbers: set[str] | frozenset[str] = frozenset(),
+    memory_turns: int = 0,
 ) -> dict[str, Any]:
     """Build the full envelope from tool results + (grounded) model text."""
     blocks = [] if local_message is not None else build_blocks(results)
@@ -57,6 +62,7 @@ def finalize_answer(
             text = _strip_digits(text)
     else:
         allowed = build_allowed_numbers([r.payload for r in results if r.ok], question, today)
+        allowed |= set(history_numbers)
         text = clean_text(model_text)
         if not text or not is_grounded(text, allowed):
             text = template_text(blocks)
@@ -64,6 +70,12 @@ def finalize_answer(
             notes = [*notes, "Текст сформирован автоматически."]
 
     status, error_code = _status(data_error, blocks, local_message)
+
+    # Компактная память этого хода: для local_message — пустая (SPEC §D.6).
+    if local_message is not None:
+        memory_obj = dict(_EMPTY_MEMORY)
+    else:
+        memory_obj = mem.build_memory(results, call_args, question, today, blocks)
 
     envelope: dict[str, Any] = {
         "answer_id": answer_id,
@@ -85,7 +97,9 @@ def finalize_answer(
             },
             "cost_usd": telemetry.cost_usd,
             "latency_ms": latency_ms,
+            "memory_turns": memory_turns,
         },
+        "memory": memory_obj,
     }
     if error_code is not None:
         envelope["error_code"] = error_code

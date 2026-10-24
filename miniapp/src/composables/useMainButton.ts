@@ -1,5 +1,6 @@
 import { watchEffect, onMounted, onUnmounted, unref, shallowRef, type Ref } from 'vue'
 import { getWebApp } from '../telegram/webapp'
+import { theme, mainButtonColors } from '../telegram/theme'
 
 type MaybeRef<T> = Ref<T> | T
 
@@ -49,18 +50,18 @@ export function useMainButton(opts: MainButtonOptions): void {
     const enabled = opts.enabled ? unref(opts.enabled) : true
     const visible = opts.visible ? unref(opts.visible) : true
     const loading = opts.loading ? unref(opts.loading) : false
+    const curTheme = theme.value // читаем, чтобы переприменить цвета при смене темы
     const isOwner = activeOwner.value === owner
 
     const tg = getWebApp()
     if (!tg || !isOwner) return
 
-    // Загрузка считается неактивным состоянием, но прогресс-спиннер Telegram
-    // использует text_color — поэтому во время загрузки держим bone/obsidian.
-    const dim = !enabled && !loading
+    // Цвета берём по активной теме; загрузка/прогресс считается активным состоянием.
+    const colors = mainButtonColors(curTheme, { enabled, loading })
     tg.MainButton.setParams({
       text,
-      color: dim ? '#262626' : '#FFFFFF',
-      text_color: dim ? '#686868' : '#161616',
+      color: colors.color,
+      text_color: colors.text_color,
       is_active: enabled && !loading,
       is_visible: visible,
     })

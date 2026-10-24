@@ -38,10 +38,14 @@ for (const theme of ['light', 'dark'] as const) {
   test(`walkthrough (${theme})`, async ({ page }) => {
     const { errors } = guardConsole(page)
     await installTelegram(page, { colorScheme: theme })
-    await installMockApi(page, { actingUser: 'user1' })
+    const api = await installMockApi(page, { actingUser: 'user1' })
 
     await page.goto('/tg/')
     await expect(page.getByRole('heading', { name: 'Сегодня' })).toBeVisible()
+    // Тема применена к документу и фону
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+    const bodyBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+    expect(bodyBg).toBe(theme === 'dark' ? 'rgb(10, 10, 10)' : 'rgb(255, 255, 255)')
     // Баннер просрочки
     await expect(page.getByText(/Просрочено:/)).toBeVisible()
     await screenshot(page, 'today', theme)
@@ -69,13 +73,37 @@ for (const theme of ['light', 'dark'] as const) {
     await page.locator('.grid .cell').nth(25).click()
     await screenshot(page, 'calendar', theme)
 
-    // Спросить
+    // Спросить — композер вместо MainButton
     await page.goto('/tg/ask')
-    await page.locator('textarea').fill('Что просрочено?')
-    await waitMainButton(page)
-    await page.locator('[data-testid=tg-main-button]').click()
+    const sendBtn = page.getByRole('button', { name: 'Отправить' })
+    await expect(page.locator('[data-testid=tg-main-button]')).toBeHidden()
+    await expect(sendBtn).toBeDisabled() // пустое поле
+    const ta = page.locator('.composer textarea')
+    await ta.fill('Что просрочено?')
+    await expect(sendBtn).toBeEnabled()
+    await sendBtn.click()
     await expect(page.getByText(/Просрочен один платёж/)).toBeVisible()
     await screenshot(page, 'ask', theme)
+
+    // Второй вопрос — через Enter
+    await ta.fill('А у Марии?')
+    await ta.press('Enter')
+    await expect(page.locator('.bubble.q', { hasText: 'А у Марии?' })).toBeVisible()
+
+    // Shift+Enter вставляет перевод строки, а не отправляет
+    await ta.fill('строка1')
+    await ta.press('Shift+Enter')
+    expect(await ta.inputValue()).toContain('\n')
+    await ta.fill('')
+    await expect(sendBtn).toBeDisabled()
+
+    // Новый диалог: просим бэкенд забыть историю, фид очищается
+    await page.getByRole('button', { name: 'Новый диалог' }).click()
+    await page.waitForTimeout(200)
+    expect(
+      api.requests.some((r) => r.method === 'DELETE' && r.path.includes('/assistant/history')),
+    ).toBe(true)
+    await expect(page.locator('.exchange')).toHaveCount(0)
 
     // Профиль (без раздела администрирования у user)
     await page.goto('/tg/profile')
@@ -156,6 +184,61 @@ for (const theme of ['light', 'dark'] as const) {
 }
 
 // Сценарии без привязки к теме.
+
+test('смена темы Telegram на лету переключает data-theme', async ({ page }) => {
+  guardConsole(page)
+  await installTelegram(page, { colorScheme: 'dark' })
+  await installMockApi(page, { actingUser: 'user1' })
+  await page.goto('/tg/')
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.evaluate(() => {
+    ;(window as unknown as { __tgMock: { setTheme(s: string): void } }).__tgMock.setTheme('light')
+  })
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+  expect(bg).toBe('rgb(255, 255, 255)')
+})
+
+test('chips: последний чип не прилипает к краю (390 и 320)', async ({ page }) => {
+  guardConsole(page)
+  await installTelegram(page)
+  await installMockApi(page, { actingUser: 'user1' })
+
+  for (const vp of [
+    { width: 390, height: 844 },
+    { width: 320, height: 640 },
+  ]) {
+    await page.setViewportSize(vp)
+    await page.goto('/tg/payments')
+    await expect(page.getByRole('heading', { name: 'Платежи' })).toBeVisible()
+    const chips = page.locator('.chips')
+    const count = await chips.count()
+    expect(count).toBeGreaterThan(0)
+    const iw = await page.evaluate(() => window.innerWidth)
+    for (let i = 0; i < count; i++) {
+      const c = chips.nth(i)
+      // в начале прокрутки первый чип отступает на гаттер
+      await c.evaluate((el) => {
+        el.scrollLeft = 0
+      })
+      const firstLeft = await c
+        .locator('.chip')
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().left)
+      expect(firstLeft).toBeGreaterThanOrEqual(16 - 0.5)
+      // в конце прокрутки последний чип не упирается в край
+      await c.evaluate((el) => {
+        el.scrollLeft = el.scrollWidth
+      })
+      await page.waitForTimeout(50)
+      const lastRight = await c
+        .locator('.chip')
+        .last()
+        .evaluate((el) => el.getBoundingClientRect().right)
+      expect(lastRight).toBeLessThanOrEqual(iw - 16 + 0.5)
+    }
+  }
+})
 
 test('чужая карточка: нет кнопки и показана подсказка', async ({ page }) => {
   guardConsole(page)

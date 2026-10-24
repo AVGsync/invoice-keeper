@@ -81,4 +81,4 @@ def test_me_assignee_ok() -> None:
 
 
 def test_llm_schema_count() -> None:
-    assert len(tool_specs.LLM_TOOL_SCHEMAS) == 5
+    assert len(tool_specs.LLM_TOOL_SCHEMAS) == 11

@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
-import { assistantStatus } from '../api/endpoints'
+import { assistantStatus, assistantHistory, clearAssistantHistory } from '../api/endpoints'
 import { askAssistant } from '../api/ask'
+import { ApiError } from '../api/errors'
 import type {
   AssistantBlock,
   AssistantEnvelope,
@@ -49,6 +50,45 @@ export const assistant = {
     }
   },
 
+  // Подтягивает серверную историю диалога в локальный фид, если он пуст.
+  // Берём только обмены, которые бэкенд держит в контексте (in_context).
+  // Любая ошибка (в т. ч. 404 на старом бэкенде) — молча игнорируется.
+  async loadHistory(): Promise<void> {
+    if (assistantState.history.length) return
+    try {
+      const res = await assistantHistory(20)
+      const restored: Exchange[] = res.items
+        .filter((i) => i.in_context)
+        .map((i) => ({
+          q: i.question,
+          steps: [],
+          blocks: [],
+          text: i.answer_text,
+          followups: [],
+          status: i.status,
+          busy: false,
+        }))
+      if (restored.length) assistantState.history.push(...restored)
+    } catch {
+      /* молча: истории может не быть, ручка может отсутствовать */
+    }
+  },
+
+  // Начинает новый диалог: просит бэкенд забыть историю и чистит фид.
+  // На старом бэкенде (404/405) чистим только локально; иные ошибки пробрасываем.
+  async resetConversation(): Promise<void> {
+    try {
+      await clearAssistantHistory()
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 404 || e.status === 405)) {
+        assistantState.history.splice(0)
+        return
+      }
+      throw e
+    }
+    assistantState.history.splice(0)
+  },
+
   async ask(q: string, signal?: AbortSignal): Promise<void> {
     const ex = reactive<Exchange>({
       q,
@@ -94,5 +134,11 @@ export const assistant = {
       { setAssistantDisabled: () => (assistantState.status.enabled = false) },
     )
     ex.busy = false
+    // Пользователь нажал «стоп» — помечаем обмен как остановленный (askAssistant
+    // при abort выходит молча, поэтому решение принимаем здесь).
+    if (signal?.aborted && ex.status !== 'error') {
+      ex.status = 'error'
+      ex.error = 'aborted'
+    }
   },
 }

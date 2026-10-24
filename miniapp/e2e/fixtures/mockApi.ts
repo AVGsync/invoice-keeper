@@ -196,6 +196,18 @@ export async function installMockApi(page: Page, opts: MockApiOptions = {}): Pro
     if (method === 'POST' && path === '/assistant/ask') {
       return json(route, 200, { status: 'ok', text: 'Ответ ассистента', followups: [] })
     }
+    if (method === 'GET' && path === '/assistant/history') {
+      return json(route, 200, {
+        channel: 'miniapp',
+        conversation: 'miniapp',
+        items: [],
+        total: 0,
+        memory: { enabled: true, context_turns: 4, ttl_seconds: 7200 },
+      })
+    }
+    if (method === 'DELETE' && path === '/assistant/history') {
+      return noContent(route)
+    }
 
     // Неизвестный маршрут — 500, тест упадёт.
     return text(route, 500, 'unhandled: ' + method + ' ' + path)

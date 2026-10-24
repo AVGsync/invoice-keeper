@@ -21,10 +21,15 @@ from starlette.responses import JSONResponse
 from ..common.tool_specs import Currency, PeriodArg, Status
 from .selfcheck import periodic_recheck, refresh_schema_status, run_security_checks
 from .state import get_state
+from .tools import compare_periods as _cp
 from .tools import find_occurrences as _fo
 from .tools import find_people as _fp
 from .tools import find_recurring_payments as _frp
+from .tools import get_payment_details as _gpd
+from .tools import list_personas as _lp
+from .tools import monthly_breakdown as _mb
 from .tools import sum_occurrences as _so
+from .tools import workload as _wl
 from .tools._common import run_tool, validate_args
 
 log = logging.getLogger("nlq.mcp.server")
@@ -134,6 +139,96 @@ async def find_people(query: str | None = None, limit: int | None = None) -> str
     """Найти сотрудников по имени или должности и получить их id."""
     args = validate_args("find_people", {"query": query, "limit": limit})
     return await run_tool("find_people", lambda s, a, v: _fp.execute(args, s, a, v))
+
+
+@mcp.tool
+async def get_payment_details(
+    title_query: str,
+    assignee_id: str | None = None,
+    include_ended: bool = False,
+) -> str:
+    """Детали регулярного платежа по названию: срок, последняя оплата, счётчики."""
+    args = validate_args(
+        "get_payment_details",
+        {
+            "title_query": title_query, "assignee_id": assignee_id,
+            "include_ended": include_ended,
+        },
+    )
+    return await run_tool("get_payment_details", lambda s, a, v: _gpd.execute(args, s, a, v))
+
+
+@mcp.tool
+async def monthly_breakdown(
+    status: Status,
+    months: int = 6,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    currency: Currency | None = None,
+    assignee_id: str | None = None,
+    title_query: str | None = None,
+) -> str:
+    """Суммы по месяцам и валютам: динамика расходов. Валюты не смешиваются."""
+    args = validate_args(
+        "monthly_breakdown",
+        {
+            "status": status, "months": months, "date_from": date_from, "date_to": date_to,
+            "currency": currency, "assignee_id": assignee_id, "title_query": title_query,
+        },
+    )
+    return await run_tool("monthly_breakdown", lambda s, a, v: _mb.execute(args, s, a, v))
+
+
+@mcp.tool
+async def compare_periods(
+    status: Status,
+    period_a: PeriodArg,
+    period_b: PeriodArg,
+    a_from: str | None = None,
+    a_to: str | None = None,
+    b_from: str | None = None,
+    b_to: str | None = None,
+    currency: Currency | None = None,
+    assignee_id: str | None = None,
+    title_query: str | None = None,
+) -> str:
+    """Сравнить два периода по каждой валюте (A — раньше, B — позже)."""
+    args = validate_args(
+        "compare_periods",
+        {
+            "status": status, "period_a": period_a, "period_b": period_b,
+            "a_from": a_from, "a_to": a_to, "b_from": b_from, "b_to": b_to,
+            "currency": currency, "assignee_id": assignee_id, "title_query": title_query,
+        },
+    )
+    return await run_tool("compare_periods", lambda s, a, v: _cp.execute(args, s, a, v))
+
+
+@mcp.tool
+async def workload(
+    group_by: Literal["assignee", "persona"],
+    status: Status = "unpaid",
+    period: PeriodArg | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    currency: Currency | None = None,
+) -> str:
+    """Нагрузка по ответственным или должностям: число платежей и суммы."""
+    args = validate_args(
+        "workload",
+        {
+            "group_by": group_by, "status": status, "period": period,
+            "date_from": date_from, "date_to": date_to, "currency": currency,
+        },
+    )
+    return await run_tool("workload", lambda s, a, v: _wl.execute(args, s, a, v))
+
+
+@mcp.tool
+async def list_personas(query: str | None = None, limit: int | None = None) -> str:
+    """Список должностей: сколько сотрудников и активных платежей на каждой."""
+    args = validate_args("list_personas", {"query": query, "limit": limit})
+    return await run_tool("list_personas", lambda s, a, v: _lp.execute(args, s, a, v))
 
 
 @mcp.custom_route("/healthz", methods=["GET"])

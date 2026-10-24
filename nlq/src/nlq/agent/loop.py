@@ -18,11 +18,13 @@ from datetime import date
 from typing import Any, Protocol
 
 from ..common.actor import Actor
-from ..common.tool_specs import MCP_TOOLS
+from ..common.tool_specs import ALL_TOOLS, LOCAL_DATA_TOOLS, MCP_TOOLS
 from . import envelope as env
+from . import memory as mem
 from . import rules
 from .local_tools import REASON_FALLBACKS, validate_reply
 from .mcp_client import McpError, McpSession
+from .memory import Turn
 from .openrouter import OpenRouterError
 from .prompt import build_system_prompt
 from .types import LLMResponse, LoopTelemetry, ToolCall, ToolResult
@@ -36,6 +38,12 @@ _TOOL_LABELS = {
     "sum_occurrences": "Считаю суммы по валютам",
     "find_recurring_payments": "Ищу регулярные платежи",
     "find_people": "Ищу сотрудников",
+    "get_payment_details": "Смотрю детали платежа",
+    "monthly_breakdown": "Считаю по месяцам",
+    "compare_periods": "Сравниваю периоды",
+    "workload": "Считаю нагрузку",
+    "list_personas": "Смотрю должности",
+    "recall_conversation": "Вспоминаю прошлые ответы",
 }
 
 
@@ -101,11 +109,13 @@ class _Executor:
         cfg: LoopConfig,
         actor: Actor,
         on_step: StepHook | None = None,
+        history: list[Turn] | None = None,
     ) -> None:
         self._session = session
         self._cfg = cfg
         self._actor = actor
         self._on_step = on_step
+        self._history = history or []
         self._step_n = 0
         self._seen: dict[str, ToolResult] = {}
         self.results: list[ToolResult] = []
@@ -117,7 +127,8 @@ class _Executor:
         except (ValueError, json.JSONDecodeError):
             return self._fail(call, "bad_args", "аргументы не являются JSON")
 
-        model_cls, _ = MCP_TOOLS.get(call.name, (None, None))
+        is_local_data = call.name in LOCAL_DATA_TOOLS
+        model_cls, _ = (ALL_TOOLS if is_local_data else MCP_TOOLS).get(call.name, (None, None))
         if model_cls is None:
             return self._fail(call, "bad_args", "неизвестный инструмент")
         try:
@@ -133,6 +144,16 @@ class _Executor:
                 "step",
                 {"n": self._step_n, "tool": call.name, "label": _TOOL_LABELS.get(call.name, "Ищу данные")},
             )
+
+        # Локальные data-инструменты исполняются без MCP (recall_conversation).
+        if is_local_data:
+            payload = {"ok": True, "tool": call.name, **mem.recall(
+                self._history, args.get("query"), int(args.get("limit", 3))
+            )}
+            result = ToolResult(call_id=call.id, name=call.name, payload=payload)
+            self.results.append(result)
+            return result
+
         if self._session is None:
             return self._fail(call, "db_unavailable", "нет доступа к данным")
         key = _canonical(call.name, args)
@@ -190,7 +211,6 @@ async def _chat_with_fallback(
     telemetry: LoopTelemetry,
 ) -> LLMResponse:
     """Primary (with OpenRouter-side fallback list), then a manual backup try.
-
     Each attempt is capped at the smaller of the step timeout and the budget
     left before ``deadline``; the backup only runs if enough budget remains.
     """
@@ -239,9 +259,11 @@ async def run_loop(
     cfg: LoopConfig,
     user: str | None,
     answer_id: str,
+    history: list[Turn] | None = None,
     on_step: StepHook | None = None,
 ) -> dict[str, Any]:
     """Run the bounded agentic loop and return the finished envelope."""
+    history = history or []
     start = time.monotonic()
     # Stop driving the LLM early enough to leave _FALLBACK_RESERVE for the
     # rules/template fallback within the overall budget (section 7.3).
@@ -249,6 +271,7 @@ async def run_loop(
     telemetry = LoopTelemetry()
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": build_system_prompt(actor, today, cfg.tz, scope)},
+        *mem.history_messages(history),
         {"role": "user", "content": question},
     ]
 
@@ -262,7 +285,7 @@ async def run_loop(
         session = None
 
     try:
-        executor = _Executor(session, cfg, actor, on_step)
+        executor = _Executor(session, cfg, actor, on_step, history)
         for step in range(cfg.max_llm_calls):
             if deadline - time.monotonic() < _MIN_STEP_BUDGET:
                 break
@@ -286,16 +309,16 @@ async def run_loop(
                 # half-number, so force the deterministic template instead.
                 model_text = None if resp.finish_reason == "length" else resp.content
                 return _finish(
-                    answer_id, mode, model_text, question, executor, today, scope, telemetry, start
+                    answer_id, mode, model_text, question, executor, today, scope, telemetry, start, history
                 )
 
             local = next((c for c in calls if c.name == "reply_without_data"), None)
             if local is not None:
-                return _finish_local(answer_id, mode, local, today, scope, telemetry, start)
+                return _finish_local(answer_id, mode, local, today, scope, telemetry, start, history)
 
             await _execute_step(calls, executor, messages, cfg)
 
-        return _finish(answer_id, mode, None, question, executor, today, scope, telemetry, start)
+        return _finish(answer_id, mode, None, question, executor, today, scope, telemetry, start, history)
     finally:
         if session is not None:
             await session_cm.__aexit__(None, None, None)
@@ -334,7 +357,9 @@ def _finish(
     scope: str,
     telemetry: LoopTelemetry,
     start: float,
+    history: list[Turn] | None = None,
 ) -> dict[str, Any]:
+    history = history or []
     for res in executor.results:
         telemetry.record_tool(res, executor.call_args.get(res.call_id))
     return env.finalize_answer(
@@ -348,6 +373,8 @@ def _finish(
         scope=scope,
         telemetry=telemetry,
         latency_ms=int((time.monotonic() - start) * 1000),
+        history_numbers=mem.history_numbers(history),
+        memory_turns=sum(1 for t in history if t.in_prompt),
     )
 
 
@@ -359,7 +386,9 @@ def _finish_local(
     scope: str,
     telemetry: LoopTelemetry,
     start: float,
+    history: list[Turn] | None = None,
 ) -> dict[str, Any]:
+    history = history or []
     try:
         reply = validate_reply(call.parsed_arguments())
         message = reply.message
@@ -377,6 +406,7 @@ def _finish_local(
         telemetry=telemetry,
         latency_ms=int((time.monotonic() - start) * 1000),
         local_message=message,
+        memory_turns=sum(1 for t in history if t.in_prompt),
     )
 
 
@@ -390,22 +420,24 @@ async def run_rules(
     cfg: LoopConfig,
     answer_id: str,
     fallback_from: str | None = None,
+    history: list[Turn] | None = None,
     on_step: StepHook | None = None,
 ) -> dict[str, Any]:
     """Deterministic router: regex -> the same MCP tools -> templated answer."""
+    history = history or []
     start = time.monotonic()
     telemetry = LoopTelemetry()
     if fallback_from:
         telemetry.fallback = "rules"
-    calls = rules.route(question)
+    calls = rules.route(question, history)
 
     local = next((c for c in calls if c.name == "reply_without_data"), None)
     if local is not None:
-        return _finish_local(answer_id, "rules", local, today, scope, telemetry, start)
+        return _finish_local(answer_id, "rules", local, today, scope, telemetry, start, history)
 
     try:
         async with McpSession(cfg.mcp_url, token) as session:
-            executor = _Executor(session, cfg, actor, on_step)
+            executor = _Executor(session, cfg, actor, on_step, history)
             for call in calls[: cfg.max_tool_calls_per_step]:
                 await executor.run(call)
     except McpError:
@@ -414,7 +446,7 @@ async def run_rules(
             text="Сейчас не могу получить данные о платежах. Попробуйте позже.",
             today=today, scope=scope, telemetry=telemetry, latency_ms=0,
         )
-    env_out = _finish(answer_id, "rules", None, question, executor, today, scope, telemetry, start)
+    env_out = _finish(answer_id, "rules", None, question, executor, today, scope, telemetry, start, history)
     env_out["notes"] = ["Упрощённый режим.", *env_out.get("notes", [])]
     return env_out
 
@@ -431,13 +463,15 @@ async def answer(
     cfg: LoopConfig,
     user: str | None,
     answer_id: str,
+    history: list[Turn] | None = None,
     on_step: StepHook | None = None,
 ) -> dict[str, Any]:
     """Top-level: run the chosen brain and apply the rules fallback (§7.2)."""
+    history = history or []
     if llm_mode == "rules":
         return await run_rules(
             question=question, actor=actor, token=token, today=today, scope=scope,
-            cfg=cfg, answer_id=answer_id, on_step=on_step,
+            cfg=cfg, answer_id=answer_id, history=history, on_step=on_step,
         )
 
     assert llm is not None, "llm client required for openrouter/fake modes"
@@ -448,14 +482,15 @@ async def answer(
         async with asyncio.timeout(cfg.total_timeout):
             return await run_loop(
                 question=question, actor=actor, token=token, today=today, scope=scope,
-                mode=mode, llm=llm, cfg=cfg, user=user, answer_id=answer_id, on_step=on_step,
+                mode=mode, llm=llm, cfg=cfg, user=user, answer_id=answer_id,
+                history=history, on_step=on_step,
             )
     except TimeoutError:
         log.warning("agent loop exceeded %.1fs budget", cfg.total_timeout)
         if cfg.rules_fallback:
             return await run_rules(
                 question=question, actor=actor, token=token, today=today, scope=scope,
-                cfg=cfg, answer_id=answer_id, fallback_from=mode, on_step=on_step,
+                cfg=cfg, answer_id=answer_id, fallback_from=mode, history=history, on_step=on_step,
             )
         return env.error_envelope(
             answer_id=answer_id, mode=mode, error_code=env.ERR_TIMEOUT,
@@ -475,7 +510,7 @@ async def answer(
             log.warning("LLM unavailable; falling back to rules")
             return await run_rules(
                 question=question, actor=actor, token=token, today=today, scope=scope,
-                cfg=cfg, answer_id=answer_id, fallback_from=mode, on_step=on_step,
+                cfg=cfg, answer_id=answer_id, fallback_from=mode, history=history, on_step=on_step,
             )
         return env.error_envelope(
             answer_id=answer_id, mode=mode, error_code=env.ERR_LLM_UNAVAILABLE,

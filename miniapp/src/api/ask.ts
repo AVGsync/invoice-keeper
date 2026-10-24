@@ -21,6 +21,7 @@ const CODE_MESSAGES: Record<string, string> = {
   rate_limited: 'Слишком много запросов, подождите немного',
   data_unavailable: 'Не удалось получить данные',
   bad_question: 'Переформулируйте вопрос',
+  aborted: 'Остановлено',
 }
 
 export function codeMessage(code: string): string {

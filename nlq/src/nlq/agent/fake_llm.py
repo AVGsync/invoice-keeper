@@ -22,6 +22,8 @@ class FakeLLM:
         self._script = list(script)
         self._step = 0
         self._model = model
+        # Копии messages каждого вызова chat — для тестов истории (SPEC §D.6).
+        self.received: list[list[dict[str, Any]]] = []
 
     @property
     def primary(self) -> str:
@@ -45,6 +47,7 @@ class FakeLLM:
         fallback_models: list[str] | None = None,
         user: str | None = None,
     ) -> LLMResponse:
+        self.received.append([dict(m) for m in messages])
         if self._step >= len(self._script):
             return LLMResponse(content="", tool_calls=[], finish_reason="stop", model=self._model)
         step = self._script[self._step]

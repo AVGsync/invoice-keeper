@@ -71,5 +71,10 @@ type BotAPI interface {
 // NLAnswerer — порт NL-ассистента, объявленный потребителем (ботом, §4.4).
 // Реализует *service.AssistantService. channel всегда "bot"; лимиты общие с HTTP.
 type NLAnswerer interface {
+	// Ask — вопрос с разговором по каналу (bot → tg:dm). Сохранён для совместимости.
 	Ask(ctx context.Context, userID, channel, question string) (model.AssistantAnswer, error)
+	// AskIn — вопрос с явным разговором (tg:dm в личке, tg:<chat_id> в группе).
+	AskIn(ctx context.Context, userID, conversation, question string) (model.AssistantAnswer, error)
+	// ResetConversation очищает один разговор пользователя (команды /new, /reset).
+	ResetConversation(ctx context.Context, userID, channel, conversation string) (int, error)
 }

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/request"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/response"
@@ -21,7 +22,7 @@ type UserUseCase interface {
 	AuthenticateUser(req request.LoginRequest, ctx context.Context) (string, string, error)
 	ValidateRefreshToken(token string) (model.RefreshToken, string, error)
 	GenerateAccessRefreshTokens(refreshToken model.RefreshToken, userID string) (string, string, error)
-	RevokeRefreshToken(token string) error
+	RevokeRefreshToken(ctx context.Context, token string) error
 	CreateUser(user request.CreateUserRequest, ctx context.Context) error
 	GetAllUsers(ctx context.Context) ([]model.User, error)
 	GetAllUsersWithTotal(ctx context.Context) (response.UserListResponse, error)
@@ -34,6 +35,10 @@ type UserHandler struct {
 	useCase    UserUseCase
 	accessTTL  time.Duration
 	refreshTTL time.Duration
+	// audit — журнал действий; по умолчанию Nop. Используется для событий,
+	// которых не видит сервис (неуспешный refresh). Боевой рекордер ставит
+	// apiserver через SetAuditRecorder.
+	audit audit.Recorder
 }
 
 func NewUserHandler(useCase UserUseCase, accessTTL, refreshTTL time.Duration) *UserHandler {
@@ -41,8 +46,12 @@ func NewUserHandler(useCase UserUseCase, accessTTL, refreshTTL time.Duration) *U
 		useCase:    useCase,
 		accessTTL:  accessTTL,
 		refreshTTL: refreshTTL,
+		audit:      audit.Nop{},
 	}
 }
+
+// SetAuditRecorder подключает журнал действий к хендлеру.
+func (h *UserHandler) SetAuditRecorder(r audit.Recorder) { h.audit = r }
 
 // setAuthCookies выставляет пару токенов HttpOnly-куками; срок жизни кук
 // совпадает с TTL токенов из конфига (TTL_ACCESS_TOKEN / TTL_REFRESH_TOKEN).
@@ -145,7 +154,7 @@ func (h *UserHandler) Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie("RefreshToken"); err == nil && c.Value != "" {
 			// ошибку "не найден" глотаем — logout идемпотентен
-			if err := h.useCase.RevokeRefreshToken(c.Value); err != nil {
+			if err := h.useCase.RevokeRefreshToken(r.Context(), c.Value); err != nil {
 				slog.Warn("logout: revoke failed", "error", err)
 			}
 		}
@@ -184,23 +193,27 @@ func (h *UserHandler) RefreshToken() http.HandlerFunc {
 		// идентичность подтверждается refresh-токеном из HttpOnly-куки.
 		refreshToken, err := r.Cookie("RefreshToken")
 		if err != nil {
+			h.recordRefreshFailure(r, "no_token")
 			http.Error(w, "no refresh token", http.StatusUnauthorized)
 			return
 		}
 
 		refreshTokenModel, userID, err := h.useCase.ValidateRefreshToken(refreshToken.Value)
 		if err != nil {
+			h.recordRefreshFailure(r, "invalid_token")
 			http.Error(w, "invalid refresh token", http.StatusUnauthorized)
 			return
 		}
 
 		if _, err := h.useCase.GetUserByID(userID, r.Context()); err != nil {
+			h.recordRefreshFailure(r, "user_not_found")
 			http.Error(w, "user not found", http.StatusUnauthorized)
 			return
 		}
 
 		access, refresh, err := h.useCase.GenerateAccessRefreshTokens(refreshTokenModel, userID)
 		if err != nil {
+			h.recordRefreshFailure(r, "token_error")
 			http.Error(w, "failed to generate new tokens", http.StatusInternalServerError)
 			return
 		}
@@ -432,6 +445,16 @@ func (h *UserHandler) UpdateUserByID() http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+// recordRefreshFailure пишет неуспешное обновление сессии в журнал (auth.refresh,
+// failure). Актор неизвестен (токен не прошёл), сущность не указывается.
+func (h *UserHandler) recordRefreshFailure(r *http.Request, reason string) {
+	h.audit.Record(r.Context(), audit.Entry{
+		Action:  audit.ActionAuthRefresh,
+		Outcome: audit.OutcomeFailure,
+		Payload: map[string]any{"reason": reason},
+	})
 }
 
 // Me godoc

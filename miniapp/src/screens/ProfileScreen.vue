@@ -68,7 +68,7 @@ function go(path: string): void {
   display: block;
   color: var(--bone);
   font-size: var(--fs-small);
-  border-left: 2px solid rgba(var(--violet), 0.9);
+  border-left: 2px solid var(--red);
   padding-left: 10px;
   margin-top: 8px;
 }

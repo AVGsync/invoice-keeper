@@ -10,7 +10,7 @@ import (
 // mountPayments монтирует модуль регулярных платежей и их периодов (владелец —
 // второй бэкендер). Вызывается внутри защищённой группы (Auth, LimitByUser,
 // IsUserOrAdmin).
-func (s *APIServer) mountPayments(r chi.Router, mw *middleware.Middleware, paymentHandler *handler.PaymentHandler) {
+func (s *APIServer) mountPayments(r chi.Router, mw *middleware.Middleware, paymentHandler *handler.PaymentHandler, searchHandler *handler.SearchHandler) {
 	r.Route("/payments", func(r chi.Router) {
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
 
@@ -22,6 +22,8 @@ func (s *APIServer) mountPayments(r chi.Router, mw *middleware.Middleware, payme
 	r.Route("/recurring-payments", func(r chi.Router) {
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
 
+		// Статический /search приоритетнее /{id}; права как у списка.
+		r.Get("/search", searchHandler.SearchRecurring())
 		r.Get("/", paymentHandler.GetRecurringPayments())
 
 		r.Group(func(r chi.Router) {
@@ -35,6 +37,8 @@ func (s *APIServer) mountPayments(r chi.Router, mw *middleware.Middleware, payme
 	r.Route("/payment-occurrences", func(r chi.Router) {
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
 
+		// Статический /search приоритетнее /{id}; права как у списка.
+		r.Get("/search", searchHandler.SearchOccurrences())
 		r.Get("/", paymentHandler.GetPaymentOccurrences())
 		r.Get("/{id}", paymentHandler.GetPaymentOccurrence())
 		r.Patch("/{id}", paymentHandler.PatchPaymentOccurrence())

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
+	"github.com/AVGsync/invoice-keeper/backend/internal/model/response"
 	"github.com/AVGsync/invoice-keeper/backend/internal/service"
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/middleware"
 )
@@ -69,7 +70,7 @@ func doAsk(t *testing.T, h *AssistantHandler, body string) *httptest.ResponseRec
 }
 
 func TestHandlerAsk_Disabled503(t *testing.T) {
-	h := NewAssistantHandler(&mockUseCase{enabled: false})
+	h := NewAssistantHandler(&mockUseCase{enabled: false}, response.AssistantMemoryInfo{Enabled: true, ContextTurns: 4, TTLSeconds: 7200})
 	rec := doAsk(t, h, `{"question":"что просрочено?"}`)
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("code = %d, want 503", rec.Code)
@@ -80,7 +81,7 @@ func TestHandlerAsk_Disabled503(t *testing.T) {
 }
 
 func TestHandlerStatus_Disabled(t *testing.T) {
-	h := NewAssistantHandler(&mockUseCase{enabled: false})
+	h := NewAssistantHandler(&mockUseCase{enabled: false}, response.AssistantMemoryInfo{Enabled: true, ContextTurns: 4, TTLSeconds: 7200})
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/assistant/status", nil)
 	req = withClaims(req)
 	rec := httptest.NewRecorder()
@@ -103,7 +104,7 @@ func TestHandlerStatus_Disabled(t *testing.T) {
 }
 
 func TestHandlerAsk_BadQuestionTooLong(t *testing.T) {
-	h := NewAssistantHandler(&mockUseCase{enabled: true})
+	h := NewAssistantHandler(&mockUseCase{enabled: true}, response.AssistantMemoryInfo{Enabled: true, ContextTurns: 4, TTLSeconds: 7200})
 	long := strings.Repeat("я", 501)
 	rec := doAsk(t, h, `{"question":"`+long+`"}`)
 	if rec.Code != http.StatusBadRequest {
@@ -115,7 +116,7 @@ func TestHandlerAsk_BadQuestionTooLong(t *testing.T) {
 }
 
 func TestHandlerAsk_BadChannelBot(t *testing.T) {
-	h := NewAssistantHandler(&mockUseCase{enabled: true})
+	h := NewAssistantHandler(&mockUseCase{enabled: true}, response.AssistantMemoryInfo{Enabled: true, ContextTurns: 4, TTLSeconds: 7200})
 	rec := doAsk(t, h, `{"question":"ок","channel":"bot"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("code = %d, want 400 (bot channel forbidden over HTTP)", rec.Code)
@@ -124,7 +125,7 @@ func TestHandlerAsk_BadChannelBot(t *testing.T) {
 
 func TestHandlerAsk_RateLimited429(t *testing.T) {
 	m := &mockUseCase{enabled: true, proxyErr: &service.RateLimitedError{RetryAfter: 7 * time.Second}}
-	h := NewAssistantHandler(m)
+	h := NewAssistantHandler(m, response.AssistantMemoryInfo{Enabled: true, ContextTurns: 4, TTLSeconds: 7200})
 	rec := doAsk(t, h, `{"question":"ок"}`)
 	if rec.Code != http.StatusTooManyRequests {
 		t.Fatalf("code = %d, want 429", rec.Code)
@@ -139,7 +140,7 @@ func TestHandlerAsk_RateLimited429(t *testing.T) {
 
 func TestHandlerAsk_Timeout504(t *testing.T) {
 	m := &mockUseCase{enabled: true, proxyErr: service.ErrAssistantTimeout}
-	h := NewAssistantHandler(m)
+	h := NewAssistantHandler(m, response.AssistantMemoryInfo{Enabled: true, ContextTurns: 4, TTLSeconds: 7200})
 	rec := doAsk(t, h, `{"question":"ок"}`)
 	if rec.Code != http.StatusGatewayTimeout {
 		t.Fatalf("code = %d, want 504", rec.Code)
@@ -151,7 +152,7 @@ func TestHandlerAsk_Timeout504(t *testing.T) {
 
 func TestHandlerAsk_Busy503(t *testing.T) {
 	m := &mockUseCase{enabled: true, proxyErr: service.ErrAssistantBusy}
-	h := NewAssistantHandler(m)
+	h := NewAssistantHandler(m, response.AssistantMemoryInfo{Enabled: true, ContextTurns: 4, TTLSeconds: 7200})
 	rec := doAsk(t, h, `{"question":"ок"}`)
 	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "assistant_busy") {
 		t.Fatalf("code = %d body = %s", rec.Code, rec.Body.String())
@@ -161,7 +162,7 @@ func TestHandlerAsk_Busy503(t *testing.T) {
 func TestHandlerAsk_PassThroughEnvelope(t *testing.T) {
 	envelope := `{"answer_id":"rid","status":"ok","mode":"llm","text":"ок","blocks":[],"followups":[],"notes":[],"meta":{"model":"x"}}`
 	m := &mockUseCase{enabled: true, proxyBody: envelope, proxyCode: http.StatusOK}
-	h := NewAssistantHandler(m)
+	h := NewAssistantHandler(m, response.AssistantMemoryInfo{Enabled: true, ContextTurns: 4, TTLSeconds: 7200})
 	rec := doAsk(t, h, `{"question":"что просрочено?","channel":"web"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("code = %d, want 200", rec.Code)
@@ -176,7 +177,7 @@ func TestHandlerAsk_PassThroughEnvelope(t *testing.T) {
 
 func TestHandlerAskStream_UsesStreamPath(t *testing.T) {
 	m := &mockUseCase{enabled: true, proxyBody: "event: done\ndata: {}\n\n", proxyCode: http.StatusOK}
-	h := NewAssistantHandler(m)
+	h := NewAssistantHandler(m, response.AssistantMemoryInfo{Enabled: true, ContextTurns: 4, TTLSeconds: 7200})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/assistant/ask/stream", strings.NewReader(`{"question":"ок"}`))
 	req = withClaims(req)
 	rec := httptest.NewRecorder()

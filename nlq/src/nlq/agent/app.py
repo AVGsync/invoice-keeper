@@ -21,6 +21,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from ..common.actor import Actor, verify_actor
 from ..common.errors import BadArgs, InvalidActor
 from . import loop
+from . import memory as mem
+from .memory import Turn
 from .openrouter import hash_user
 from .service import AgentService
 
@@ -62,8 +64,8 @@ def create_app(service: AgentService | None = None) -> FastAPI:
 
     async def _prepare(
         request: Request, authorization: str | None
-    ) -> tuple[Actor, str, str, str] | JSONResponse:
-        """Verify actor + validate body. Returns (actor, question, token, rid)."""
+    ) -> tuple[Actor, str, str, str, list[Turn]] | JSONResponse:
+        """Verify actor + validate body. Returns (actor, question, token, rid, history)."""
         actor_or_err = _authenticate(authorization)
         if isinstance(actor_or_err, JSONResponse):
             return actor_or_err
@@ -83,15 +85,16 @@ def create_app(service: AgentService | None = None) -> FastAPI:
         if channel not in _CHANNELS or channel != actor.ch:
             return JSONResponse({"error": {"code": "bad_question"}}, status_code=400)
         rid = actor.rid or request.headers.get("x-request-id") or ""
-        return actor, question, token, rid
+        history = mem.parse_history(body.get("history"))
+        return actor, question, token, rid, history
 
     @app.post("/v1/ask")
     async def ask(request: Request, authorization: str | None = Header(default=None)) -> Any:
         prepared = await _prepare(request, authorization)
         if isinstance(prepared, JSONResponse):
             return prepared
-        actor, question, token, rid = prepared
-        envelope = await svc_answer(svc, actor, question, token, rid)
+        actor, question, token, rid, history = prepared
+        envelope = await svc_answer(svc, actor, question, token, rid, history=history)
         return JSONResponse(envelope)
 
     @app.post("/v1/ask/stream")
@@ -101,9 +104,9 @@ def create_app(service: AgentService | None = None) -> FastAPI:
         prepared = await _prepare(request, authorization)
         if isinstance(prepared, JSONResponse):
             return prepared
-        actor, question, token, rid = prepared
+        actor, question, token, rid, history = prepared
         return StreamingResponse(
-            _sse(svc, actor, question, token, rid),
+            _sse(svc, actor, question, token, rid, history),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
@@ -122,6 +125,7 @@ async def svc_answer(
     token: str,
     rid: str,
     on_step: loop.StepHook | None = None,
+    history: list[Turn] | None = None,
 ) -> dict[str, Any]:
     scope = svc.effective_scope(actor)
     return await loop.answer(
@@ -135,6 +139,7 @@ async def svc_answer(
         cfg=svc.make_cfg(),
         user=hash_user(str(actor.sub)),
         answer_id=rid,
+        history=history or [],
         on_step=on_step,
     )
 
@@ -144,7 +149,8 @@ def _sse_event(event: str, data: dict[str, Any]) -> str:
 
 
 async def _sse(
-    svc: AgentService, actor: Actor, question: str, token: str, rid: str
+    svc: AgentService, actor: Actor, question: str, token: str, rid: str,
+    history: list[Turn] | None = None,
 ) -> AsyncIterator[str]:
     """Stream step events as tools run, then the blocks, text and final envelope.
 
@@ -156,7 +162,7 @@ async def _sse(
     async def on_step(event: str, data: dict[str, Any]) -> None:
         await queue.put((event, data))
 
-    task = asyncio.create_task(svc_answer(svc, actor, question, token, rid, on_step))
+    task = asyncio.create_task(svc_answer(svc, actor, question, token, rid, on_step, history))
     drain: asyncio.Future[tuple[str, dict[str, Any]]] | None = None
     try:
         while True:

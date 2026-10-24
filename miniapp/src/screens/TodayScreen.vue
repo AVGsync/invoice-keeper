@@ -140,7 +140,7 @@ onMounted(() => void occurrences.load())
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius);
   background: #5b4bd0;
-  color: var(--snow);
+  color: var(--on-horizon);
   padding: var(--sp-5) var(--sp-5) var(--sp-6);
   margin: var(--sp-5) 0 0;
   position: relative;
@@ -219,7 +219,7 @@ onMounted(() => void occurrences.load())
   background:
     no-repeat center / 14px
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M1 7h11M8 3l4 4-4 4' fill='none' stroke='%23161616' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
-    var(--snow);
+    var(--on-horizon);
 }
 .ov-head {
   font-size: var(--fs-small);
@@ -277,7 +277,7 @@ onMounted(() => void occurrences.load())
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--snow);
+  background: var(--red);
   flex: 0 0 6px;
 }
 .over :deep(.num) {

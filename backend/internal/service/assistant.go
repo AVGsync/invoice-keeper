@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/clock"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 
@@ -83,6 +84,11 @@ type AssistantService struct {
 	limiter *userLimiter
 	sem     chan struct{}
 
+	// history — память диалога (SPEC §D). nil, пока не подключена SetHistory.
+	history *AssistantHistoryService
+	// audit — журнал действий; по умолчанию Nop.
+	audit audit.Recorder
+
 	healthMu   sync.Mutex
 	healthAt   time.Time
 	healthResp agentHealth
@@ -109,6 +115,18 @@ func NewAssistantService(users AssistantUserReader, cfg AssistantConfig, clk clo
 		httpClient: &http.Client{},
 		limiter:    newUserLimiter(cfg.RatePerMin, cfg.DailyLimit, clk),
 		sem:        make(chan struct{}, maxConc),
+		audit:      audit.Nop{},
+	}
+}
+
+// SetHistory подключает память диалога. Вызывается из apiserver при включённой
+// фиче (ручки истории работают и без неё — через отдельный сервис).
+func (s *AssistantService) SetHistory(h *AssistantHistoryService) { s.history = h }
+
+// SetAuditRecorder подключает журнал действий (события assistant.ask).
+func (s *AssistantService) SetAuditRecorder(r audit.Recorder) {
+	if r != nil {
+		s.audit = r
 	}
 }
 
@@ -170,10 +188,21 @@ func ValidateChannel(ch string) (string, error) {
 	}
 }
 
-// Ask — непотоковый вопрос (путь бота, порт NLAnswerer, §4.4). Применяет те же
-// лимиты, что HTTP, разбирает конверт в model.AssistantAnswer.
+// Ask — непотоковый вопрос (путь бота, порт NLAnswerer, §4.4). Разговор
+// выбирается по каналу (bot → tg:dm). Сохраняется для совместимости порта.
 func (s *AssistantService) Ask(ctx context.Context, userID, channel, question string) (model.AssistantAnswer, error) {
-	resp, release, err := s.dispatch(ctx, userID, channel, question, "", "/v1/ask")
+	return s.askOnce(ctx, userID, channel, conversationForChannel(channel), question)
+}
+
+// AskIn — непотоковый вопрос с явным разговором (бот в личке/группе). channel
+// всегда "bot".
+func (s *AssistantService) AskIn(ctx context.Context, userID, conversation, question string) (model.AssistantAnswer, error) {
+	return s.askOnce(ctx, userID, channelBot, conversation, question)
+}
+
+// askOnce выполняет непотоковый вопрос, разбирает конверт в model.AssistantAnswer.
+func (s *AssistantService) askOnce(ctx context.Context, userID, channel, conversation, question string) (model.AssistantAnswer, error) {
+	resp, release, err := s.dispatch(ctx, userID, channel, conversation, question, "", "/v1/ask")
 	if err != nil {
 		return model.AssistantAnswer{}, err
 	}
@@ -192,21 +221,49 @@ func (s *AssistantService) Ask(ctx context.Context, userID, channel, question st
 	return parseEnvelope(body)
 }
 
+// ResetConversation очищает один разговор пользователя (бот /new, /reset).
+// channel всегда "bot" для бота. Возвращает число удалённых ходов.
+func (s *AssistantService) ResetConversation(ctx context.Context, userID, channel, conversation string) (int, error) {
+	if s.history == nil {
+		return 0, nil
+	}
+	return s.history.Clear(ctx, userID, channel, conversation, false)
+}
+
 // Proxy выполняет вопрос и отдаёт сырой ответ агента вызывающему (HTTP-хендлеру):
 // он проксирует конверт байт-в-байт (для точной схемы блоков и meta) или
 // стримит SSE. release закрывает тело и освобождает семафор — вызвать после
 // чтения/копирования тела. При ошибке лимитов/подготовки release == nil.
+// Разговор для HTTP равен каналу (web|miniapp).
 func (s *AssistantService) Proxy(ctx context.Context, userID, channel, question, requestID, path string) (*http.Response, func(), error) {
-	return s.dispatch(ctx, userID, channel, question, requestID, path)
+	return s.dispatch(ctx, userID, channel, channel, question, requestID, path)
+}
+
+// conversationForChannel выбирает область диалога по каналу (SPEC §D.1).
+func conversationForChannel(channel string) string {
+	if channel == channelBot {
+		return "tg:dm"
+	}
+	return channel
+}
+
+// agentRequest — тело запроса к агенту (§D.4). Поле history необязательно.
+type agentRequest struct {
+	Question string        `json:"question"`
+	Channel  string        `json:"channel"`
+	History  []HistoryTurn `json:"history,omitempty"`
 }
 
 // dispatch — общий путь: фича включена, лимиты, семафор, роль из БД, actor-JWT,
-// HTTP к агенту. Возвращает «живой» *http.Response и release.
-func (s *AssistantService) dispatch(ctx context.Context, userID, channel, question, requestID, path string) (*http.Response, func(), error) {
+// память в промпт, HTTP к агенту. Возвращает «живой» *http.Response и release.
+// При 200 и включённой памяти тело заворачивается в captureBody: на Close из него
+// извлекается конверт, пишется ход истории и аудит assistant.ask.
+func (s *AssistantService) dispatch(ctx context.Context, userID, channel, conversation, question, requestID, path string) (*http.Response, func(), error) {
 	if !s.cfg.Enabled {
 		return nil, nil, ErrAssistantDisabled
 	}
 	if allowed, retryAfter := s.limiter.allow(userID); !allowed {
+		s.auditAskFailure(ctx, channel, userID, "", "rate_limited")
 		return nil, nil, &RateLimitedError{RetryAfter: retryAfter}
 	}
 
@@ -214,6 +271,7 @@ func (s *AssistantService) dispatch(ctx context.Context, userID, channel, questi
 	select {
 	case s.sem <- struct{}{}:
 	default:
+		s.auditAskFailure(ctx, channel, userID, "", "busy")
 		return nil, nil, ErrAssistantBusy
 	}
 	released := false
@@ -229,9 +287,11 @@ func (s *AssistantService) dispatch(ctx context.Context, userID, channel, questi
 	if err != nil {
 		releaseSem()
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, model.ErrUserNotFound) {
+			s.auditAskFailure(ctx, channel, userID, "", "bad_question")
 			return nil, nil, ErrAssistantBadQuestion
 		}
 		slog.Error("assistant: load user", "error", err)
+		s.auditAskFailure(ctx, channel, userID, "", "unavailable")
 		return nil, nil, ErrAssistantUnavailable
 	}
 
@@ -239,16 +299,28 @@ func (s *AssistantService) dispatch(ctx context.Context, userID, channel, questi
 	if err != nil {
 		releaseSem()
 		slog.Error("assistant: mint actor token", "error", err)
+		s.auditAskFailure(ctx, channel, user.ID, user.Role, "unavailable")
 		return nil, nil, ErrAssistantUnavailable
+	}
+
+	// История в промпт (SPEC §D.4). Ошибка загрузки не валит вопрос.
+	var history []HistoryTurn
+	if s.history != nil && s.history.Enabled() {
+		if h, _, herr := s.history.ContextFor(ctx, user.ID, conversation); herr != nil {
+			slog.Warn("assistant: load history", "error", herr)
+		} else {
+			history = h
+		}
 	}
 
 	reqCtx, cancel := context.WithTimeout(ctx, s.cfg.Timeout)
 
-	payload, _ := json.Marshal(map[string]string{"question": question, "channel": channel})
+	payload, _ := json.Marshal(agentRequest{Question: question, Channel: channel, History: history})
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, s.cfg.AgentURL+path, bytes.NewReader(payload))
 	if err != nil {
 		cancel()
 		releaseSem()
+		s.auditAskFailure(ctx, channel, user.ID, user.Role, "unavailable")
 		return nil, nil, ErrAssistantUnavailable
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -262,14 +334,25 @@ func (s *AssistantService) dispatch(ctx context.Context, userID, channel, questi
 		cancel()
 		releaseSem()
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(reqCtx.Err(), context.DeadlineExceeded) {
+			s.auditAskFailure(ctx, channel, user.ID, user.Role, "timeout")
 			return nil, nil, ErrAssistantTimeout
 		}
 		if errors.Is(err, context.Canceled) {
-			// Клиент отключился: не наша неисправность.
+			// Клиент отключился: не наша неисправность, аудит не пишем.
 			return nil, nil, context.Canceled
 		}
 		slog.Warn("assistant: agent request failed", "error", err)
+		s.auditAskFailure(ctx, channel, user.ID, user.Role, "unavailable")
 		return nil, nil, ErrAssistantUnavailable
+	}
+
+	// Захват конверта для памяти и аудита — только при 200 и включённой памяти.
+	if resp.StatusCode == http.StatusOK && s.history != nil && s.history.Enabled() {
+		stream := strings.HasSuffix(path, "/stream")
+		base := auditContext(ctx, channel, user.ID, user.Role)
+		resp.Body = newCaptureBody(resp.Body, stream, func(raw []byte) {
+			s.onEnvelope(base, user.ID, channel, conversation, question, raw)
+		})
 	}
 
 	release := func() {
@@ -278,6 +361,131 @@ func (s *AssistantService) dispatch(ctx context.Context, userID, channel, questi
 		releaseSem()
 	}
 	return resp, release, nil
+}
+
+// onEnvelope разбирает захваченный конверт, пишет ход истории и аудит
+// assistant.ask. Выполняется на Close тела (после возврата хендлера), поэтому
+// контекст делается нетменяемым (WithoutCancel) с коротким таймаутом.
+func (s *AssistantService) onEnvelope(base context.Context, userID, channel, conversation, question string, raw []byte) {
+	env, memory, ok := parseCaptureEnvelope(raw)
+	if !ok {
+		slog.Error("assistant: capture parse failed")
+		return
+	}
+	octx, cancel := context.WithTimeout(context.WithoutCancel(base), 3*time.Second)
+	defer cancel()
+
+	if s.history != nil {
+		if err := s.history.Append(octx, AppendRecord{
+			UserID:       userID,
+			Channel:      channel,
+			Conversation: conversation,
+			AnswerID:     env.AnswerID,
+			Question:     question,
+			AnswerText:   truncateRunes(env.Text, 1200),
+			Status:       env.Status,
+			ErrorCode:    env.ErrorCode,
+			Mode:         env.Mode,
+			Memory:       memory,
+		}); err != nil {
+			slog.Error("assistant: append history", "error", err)
+		}
+	}
+
+	s.audit.Record(octx, audit.Entry{
+		Action:     audit.ActionAssistantAsk,
+		EntityType: audit.EntityAssistantTurn,
+		EntityID:   env.AnswerID,
+		ActorID:    userID,
+		Outcome:    outcomeFor(env.Status),
+		Payload:    map[string]any{"channel": channel, "conversation": conversation, "mode": env.Mode, "status": env.Status},
+	})
+}
+
+// auditAskFailure пишет аудит отказа ассистента до ответа агента (§D.4). Пишется
+// best-effort синхронно на нетменяемом контексте.
+func (s *AssistantService) auditAskFailure(ctx context.Context, channel, userID, role, code string) {
+	octx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+	defer cancel()
+	s.audit.Record(auditContext(octx, channel, userID, role), audit.Entry{
+		Action:     audit.ActionAssistantAsk,
+		EntityType: audit.EntityAssistantTurn,
+		ActorID:    userID,
+		ActorRole:  role,
+		Outcome:    audit.OutcomeFailure,
+		Payload:    map[string]any{"channel": channel, "error_code": code},
+	})
+}
+
+// auditContext дополняет метаданные журнала каналом/актором, если их нет в
+// контексте (для бота и фоновых путей; у HTTP их уже проставил middleware).
+func auditContext(ctx context.Context, channel, userID, role string) context.Context {
+	m, _ := audit.MetaFrom(ctx)
+	if m.Channel == "" {
+		m.Channel = channel
+	}
+	if m.ActorID == "" {
+		m.ActorID = userID
+	}
+	if m.ActorRole == "" {
+		m.ActorRole = role
+	}
+	return audit.WithMeta(ctx, m)
+}
+
+// captureEnvelope — поля конверта, нужные для памяти и аудита.
+type captureEnvelope struct {
+	AnswerID  string
+	Status    string
+	ErrorCode string
+	Mode      string
+	Text      string
+}
+
+// parseCaptureEnvelope разбирает захваченный конверт. memory берётся только если
+// это JSON-объект ≤8 КБ (иначе nil → {} в БД). ok=false, если конверт не разобрать.
+func parseCaptureEnvelope(raw []byte) (captureEnvelope, []byte, bool) {
+	var e struct {
+		AnswerID  string          `json:"answer_id"`
+		Status    string          `json:"status"`
+		ErrorCode string          `json:"error_code"`
+		Mode      string          `json:"mode"`
+		Text      string          `json:"text"`
+		Memory    json.RawMessage `json:"memory"`
+	}
+	if err := json.Unmarshal(raw, &e); err != nil || e.Status == "" {
+		return captureEnvelope{}, nil, false
+	}
+	var memory []byte
+	if n := len(e.Memory); n > 0 && n <= 8<<10 {
+		if trimmed := bytes.TrimSpace(e.Memory); len(trimmed) > 0 && trimmed[0] == '{' {
+			memory = append([]byte(nil), e.Memory...)
+		}
+	}
+	return captureEnvelope{e.AnswerID, e.Status, e.ErrorCode, e.Mode, e.Text}, memory, true
+}
+
+// outcomeFor маппит статус конверта в исход аудита.
+func outcomeFor(status string) string {
+	if status == "error" {
+		return audit.OutcomeFailure
+	}
+	return audit.OutcomeSuccess
+}
+
+// truncateRunes обрезает строку до n рун (без порчи рун).
+func truncateRunes(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	i := 0
+	for idx := range s {
+		if i == n {
+			return s[:idx]
+		}
+		i++
+	}
+	return s
 }
 
 // mintActor подписывает короткоживущий actor-JWT (EdDSA, §8.2). Формат обязан

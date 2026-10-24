@@ -69,8 +69,8 @@ function onTap(name: string): void {
   left: var(--tb-pad);
   width: calc((100% - var(--tb-pad) * 2) / var(--n));
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  background: var(--pill);
+  box-shadow: inset 0 0 0 1px var(--pill-ring);
   transform: translateX(calc(var(--i) * 100%));
   transition:
     transform 0.36s var(--ease-drawer),
@@ -113,7 +113,10 @@ function onTap(name: string): void {
   white-space: nowrap;
 }
 .tab.active {
-  color: var(--snow);
+  color: var(--bone-text);
+}
+.tab.active .icon {
+  stroke: var(--accent-ink);
 }
 .icon {
   width: 22px;

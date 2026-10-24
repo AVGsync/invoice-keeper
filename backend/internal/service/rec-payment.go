@@ -9,6 +9,7 @@ import (
 
 	"time"
 
+	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/clock"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/request"
@@ -46,6 +47,8 @@ type RecurrentPaymentService struct {
 	repository RecurrentPaymentRepository
 	future     FuturePaymentsUpdater
 	clk        clock.Clock
+	// audit — журнал действий; по умолчанию Nop (конструктор не меняется).
+	audit audit.Recorder
 }
 
 func NewRecurrentPaymentService(
@@ -57,8 +60,12 @@ func NewRecurrentPaymentService(
 		repository: repository,
 		future:     future,
 		clk:        clk,
+		audit:      audit.Nop{},
 	}
 }
+
+// SetAuditRecorder подключает журнал действий.
+func (s *RecurrentPaymentService) SetAuditRecorder(r audit.Recorder) { s.audit = r }
 
 // dayOffsetFor вычисляет day_offset из даты: monthly → день месяца, weekly →
 // день недели (0 = воскресенье, как time.Weekday).
@@ -142,6 +149,21 @@ func (s *RecurrentPaymentService) CreateRecurrentPayment(
 		return "", fmt.Errorf("recurrent payment service: create payment: %w", err)
 	}
 
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionRecurringCreate,
+		EntityType: audit.EntityRecurringPayment,
+		EntityID:   id,
+		Payload: map[string]any{
+			"amount":      payment.Amount,
+			"currency":    payment.Currency,
+			"description": payment.Description,
+			"frequency":   payment.Frequency,
+			"interval":    payment.Interval,
+			"start_date":  payment.StartDate,
+			"assignee_id": req.AssigneeID,
+		},
+	})
+
 	return id, nil
 }
 
@@ -181,6 +203,12 @@ func (s *RecurrentPaymentService) UpdateRecurrentPayment(
 	payment, err := s.repository.GetRecurrentPaymentByID(id, ctx)
 	if err != nil {
 		return err
+	}
+
+	oldAmount, oldCurrency, oldDescription := payment.Amount, payment.Currency, payment.Description
+	var oldAssignee any
+	if payment.AssigneeID != nil {
+		oldAssignee = *payment.AssigneeID
 	}
 
 	// Поля графика неизменяемы (D9).
@@ -260,6 +288,22 @@ func (s *RecurrentPaymentService) UpdateRecurrentPayment(
 		}
 	}
 
+	var newAssignee any = oldAssignee
+	if assigneeID != "" {
+		newAssignee = assigneeID
+	}
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionRecurringUpdate,
+		EntityType: audit.EntityRecurringPayment,
+		EntityID:   id,
+		Changes: audit.Diff().
+			Add("amount", oldAmount, payment.Amount).
+			Add("currency", oldCurrency, payment.Currency).
+			Add("description", oldDescription, payment.Description).
+			Add("assignee_id", oldAssignee, newAssignee).
+			Map(),
+	})
+
 	return nil
 }
 
@@ -268,6 +312,14 @@ func (s *RecurrentPaymentService) Stop(
 	id string,
 	ctx context.Context,
 ) error {
+	// Снимок описания и признака «уже остановлен» читаем до остановки.
+	description := ""
+	alreadyStopped := false
+	if before, err := s.repository.GetRecurrentPaymentByID(id, ctx); err == nil {
+		description = before.Description
+		alreadyStopped = before.StoppedAt != nil
+	}
+
 	if err := s.repository.Stop(id, s.clk.Today().String(), ctx); err != nil {
 		if errors.Is(err, model.ErrRecurrentPaymentNotFound) {
 			return model.ErrRecurrentPaymentNotFound
@@ -275,6 +327,13 @@ func (s *RecurrentPaymentService) Stop(
 		slog.Error("recurrent payment service: stop payment failed", "payment_id", id, "error", err)
 		return fmt.Errorf("recurrent payment service: stop payment: %w", err)
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		Action:     audit.ActionRecurringStop,
+		EntityType: audit.EntityRecurringPayment,
+		EntityID:   id,
+		Payload:    map[string]any{"description": description, "already_stopped": alreadyStopped},
+	})
 	return nil
 }
 

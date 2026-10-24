@@ -1,39 +1,42 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { assistant, assistantState } from '../stores/assistant'
 import { isAdmin } from '../stores/session'
 import { codeMessage } from '../api/ask'
-import { useMainButton } from '../composables/useMainButton'
+import { confirm, alert } from '../telegram/webapp'
+import { humanError } from '../lib/humanError'
 import Chips from '../components/Chips.vue'
+import Composer from '../components/Composer.vue'
 import OccurrenceListBlock from '../components/blocks/OccurrenceListBlock.vue'
 import CurrencyTotalsBlock from '../components/blocks/CurrencyTotalsBlock.vue'
 import PaymentListBlock from '../components/blocks/PaymentListBlock.vue'
 import PeopleListBlock from '../components/blocks/PeopleListBlock.vue'
+import TableBlock from '../components/blocks/TableBlock.vue'
 import type {
   AssistantBlock,
   OccurrenceListBlock as OccBlock,
   CurrencyTotalsBlock as CurBlock,
   PaymentListBlock as PayBlock,
   PeopleListBlock as PplBlock,
+  TableBlock as TblBlock,
 } from '../api/types'
 
 const router = useRouter()
 const text = ref('')
 const busy = computed(() => assistantState.history.some((e) => e.busy))
 const feedEl = ref<HTMLElement | null>(null)
+const composerEl = ref<InstanceType<typeof Composer> | null>(null)
 let controller: AbortController | null = null
 
 const examples = computed(() => assistant.status.examples)
-const canSend = computed(() => {
-  const t = text.value.trim()
-  return t.length >= 1 && t.length <= 500 && !busy.value
-})
+const hasHistory = computed(() => assistantState.history.length > 0)
 
 async function send(): Promise<void> {
   const q = text.value.trim()
   if (q.length < 1 || q.length > 500 || busy.value) return
   text.value = ''
+  composerEl.value?.focus()
   controller?.abort()
   controller = new AbortController()
   const p = assistant.ask(q, controller.signal)
@@ -44,6 +47,11 @@ async function send(): Promise<void> {
   scrollToBottom()
 }
 
+// Нажата кнопка-стоп во время стрима: прерываем запрос (обмен станет «Остановлено»).
+function stop(): void {
+  controller?.abort()
+}
+
 function scrollToBottom(): void {
   const el = feedEl.value
   if (el) el.scrollTop = el.scrollHeight
@@ -51,6 +59,7 @@ function scrollToBottom(): void {
 
 function fillExample(e: string): void {
   text.value = e
+  composerEl.value?.focus()
 }
 function askFollowup(q: string): void {
   text.value = q
@@ -70,19 +79,45 @@ function blockType(b: AssistantBlock): string {
   return (b as { type: string }).type
 }
 
-useMainButton({
-  text: 'Спросить',
-  enabled: canSend,
-  loading: busy,
-  onClick: send,
-})
+// «Новый диалог»: ассистент забудет прошлые вопросы.
+async function newConversation(): Promise<void> {
+  const ok = await confirm('Начать новый диалог? Ассистент забудет прошлые вопросы.')
+  if (!ok) return
+  try {
+    await assistant.resetConversation()
+  } catch (e) {
+    await alert(humanError(e))
+  }
+}
 
+onMounted(() => {
+  void assistant.loadHistory()
+})
 onUnmounted(() => controller?.abort())
 </script>
 
 <template>
   <div class="ask">
-    <h1 class="title">Спросить</h1>
+    <div class="title-row">
+      <h1 class="title">Спросить</h1>
+      <button
+        v-if="hasHistory"
+        type="button"
+        class="newchat"
+        aria-label="Новый диалог"
+        @click="newConversation"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M12 5v14M5 12h14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </div>
 
     <Chips
       v-if="examples.length && !assistantState.history.length"
@@ -91,7 +126,7 @@ onUnmounted(() => controller?.abort())
       @update:model-value="fillExample"
     />
 
-    <div ref="feedEl" class="feed">
+    <div ref="feedEl" class="feed" :aria-busy="busy || undefined">
       <div v-for="(ex, i) in assistantState.history" :key="i" class="exchange">
         <div class="bubble q">{{ ex.q }}</div>
 
@@ -117,6 +152,7 @@ onUnmounted(() => controller?.abort())
             @open="openPayment"
           />
           <PeopleListBlock v-else-if="blockType(b) === 'people_list'" :block="b as PplBlock" />
+          <TableBlock v-else-if="blockType(b) === 'table'" :block="b as TblBlock" />
         </template>
 
         <div v-if="ex.text" class="answer">{{ ex.text }}</div>
@@ -140,25 +176,57 @@ onUnmounted(() => controller?.abort())
       </div>
     </div>
 
-    <div class="composer">
-      <textarea
-        v-model="text"
-        maxlength="500"
-        rows="2"
-        placeholder="Спросите про платежи…"
-        @keydown.enter.exact.prevent="send"
-      ></textarea>
-      <div class="counter hint">{{ text.length }}/500</div>
-    </div>
+    <Composer
+      ref="composerEl"
+      v-model="text"
+      :busy="busy"
+      :maxlength="500"
+      @submit="send"
+      @stop="stop"
+    />
   </div>
 </template>
 
 <style scoped>
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin: var(--sp-6) 0 var(--sp-5);
+}
+.title-row .title {
+  margin: 0;
+}
+.newchat {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--glass);
+  color: var(--bone-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color var(--dur-press) var(--ease-press),
+    transform var(--dur-press) var(--ease-press);
+}
+.newchat svg {
+  width: 20px;
+  height: 20px;
+}
+.newchat:active {
+  transform: scale(0.92);
+  background: var(--press);
+}
 .feed {
   display: flex;
   flex-direction: column;
   gap: var(--sp-7);
-  padding-bottom: 16px;
+  /* поле композера фиксировано снизу — освобождаем под него место */
+  padding-bottom: calc(var(--composer-h, 56px) + 24px);
 }
 .exchange {
   animation: rise 0.32s var(--ease-out) both;
@@ -231,24 +299,6 @@ onUnmounted(() => controller?.abort())
   font-size: var(--fs-micro);
   font-variant-numeric: tabular-nums;
   padding: 0;
-}
-/* sits just above the floating tab bar */
-.composer {
-  position: sticky;
-  bottom: calc(var(--tabbar-h) + var(--tabbar-gap) * 2 + var(--safe-bottom));
-  z-index: 2;
-  background: linear-gradient(180deg, rgba(10, 10, 10, 0), var(--void) 24%);
-  padding: var(--sp-5) 0 var(--sp-2);
-  margin-top: var(--sp-4);
-}
-.composer textarea {
-  border-radius: 20px;
-}
-.counter {
-  font-size: var(--fs-micro);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  margin-top: 2px;
 }
 .ask :deep(.chip) {
   color: var(--bone);
