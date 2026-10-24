@@ -4,10 +4,12 @@ export
 COMPOSE_LOCAL := docker compose -f docker-compose.local.yaml
 MIGRATION_DSN := postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)?sslmode=disable
 
-.PHONY: run build up down logs ps migrate-create migrate-up migrate-down migrate-version test vet swagger
+.PHONY: env run build up down logs ps migrate-create migrate-up migrate-down migrate-version test vet swagger
 
-run:
-	@cd backend && go run ./cmd/apiserver
+env:
+	@for f in .env .env.backend .env.nlq; do [ -f $$f ] || cp $$f.example $$f; done
+
+run:	@cd backend && go run ./cmd/apiserver
 
 build:
 	@cd backend && go build ./cmd/apiserver

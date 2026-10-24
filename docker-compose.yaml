@@ -32,12 +32,17 @@ services:
     image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file:
-      - .env
+      - .env.backend
     environment:
       APP_ENV: production
-      DEBUG: ${DEBUG:-true}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Moscow}
+      TZ: ${TZ:-Europe/Moscow}
+      DOMAIN: ${DOMAIN}
       BIND_ADDR: "8080"
       RECEIPTS_DIR: /data/receipts
     volumes:
@@ -131,18 +136,12 @@ services:
     image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nlq:${IMAGE_TAG:-latest}
     command: ["nlq.agent"]
     restart: unless-stopped
-    # Ключ LLM можно держать в .env.nlq (LLM_API_KEY); без ключа агент работает в режиме rules.
+    # Всё про LLM (ключ, адрес API, модели) читается только из .env.nlq; без ключа агент работает в режиме rules.
     env_file:
       - path: .env.nlq
         required: false
     environment:
       APP_ENV: production
-      NLQ_MODELS: ${NLQ_MODELS:-anthropic/claude-sonnet-4.5,google/gemini-2.5-flash}
-      NLQ_LLM: ${NLQ_LLM:-llm}
-      LLM_BASE_URL: ${LLM_BASE_URL:-}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MAX_TOKENS_FIELD: ${LLM_MAX_TOKENS_FIELD:-max_tokens}
-      NLQ_RULES_FALLBACK: ${NLQ_RULES_FALLBACK:-true}
       NLQ_ACTOR_PUBLIC_KEY: ${NLQ_ACTOR_PUBLIC_KEY:-}
       NLQ_MCP_URL: http://nlq-mcp:8900/mcp
       NLQ_PUBLIC_URL: https://${DOMAIN}

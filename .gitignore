@@ -11,7 +11,7 @@ go.work.sum
 .env
 .env.*
 !.env.example
-!nlq/.env.nlq.example
+!.env.*.example
 
 .idea/
 .vscode/

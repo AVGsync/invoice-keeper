@@ -36,12 +36,17 @@ services:
       context: ./backend
     restart: unless-stopped
     env_file:
-      - .env
+      - .env.backend
     environment:
       APP_ENV: local
       DEBUG: "true"
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-invoice_keeper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-invoice_local_password}
+      POSTGRES_DB: ${POSTGRES_DB:-invoice_keeper}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Moscow}
+      TZ: ${TZ:-Europe/Moscow}
       BIND_ADDR: "8080"
       RECEIPTS_DIR: /data/receipts
     volumes:
@@ -126,12 +131,6 @@ services:
         required: false
     environment:
       APP_ENV: local
-      NLQ_MODELS: ${NLQ_MODELS:-anthropic/claude-sonnet-4.5,google/gemini-2.5-flash}
-      NLQ_LLM: ${NLQ_LLM:-llm}
-      LLM_BASE_URL: ${LLM_BASE_URL:-}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MAX_TOKENS_FIELD: ${LLM_MAX_TOKENS_FIELD:-max_tokens}
-      NLQ_RULES_FALLBACK: ${NLQ_RULES_FALLBACK:-true}
       NLQ_ACTOR_PUBLIC_KEY: ${NLQ_ACTOR_PUBLIC_KEY:-}
       NLQ_MCP_URL: http://nlq-mcp:8900/mcp
       APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Moscow}

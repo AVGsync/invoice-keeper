@@ -35,7 +35,7 @@
 ## Локальный запуск
 
 ```bash
-cp .env.example .env              # смените JWT_* и ADMIN_PASSWORD
+cp .env.example .env && cp .env.backend.example .env.backend && cp .env.nlq.example .env.nlq   # в .env.backend смените JWT_* и ADMIN_PASSWORD
 docker compose -f docker-compose.local.yaml up -d --build
 curl http://localhost:8080/api/v1/ping        # pong
 ```
@@ -65,20 +65,33 @@ Mini App локально: `cd miniapp && npm ci && npm run dev` (http://localho
    git clone https://github.com/<owner>/invoice-keeper.git && cd invoice-keeper
    ```
 
-3. **Заполните `.env`** (`cp .env.example .env`):
+3. **Заполните три файла.** Секреты разложены по контейнерам: каждый получает только своё.
 
-   | Переменная | Значение |
+   | Файл | Кому | Что внутри |
+   |---|---|---|
+   | `.env` | compose и общие переменные | домен, база, часовой пояс, публичный ключ ассистента |
+   | `.env.backend` | только backend | JWT, админ, SMTP, Telegram, приватный ключ ассистента |
+   | `.env.nlq` | только агент | ключ и адрес LLM, модели |
+
+   ```bash
+   cp .env.example .env && cp .env.backend.example .env.backend && cp .env.nlq.example .env.nlq
+   ```
+
+   Если у вас старый единый `.env`, разрежьте его скриптом: `./scripts/split-env.sh` (копия старого файла останется в `.env.bak`).
+
+   | Переменная | Файл и значение |
    |---|---|
-   | `DOMAIN` | домен или публичный IP сервера |
-   | `LE_EMAIL` | почта для Let's Encrypt |
-   | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | свои значения (обязательны) |
-   | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | случайные строки: `openssl rand -hex 32` |
-   | `ADMIN_LOGIN`, `ADMIN_PASSWORD` | учётка админа |
-   | `ALLOWED_ORIGINS` | `https://<DOMAIN>` |
-   | `DEBUG` | `false` (в compose по умолчанию `true`: открывает Swagger) |
-   | `APP_TIMEZONE` | например `Europe/Moscow` |
-   | `TELEGRAM_*`, `MINIAPP_URL`, `REMINDER_*` | см. раздел «Telegram» |
-   | `NLQ_*` | см. раздел «Ассистент» |
+   |---|---|
+   | `DOMAIN` | `.env`: домен или публичный IP сервера |
+   | `LE_EMAIL` | `.env`: почта для Let's Encrypt |
+   | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `.env`: свои значения (обязательны) |
+   | `APP_TIMEZONE` | `.env`: например `Europe/Moscow` |
+   | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | `.env.backend`: случайные строки, `openssl rand -hex 32` |
+   | `ADMIN_LOGIN`, `ADMIN_PASSWORD` | `.env.backend`: учётка админа |
+   | `ALLOWED_ORIGINS` | `.env.backend`: `https://<DOMAIN>` |
+   | `DEBUG` | `.env.backend`: `false` (при `true` открыт Swagger) |
+   | `TELEGRAM_*`, `MINIAPP_URL`, `REMINDER_*`, `SMTP_*` | `.env.backend`, см. разделы «Telegram» и «Почта» |
+   | `NLQ_*`, `LLM_*` | см. раздел «Ассистент» |
 
    `APP_ENV` задавать не нужно: compose ставит `production`. В проде `REMINDER_SOURCE` должен быть `db`.
 
@@ -155,17 +168,18 @@ Mini App локально: `cd miniapp && npm ci && npm run dev` (http://localho
 
 ## Ассистент
 
-1. Сгенерируйте ключи подписи (один раз) и вставьте обе строки в `.env`:
+1. Сгенерируйте ключи подписи (один раз): приватный `NLQ_ACTOR_PRIVATE_KEY` пойдёт в `.env.backend`, публичный `NLQ_ACTOR_PUBLIC_KEY` в `.env`:
 
    ```bash
    docker run --rm ghcr.io/<owner>/invoice-keeper-nlq:latest nlq.keygen
    ```
 
    `NLQ_ACTOR_PRIVATE_KEY` нужен только backend, `NLQ_ACTOR_PUBLIC_KEY` — агенту и MCP.
-2. Задайте `NLQ_ENABLED=true` и `NLQ_DB_PASSWORD=<пароль роли nlq_reader>`.
+2. В `.env.backend` задайте `NLQ_ENABLED=true`, в `.env` пароль роли `NLQ_DB_PASSWORD`.
 3. Подключите LLM: подойдёт любой OpenAI-совместимый API (`/chat/completions` с вызовом функций).
+   Всё про LLM лежит в `.env.nlq`.
    - `LLM_BASE_URL`: адрес API; пусто означает OpenRouter. Например `https://api.openai.com/v1`, `https://api.groq.com/openai/v1`, `https://api.deepseek.com/v1`, свой vLLM или Ollama (`http://host:11434/v1`).
-   - `LLM_API_KEY`: ключ. Его лучше держать в `.env.nlq` (`cp nlq/.env.nlq.example .env.nlq`), тогда он не попадёт в контейнер backend; но работает и из `.env`.
+   - `LLM_API_KEY`: ключ, только в файле `.env.nlq` . Так он не попадает в контейнер backend. В `.env` его класть не нужно.
    - `NLQ_MODELS`: основная и резервная модель через запятую в формате выбранного API (у OpenAI `gpt-4o-mini`, у OpenRouter `vendor/model`). Модель должна уметь tool calling.
    - `LLM_MAX_TOKENS_FIELD=max_completion_tokens`: для новых моделей OpenAI (gpt-5, o-серия).
    - Старые имена `OPENROUTER_API_KEY` и `OPENROUTER_BASE_URL` по-прежнему работают. Поля, которые понимает только OpenRouter (цепочка моделей, запрет на сбор данных), отправляются лишь на его адрес.

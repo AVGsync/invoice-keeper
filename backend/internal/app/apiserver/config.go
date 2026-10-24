@@ -146,10 +146,21 @@ func loadEnv() error {
 	for i := 0; i < 3; i++ {
 		envPath := filepath.Join(dir, ".env")
 		if _, err := os.Stat(envPath); err == nil {
+			// .env.backend загружается первым: значения из него приоритетнее общих.
+			if backendPath := filepath.Join(dir, ".env.backend"); fileExists(backendPath) {
+				if err := godotenv.Load(backendPath); err != nil {
+					return err
+				}
+			}
 			return godotenv.Load(envPath)
 		}
 		dir = filepath.Dir(dir)
 	}
 
 	return fmt.Errorf(".env not found")
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
