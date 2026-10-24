@@ -34,6 +34,7 @@ const (
 	ActionReceiptAttach = "receipt.attach"
 	ActionReceiptDelete = "receipt.delete"
 
+	ActionNotificationEmailVerify    = "notification.email_verify"
 	ActionNotificationTestEmail      = "notification.test_email"
 	ActionNotificationSettingsCreate = "notification_settings.create"
 	ActionNotificationSettingsUpdate = "notification_settings.update"
@@ -100,6 +101,7 @@ var Catalogue = []ActionInfo{
 	{ActionReceiptAttach, "Прикреплён чек", EntityReceipt},
 	{ActionReceiptDelete, "Удалён чек", EntityReceipt},
 
+	{ActionNotificationEmailVerify, "Подтверждена почта", EntityNotificationSettings},
 	{ActionNotificationTestEmail, "Тестовое письмо", EntityNotificationSettings},
 	{ActionNotificationSettingsCreate, "Настройки уведомлений созданы", EntityNotificationSettings},
 	{ActionNotificationSettingsUpdate, "Настройки уведомлений изменены", EntityNotificationSettings},

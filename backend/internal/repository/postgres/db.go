@@ -59,6 +59,10 @@ func (d *DB) Receipt() *ReceiptRepository {
 	return &ReceiptRepository{database: d}
 }
 
+func (d *DB) EmailNotifications() *EmailNotificationRepository {
+	return &EmailNotificationRepository{database: d}
+}
+
 func (d *DB) Notifications() *NotificationsRepository {
 	return &NotificationsRepository{database: d}
 }

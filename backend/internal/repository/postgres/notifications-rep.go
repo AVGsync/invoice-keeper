@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/request"
@@ -124,6 +125,7 @@ func (r *NotificationsRepository) Update(
 				WHEN LOWER(email) <> LOWER($2) THEN FALSE
 				ELSE email_verified
 			END,
+			verify_code_hash = CASE WHEN LOWER(email) <> LOWER($2) THEN NULL ELSE verify_code_hash END,
 			email = $2,
 			email_enabled = $3,
 			days_before_due = $4,
@@ -178,6 +180,10 @@ func (r *NotificationsRepository) Patch(
 
 		sets = append(sets, fmt.Sprintf(
 			"email_verified = CASE WHEN LOWER(email) <> LOWER($%d) THEN FALSE ELSE email_verified END",
+			emailArg,
+		))
+		sets = append(sets, fmt.Sprintf(
+			"verify_code_hash = CASE WHEN LOWER(email) <> LOWER($%d) THEN NULL ELSE verify_code_hash END",
 			emailArg,
 		))
 		sets = append(sets, fmt.Sprintf("email = $%d", emailArg))
@@ -246,5 +252,55 @@ func (r *NotificationsRepository) Delete(
 		return ErrNotificationSettingsNotFound
 	}
 
+	return nil
+}
+
+// GetVerifyState возвращает состояние подтверждения адреса.
+func (r *NotificationsRepository) GetVerifyState(ctx context.Context, userID string) (model.EmailVerifyState, error) {
+	var st model.EmailVerifyState
+	var hash sql.NullString
+	err := r.database.db.QueryRowContext(ctx, `
+		SELECT email, email_verified, verify_code_hash, verify_code_expires_at, verify_attempts, verify_sent_at
+		FROM user_notification_settings WHERE user_id = $1`, userID).
+		Scan(&st.Email, &st.Verified, &hash, &st.ExpiresAt, &st.Attempts, &st.SentAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return st, ErrNotificationSettingsNotFound
+	}
+	if err != nil {
+		return st, fmt.Errorf("notifications repository: get verify state: %w", err)
+	}
+	st.CodeHash = hash.String
+	return st, nil
+}
+
+// SetVerifyCode сохраняет хеш нового кода и сбрасывает счётчик попыток.
+func (r *NotificationsRepository) SetVerifyCode(ctx context.Context, userID, hash string, expires time.Time) error {
+	_, err := r.database.db.ExecContext(ctx, `
+		UPDATE user_notification_settings
+		SET verify_code_hash = $2, verify_code_expires_at = $3, verify_attempts = 0, verify_sent_at = NOW()
+		WHERE user_id = $1`, userID, hash, expires)
+	if err != nil {
+		return fmt.Errorf("notifications repository: set verify code: %w", err)
+	}
+	return nil
+}
+
+func (r *NotificationsRepository) AddVerifyAttempt(ctx context.Context, userID string) error {
+	_, err := r.database.db.ExecContext(ctx,
+		`UPDATE user_notification_settings SET verify_attempts = verify_attempts + 1 WHERE user_id = $1`, userID)
+	if err != nil {
+		return fmt.Errorf("notifications repository: add verify attempt: %w", err)
+	}
+	return nil
+}
+
+func (r *NotificationsRepository) MarkEmailVerified(ctx context.Context, userID string) error {
+	_, err := r.database.db.ExecContext(ctx, `
+		UPDATE user_notification_settings
+		SET email_verified = TRUE, verify_code_hash = NULL, verify_code_expires_at = NULL, verify_attempts = 0, updated_at = NOW()
+		WHERE user_id = $1`, userID)
+	if err != nil {
+		return fmt.Errorf("notifications repository: mark verified: %w", err)
+	}
 	return nil
 }

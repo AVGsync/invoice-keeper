@@ -54,6 +54,9 @@ type Config struct {
 	// Хранилище чеков, встроено анонимно.
 	ReceiptsConfig
 
+	// Письма-напоминания, встроено анонимно.
+	EmailConfig
+
 	// location — разобранная AppTimezone.
 	location *time.Location
 }

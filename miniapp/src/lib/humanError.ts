@@ -10,11 +10,14 @@ export function humanError(e: unknown): string {
   if (e.status === 404) return 'Не найдено'
   if (e.status === 413) return 'Файл слишком большой'
   if (e.status === 415) return 'Этот формат не поддерживается: нужен PDF, фото, txt, csv, docx, xlsx'
+  if (e.status === 503 && /smtp/i.test(e.message)) return 'Почта на сервере не настроена'
+  if (e.status === 429 && /wrong code/i.test(e.message)) return 'Слишком много неверных кодов, запросите новый'
   if (e.status === 429) {
     return e.retryAfter
       ? `Слишком много запросов, подождите ${e.retryAfter} с`
       : 'Слишком много запросов, подождите'
   }
+  if (e.status === 502) return 'Не удалось отправить письмо: проверьте настройки почты на сервере'
   if (e.status >= 500) return 'Сервер недоступен, попробуйте позже'
 
   if (e.status === 400 || e.status === 409) {
@@ -30,6 +33,10 @@ export function humanError(e: unknown): string {
     if (msg.includes('persona with this name')) return 'Персона с таким названием уже есть'
     if (msg.includes('too many receipts')) return 'К платежу уже прикреплено максимум чеков'
     if (msg.includes('url')) return 'Некорректная ссылка: нужен адрес http или https'
+    if (msg.includes('invalid verification code')) return 'Неверный код'
+    if (msg.includes('expired')) return 'Код устарел или не запрашивался, запросите новый'
+    if (msg.includes('already verified')) return 'Почта уже подтверждена'
+    if (msg.includes('email')) return 'Проверьте адрес почты'
     if (msg.includes('amount')) return 'Сумма должна быть больше нуля'
     if (msg.includes('login must be')) return 'Логин: 3–32 символа, латиница, цифры, . _ -'
     if (msg.includes('password must be')) return 'Пароль: от 8 символов'

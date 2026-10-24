@@ -1,4 +1,5 @@
 import { request } from './client'
+import { ApiError } from './errors'
 import type {
   MiniAppAuthResponse,
   User,
@@ -19,6 +20,7 @@ import type {
   AuditResponse,
   TeamChat,
   Currency,
+  NotificationSettings,
 } from './types'
 
 // Auth
@@ -145,6 +147,35 @@ export function deletePersona(id: string): Promise<void> {
 
 export function listPersonas(signal?: AbortSignal): Promise<PersonaListResponse> {
   return request('GET', '/personas', { signal })
+}
+
+// Уведомления на почту
+export async function getNotificationSettings(): Promise<NotificationSettings | null> {
+  try {
+    return await request<NotificationSettings>('GET', '/notifications/settings')
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null
+    throw e
+  }
+}
+
+export function saveNotificationSettings(
+  exists: boolean,
+  body: Omit<NotificationSettings, 'email_verified'>,
+): Promise<void> {
+  return request(exists ? 'PUT' : 'POST', '/notifications/settings', { body })
+}
+
+export function deleteNotificationSettings(): Promise<void> {
+  return request('DELETE', '/notifications/settings')
+}
+
+export function sendEmailCode(): Promise<void> {
+  return request('POST', '/notifications/email/code')
+}
+
+export function verifyEmail(code: string): Promise<void> {
+  return request('POST', '/notifications/email/verify', { body: { code } })
 }
 
 // Журнал действий: свои записи или (для админа) все

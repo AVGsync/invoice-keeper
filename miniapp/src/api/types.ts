@@ -70,6 +70,15 @@ export interface TeamChat {
   bound_at?: string
 }
 
+export interface NotificationSettings {
+  email: string
+  email_verified: boolean
+  email_enabled: boolean
+  days_before_due: number
+  send_time: string
+  timezone: string
+}
+
 export interface Receipt {
   id: string
   payment_id: string

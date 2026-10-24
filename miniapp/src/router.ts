@@ -90,6 +90,12 @@ const routes: RouteRecordRaw[] = [
     meta: { admin: true, parent: '/admin/personas' },
   },
   {
+    path: '/notifications',
+    name: 'notifications',
+    component: () => import('./screens/EmailSettingsScreen.vue'),
+    meta: { parent: '/profile' },
+  },
+  {
     path: '/activity',
     name: 'activity',
     component: () => import('./screens/ActivityScreen.vue'),

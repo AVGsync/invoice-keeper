@@ -876,6 +876,112 @@ const docTemplate = `{
                 }
             }
         },
+        "/notifications/email/code": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Шлёт шестизначный код на адрес из настроек уведомлений. Код действует 15 минут, повторно можно запросить через минуту.\nСначала нужно сохранить адрес через ` + "`" + `POST` + "`" + ` или ` + "`" + `PUT /notifications/settings` + "`" + `.",
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Отправить код подтверждения почты",
+                "responses": {
+                    "202": {
+                        "description": "Код отправлен"
+                    },
+                    "404": {
+                        "description": "Настройки не созданы",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Адрес уже подтверждён",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "429": {
+                        "description": "Слишком часто (см. Retry-After)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "502": {
+                        "description": "Не удалось отправить письмо",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "SMTP не настроен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/email/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "После пяти неверных попыток код сгорает: запросите новый. Подтверждённый адрес получает письма-напоминания.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Подтвердить почту кодом",
+                "parameters": [
+                    {
+                        "description": "Код",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.verifyEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Почта подтверждена"
+                    },
+                    "400": {
+                        "description": "Неверный или просроченный код",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Настройки не созданы",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Адрес уже подтверждён",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "429": {
+                        "description": "Слишком много неверных кодов",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/notifications/settings": {
             "get": {
                 "security": [
@@ -3180,6 +3286,16 @@ const docTemplate = `{
                     "description": "Адрес получателя.",
                     "type": "string",
                     "example": "you@example.com"
+                }
+            }
+        },
+        "handler.verifyEmailRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Код из письма.",
+                    "type": "string",
+                    "example": "123456"
                 }
             }
         },

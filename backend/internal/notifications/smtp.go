@@ -2,12 +2,17 @@ package notifications
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
+	"mime"
 	"net"
 	"net/smtp"
 	"net/textproto"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -111,7 +116,7 @@ func (m *SMTPMailer) Send(
 		return errors.New("SMTP server does not support STARTTLS")
 	}
 
-	if err := client.StartTLS(nil); err != nil {
+	if err := client.StartTLS(&tls.Config{ServerName: m.config.Host, MinVersion: tls.VersionTLS12}); err != nil {
 		return fmt.Errorf("start SMTP TLS: %w", err)
 	}
 
@@ -161,18 +166,14 @@ func (m *SMTPMailer) Send(
 func buildMessage(from, to, subject, body string) []byte {
 	var builder strings.Builder
 
-	builder.WriteString("From: ")
-	builder.WriteString(from)
-	builder.WriteString("\r\n")
-
-	builder.WriteString("To: ")
-	builder.WriteString(to)
-	builder.WriteString("\r\n")
-
-	builder.WriteString("Subject: ")
-	builder.WriteString(subject)
-	builder.WriteString("\r\n")
-
+	builder.WriteString("From: " + from + "\r\n")
+	builder.WriteString("To: " + to + "\r\n")
+	// Тема с кириллицей кодируется по RFC 2047, иначе её читают криво.
+	builder.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", subject) + "\r\n")
+	builder.WriteString("Date: " + time.Now().Format(time.RFC1123Z) + "\r\n")
+	if at := strings.LastIndex(from, "@"); at >= 0 {
+		builder.WriteString("Message-ID: <" + randomID() + "@" + strings.Trim(from[at+1:], "<> ") + ">\r\n")
+	}
 	builder.WriteString("MIME-Version: 1.0\r\n")
 	builder.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
 	builder.WriteString("Content-Transfer-Encoding: 8bit\r\n")
@@ -185,6 +186,14 @@ func buildMessage(from, to, subject, body string) []byte {
 	builder.WriteString(body)
 
 	return []byte(builder.String())
+}
+
+func randomID() string {
+	var b [12]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	return hex.EncodeToString(b[:])
 }
 
 // compile-time check: SMTPMailer implements Mailer.

@@ -1,6 +1,8 @@
 package apiserver
 
 import (
+	"time"
+
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/handler"
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/middleware"
 
@@ -56,7 +58,10 @@ func (s *APIServer) mountPayments(r chi.Router, mw *middleware.Middleware, payme
 }
 
 // mountNotifications монтирует настройки email-уведомлений текущего пользователя.
-func (s *APIServer) mountNotifications(r chi.Router, mw *middleware.Middleware, notificationsHandler *handler.NotificationsHandler, testMailHandler *handler.TestMailHandler) {
+func (s *APIServer) mountNotifications(r chi.Router, mw *middleware.Middleware, notificationsHandler *handler.NotificationsHandler, testMailHandler *handler.TestMailHandler, emailVerifyHandler *handler.EmailVerifyHandler) {
+	r.With(mw.MaxBytes(defaultMaxRequestBody), mw.LimitByUser(10, time.Minute)).Post("/notifications/email/code", emailVerifyHandler.SendCode())
+	r.With(mw.MaxBytes(defaultMaxRequestBody), mw.LimitByUser(20, time.Minute)).Post("/notifications/email/verify", emailVerifyHandler.Verify())
+
 	r.With(mw.IsAdmin, mw.MaxBytes(defaultMaxRequestBody)).Post("/notifications/test-email", testMailHandler.Send())
 
 	r.Route("/notifications/settings", func(r chi.Router) {

@@ -78,6 +78,7 @@ function go(path: string): void {
     </Section>
 
     <Section title="Действия">
+      <Cell clickable chevron @click="go('/notifications')">Почта: напоминания</Cell>
       <Cell clickable chevron @click="go('/activity')">Мои действия</Cell>
     </Section>
 

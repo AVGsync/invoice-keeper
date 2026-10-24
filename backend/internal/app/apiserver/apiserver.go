@@ -14,6 +14,7 @@ import (
 	_ "github.com/AVGsync/invoice-keeper/backend/docs"
 	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/clock"
+	"github.com/AVGsync/invoice-keeper/backend/internal/emailreminder"
 	"github.com/AVGsync/invoice-keeper/backend/internal/infrastructure/security"
 	"github.com/AVGsync/invoice-keeper/backend/internal/notifications"
 	"github.com/AVGsync/invoice-keeper/backend/internal/repository/postgres"
@@ -148,6 +149,18 @@ func (s *APIServer) Start() error {
 func (s *APIServer) startBackgroundWorkers(ctx context.Context, wg *sync.WaitGroup) {
 	s.startPaymentsScheduler(ctx, wg)
 
+	// Письма-напоминания, только если настроен SMTP.
+	if s.mailer != nil && s.config.EmailRemindersEnabled {
+		worker := emailreminder.NewWorker(s.db.EmailNotifications(), s.mailer, s.config.appURL())
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			worker.Run(ctx)
+		}()
+	} else {
+		slog.Info("email reminders: disabled (SMTP is not configured or EMAIL_REMINDERS_ENABLED=false)")
+	}
+
 	s.startTelegram(ctx, wg)
 }
 
@@ -224,6 +237,13 @@ func (s *APIServer) configureRouter() {
 	}
 	testMailHandler := handler.NewTestMailHandler(testMailer)
 	testMailHandler.SetAuditRecorder(s.audit)
+	var verifyMailer service.VerifyMailer
+	if s.mailer != nil {
+		verifyMailer = s.mailer
+	}
+	emailVerifyService := service.NewEmailVerifyService(s.db.Notifications(), verifyMailer, s.config.JWTAccessSecret)
+	emailVerifyService.SetAuditRecorder(s.audit)
+	emailVerifyHandler := handler.NewEmailVerifyHandler(emailVerifyService)
 
 	personaService := service.NewPersonaService(s.db.Persona())
 	personaHandler := handler.NewPersonaHandler(personaService)
@@ -279,7 +299,7 @@ func (s *APIServer) configureRouter() {
 			s.mountUsers(r, mw, userHandler)
 			s.mountPersonas(r, mw, personaHandler)
 			s.mountPayments(r, mw, paymentHandler, searchHandler, receiptHandler)
-			s.mountNotifications(r, mw, notificationsHandler, testMailHandler)
+			s.mountNotifications(r, mw, notificationsHandler, testMailHandler, emailVerifyHandler)
 			s.mountAssistant(r, mw)
 			s.mountAudit(r, mw, auditHandler)
 		})
