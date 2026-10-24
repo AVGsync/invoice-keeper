@@ -78,6 +78,7 @@ onBeforeUnmount(() => clearTimeout(tgTimer))
   <div class="login">
     <section class="left">
       <AppLogo />
+      <AppMascot class="mascot" pose="wave" :size="150" />
 
       <form class="form" @submit.prevent="submit">
         <h1 class="title display">Вход <em class="italic">в ведомость</em></h1>
@@ -124,9 +125,23 @@ onBeforeUnmount(() => clearTimeout(tgTimer))
 }
 
 .left {
+  position: relative;
   display: flex;
   flex-direction: column;
   padding: 40px 48px 38px;
+}
+
+/* in the free space right of the form, hidden when it gets tight */
+.mascot {
+  position: absolute;
+  top: 190px;
+  left: 580px;
+}
+
+@media (max-width: 1360px) {
+  .mascot {
+    display: none;
+  }
 }
 
 .form {

@@ -168,7 +168,7 @@ onBeforeUnmount(() => {
             <div ref="sizer" class="sizer" :style="{ maxWidth: `${maxWidth - 34}px` }">
               <template v-for="message in messages" :key="message.id">
                 <p v-if="message.from === 'me'" class="mine" :class="{ forgotten: message.forgotten }">{{ message.text }}</p>
-                <p v-else-if="message.pending" class="pending"><span class="pulse" />{{ message.step }}…</p>
+                <p v-else-if="message.pending" class="pending"><AppMascot pose="jump" :size="30" />{{ message.step }}…</p>
                 <template v-else>
                   <p class="answer" :class="{ error: message.error, typing: message.typing, forgotten: message.forgotten }">{{ message.text }}</p>
                   <div v-if="message.followups?.length && !message.typing" class="followups">
@@ -372,21 +372,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 40px;
   font-size: 13px;
   color: var(--ink-3);
-}
-
-.pulse {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent-ink);
-  animation: pulse 1s ease-in-out infinite alternate;
-}
-
-@keyframes pulse {
-  from { opacity: 0.3; }
-  to { opacity: 1; }
 }
 
 .answer {

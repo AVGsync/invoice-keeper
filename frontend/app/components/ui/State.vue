@@ -2,13 +2,16 @@
 <script setup lang="ts">
 withDefaults(defineProps<{
   kind?: 'empty' | 'error'
-}>(), { kind: 'empty' })
+  // which pose the mascot takes in an empty state
+  pose?: 'idea' | 'rest' | 'paid' | 'bell'
+}>(), { kind: 'empty', pose: 'idea' })
 
 defineEmits<{ retry: [] }>()
 </script>
 
 <template>
   <div class="state" :class="kind" role="status">
+    <AppMascot v-if="kind === 'empty'" :pose="pose" :size="72" />
     <p class="text"><slot /></p>
     <UiButton v-if="kind === 'error'" @click="$emit('retry')">Повторить</UiButton>
   </div>

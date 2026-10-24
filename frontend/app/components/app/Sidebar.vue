@@ -35,6 +35,13 @@ function placeMarker() {
 watch(() => route.path, () => nextTick(placeMarker))
 onMounted(placeMarker)
 
+// the mascot under the menu changes pose with the section
+const mascotPose = computed(() => {
+  const section = route.path.split('/')[2]
+  const poses = { overview: 'chart', calendar: 'calendar', payments: 'coin', recurring: 'loop', users: 'badge', log: 'search', settings: 'gear' } as const
+  return poses[section as keyof typeof poses] ?? 'idea'
+})
+
 const { user: me, logout } = useAuth()
 
 async function signOut() {
@@ -89,6 +96,8 @@ function toggleTheme(e: MouseEvent) {
         </template>
       </template>
     </nav>
+
+    <AppMascot class="mascot" :pose="mascotPose" :size="92" />
 
     <!-- settings on the left, the theme on the right: two round icon buttons -->
     <div class="status">
@@ -233,12 +242,28 @@ function toggleTheme(e: MouseEvent) {
   margin: 14px 12px 12px;
 }
 
+/* sits in the free space between the menu and the buttons, gone on short screens */
+.mascot {
+  align-self: center;
+  margin-top: auto;
+}
+
+@media (max-height: 760px) {
+  .mascot {
+    display: none;
+  }
+
+  .status {
+    margin-top: auto;
+  }
+}
+
 .status {
   display: flex;
   align-items: center;
   justify-content: space-between;
   /* the settings circle lines up with the nav icons above it */
-  margin: auto 4px 12px 6px;
+  margin: 12px 4px 12px 6px;
 }
 
 .round {

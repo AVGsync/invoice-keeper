@@ -98,7 +98,7 @@ function mark(period: Period) {
     <UiState v-else-if="payments.loadError.value" kind="error" class="upcoming-state" @retry="payments.load">
       Не удалось загрузить платежи: {{ payments.loadError.value }}
     </UiState>
-    <UiState v-else-if="!upcoming.length" class="upcoming-state">На ближайшую неделю платежей нет.</UiState>
+    <UiState v-else-if="!upcoming.length" pose="rest" class="upcoming-state">На ближайшую неделю платежей нет.</UiState>
     <UpcomingList v-else :items="upcoming" :can-mark="payments.canMark" @mark="mark" />
 
     <Transition name="modal">

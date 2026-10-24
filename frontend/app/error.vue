@@ -29,12 +29,15 @@ function goHome() {
       <UiButton variant="primary" size="lg" @click="goHome">На главную</UiButton>
     </div>
 
+    <AppMascot class="mascot" :pose="notFound ? 'lost' : 'fragile'" :size="220" />
+
     <p class="folio kicker">Invoice Keeper · ведомость платежей</p>
   </main>
 </template>
 
 <style scoped>
 .error-page {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -48,6 +51,13 @@ function goHome() {
   gap: 12px;
   width: 460px;
   margin: auto 0 auto 152px;
+}
+
+.mascot {
+  position: absolute;
+  top: 50%;
+  right: 12vw;
+  translate: 0 -50%;
 }
 
 .code {
