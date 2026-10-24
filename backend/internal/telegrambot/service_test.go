@@ -19,19 +19,15 @@ var updSeq int64
 
 func nextUpd() int64 { updSeq++; return updSeq }
 
-// reminderMemStore — пустой источник периодов для тестов, где важна лишь
-// доступность команд, а не их содержимое.
+// reminderMemStore — пустой источник периодов для тестов, где важна лишь доступность команд, а не их содержимое.
 func reminderMemStore() *reminder.MemoryStore {
 	return reminder.NewMemoryStore(nil, nil)
 }
 
-// newReminderBot собирает минимальный reminder.BotService на заглушке. notif=nil:
-// проверяемые пути (сводки, отказ непривязанному) к outbox не обращаются.
+// newReminderBot собирает минимальный reminder.BotService на заглушке.
 func newReminderBot(store *reminder.MemoryStore, client *telegram.FakeClient) *reminder.BotService {
 	return reminder.NewBotService(store, store, nil, client, clock.New(time.UTC), reminder.Config{LeadDays: 3})
 }
-
-// ---- Заглушки репозитория и читателя пользователей ----
 
 type memCode struct {
 	id        string
@@ -261,8 +257,6 @@ func newService(repo *memRepo, users memUsers, client BotAPI) *Service {
 	})
 }
 
-// ---- Тесты ----
-
 func TestCreateLinkCode(t *testing.T) {
 	repo := newMemRepo()
 	svc := newService(repo, memUsers{}, telegram.NewFakeClient())
@@ -278,7 +272,6 @@ func TestCreateLinkCode(t *testing.T) {
 		t.Errorf("deep link = %q", link)
 	}
 
-	// Лимит активных кодов.
 	for i := 0; i < 2; i++ {
 		if _, _, err := svc.CreateLinkCode(context.Background(), "u1"); err != nil {
 			t.Fatalf("CreateLinkCode #%d: %v", i, err)
@@ -295,14 +288,12 @@ func TestLinkFlow_ClaimConfirm(t *testing.T) {
 	fake := telegram.NewFakeClient()
 	svc := newService(repo, users, fake)
 
-	// Создаём код и достаём его «сырое» значение из deep link.
 	link, _, err := svc.CreateLinkCode(context.Background(), "u1")
 	if err != nil {
 		t.Fatalf("CreateLinkCode: %v", err)
 	}
 	code := strings.TrimPrefix(link[strings.Index(link, "start=link_")+len("start=link_"):], "")
 
-	// /start link_<code> в личке.
 	svc.HandleUpdate(context.Background(), telegram.Update{
 		UpdateID: 1,
 		Message: &telegram.Message{
@@ -324,7 +315,6 @@ func TestLinkFlow_ClaimConfirm(t *testing.T) {
 		t.Fatalf("confirm button data = %q", confirmData)
 	}
 
-	// Нажатие «Да, привязать».
 	svc.HandleUpdate(context.Background(), telegram.Update{
 		UpdateID: 2,
 		CallbackQuery: &telegram.CallbackQuery{
@@ -393,7 +383,6 @@ func TestBind_AdminOnly(t *testing.T) {
 	fake := telegram.NewFakeClient()
 	svc := newService(repo, users, fake)
 
-	// Привязываем обоих пользователей к Telegram.
 	repo.UpsertLink(context.Background(), "admin1", 100, "boss")
 	repo.UpsertLink(context.Background(), "user1", 200, "joe")
 
@@ -406,7 +395,6 @@ func TestBind_AdminOnly(t *testing.T) {
 		t.Fatal("non-admin should not bind chat")
 	}
 
-	// Админ — успех.
 	svc.HandleUpdate(context.Background(), telegram.Update{
 		UpdateID: 2,
 		Message:  &telegram.Message{From: &telegram.User{ID: 100}, Chat: telegram.Chat{ID: -100, Type: "supergroup", Title: "Fin"}, Text: "/bind"},
@@ -439,14 +427,12 @@ func TestBind_AnonymousRejected(t *testing.T) {
 	}
 }
 
-// Сводка /today доступна только привязанному в личке или в активном командном
-// чате; в чужой группе и в личке без привязки — отказ (§6.2, решение №1).
+// Сводка /today доступна только привязанному в личке или в активном командном чате; в чужой группе и в личке без привязки — отказ.
 func TestSummary_Authorization(t *testing.T) {
 	repo := newMemRepo()
 	users := memUsers{users: map[string]model.User{"u1": {ID: "u1", Role: "user", Login: "joe"}}}
 	fake := telegram.NewFakeClient()
 	svc := newService(repo, users, fake)
-	// Движок обязателен для сводок; подключаем пустой BotService на заглушке.
 	store := reminderMemStore()
 	svc.AttachPayments(newReminderBot(store, fake))
 
@@ -467,14 +453,12 @@ func TestSummary_Authorization(t *testing.T) {
 		t.Errorf("чужой группе ожидался отказ, got %q", txt)
 	}
 
-	// Привязанный в личке — доступ.
 	repo.UpsertLink(context.Background(), "u1", 902, "joe")
 	txt := deny(&telegram.Message{From: &telegram.User{ID: 902}, Chat: telegram.Chat{ID: 902, Type: "private"}, Text: "/today"})
 	if strings.Contains(txt, "Привяжите") || strings.Contains(txt, "командном чате") {
 		t.Errorf("привязанному в личке сводка должна быть доступна, got %q", txt)
 	}
 
-	// Активный командный чат — доступ любому участнику.
 	repo.BindChat(context.Background(), -777, "supergroup", "Fin", "u1")
 	txt = deny(&telegram.Message{From: &telegram.User{ID: 999}, Chat: telegram.Chat{ID: -777, Type: "supergroup"}, Text: "/today"})
 	if strings.Contains(txt, "Привяжите") || strings.Contains(txt, "командном чате") {
@@ -482,7 +466,7 @@ func TestSummary_Authorization(t *testing.T) {
 	}
 }
 
-// Кнопка «Оплачено» от непривязанного Telegram — alert «Привяжите Telegram» (§6.3).
+// Кнопка «Оплачено» от непривязанного Telegram — alert «Привяжите Telegram».
 func TestPaidCallback_Unlinked(t *testing.T) {
 	repo := newMemRepo()
 	fake := telegram.NewFakeClient()

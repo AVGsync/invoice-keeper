@@ -7,22 +7,17 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// mountPayments монтирует модуль регулярных платежей и их периодов (владелец —
-// второй бэкендер). Вызывается внутри защищённой группы (Auth, LimitByUser,
-// IsUserOrAdmin).
-func (s *APIServer) mountPayments(r chi.Router, mw *middleware.Middleware, paymentHandler *handler.PaymentHandler, searchHandler *handler.SearchHandler) {
+// mountPayments монтирует модуль регулярных платежей и их периодов (владелец — второй бэкендер).
+func (s *APIServer) mountPayments(r chi.Router, mw *middleware.Middleware, paymentHandler *handler.PaymentHandler, searchHandler *handler.SearchHandler, receiptHandler *handler.ReceiptHandler) {
 	r.Route("/payments", func(r chi.Router) {
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
 
 		r.Get("/summary", paymentHandler.GetPaymentsSummary())
 	})
 
-	// Шаблоны регулярных платежей: чтение — любой авторизованный (команда),
-	// запись (создание/изменение/остановка) — только администратор (D10).
 	r.Route("/recurring-payments", func(r chi.Router) {
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
 
-		// Статический /search приоритетнее /{id}; права как у списка.
 		r.Get("/search", searchHandler.SearchRecurring())
 		r.Get("/", paymentHandler.GetRecurringPayments())
 
@@ -35,13 +30,28 @@ func (s *APIServer) mountPayments(r chi.Router, mw *middleware.Middleware, payme
 	})
 
 	r.Route("/payment-occurrences", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(mw.MaxBytes(defaultMaxRequestBody))
+
+			r.Get("/search", searchHandler.SearchOccurrences())
+			r.Get("/", paymentHandler.GetPaymentOccurrences())
+			r.Get("/{id}", paymentHandler.GetPaymentOccurrence())
+			r.Patch("/{id}", paymentHandler.PatchPaymentOccurrence())
+
+			r.Get("/{id}/receipts", receiptHandler.List())
+			r.Post("/{id}/receipts/link", receiptHandler.AddLink())
+		})
+
+		// Для загрузки файла лимит тела больше: размер файла плюс запас на служебные поля.
+		r.With(mw.MaxBytes(int64(s.config.ReceiptsMaxMB)<<20+defaultMaxRequestBody)).
+			Post("/{id}/receipts", receiptHandler.Upload())
+	})
+
+	r.Route("/receipts", func(r chi.Router) {
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
 
-		// Статический /search приоритетнее /{id}; права как у списка.
-		r.Get("/search", searchHandler.SearchOccurrences())
-		r.Get("/", paymentHandler.GetPaymentOccurrences())
-		r.Get("/{id}", paymentHandler.GetPaymentOccurrence())
-		r.Patch("/{id}", paymentHandler.PatchPaymentOccurrence())
+		r.Get("/{id}/access", receiptHandler.Access())
+		r.Delete("/{id}", receiptHandler.Delete())
 	})
 }
 

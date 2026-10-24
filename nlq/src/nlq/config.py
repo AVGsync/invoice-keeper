@@ -1,10 +1,4 @@
-"""Configuration for the Python side (MCP server, dbinit, agent).
-
-All variables are read from the environment with the documented defaults
-(§10.1). Secrets are never logged. Fields unrelated to the running command are
-simply left at their defaults; ``extra="ignore"`` keeps the shared ``.env``
-tolerable.
-"""
+"""Configuration for the Python side (MCP server, dbinit, agent)."""
 
 from __future__ import annotations
 
@@ -14,9 +8,6 @@ from typing import Final, Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Verified current on https://openrouter.ai/api/v1/models?supported_parameters=tools
-# (2026-10-24): strong primary + cheap backup from different vendors, both with
-# tools + tool_choice support. See nlq/README.md.
 DEFAULT_MODELS: Final = "anthropic/claude-sonnet-4.5,google/gemini-2.5-flash"
 
 LogLevel = Literal["debug", "info", "warning", "error"]
@@ -25,16 +16,13 @@ LogLevel = Literal["debug", "info", "warning", "error"]
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore", case_sensitive=False)
 
-    # --- shared ---
     app_env: str = Field(default="local", alias="APP_ENV")
     app_timezone: str = Field(default="Europe/Moscow", alias="APP_TIMEZONE")
     nlq_today: str | None = Field(default=None, alias="NLQ_TODAY")
     log_level: LogLevel = Field(default="info", alias="LOG_LEVEL")
 
-    # --- actor verification (agent + mcp) ---
     nlq_actor_public_key: str = Field(default="", alias="NLQ_ACTOR_PUBLIC_KEY")
 
-    # --- agent (nlq.agent) ---
     openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
     openrouter_base_url: str = Field(
         default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL"
@@ -58,7 +46,6 @@ class Settings(BaseSettings):
     agent_host: str = Field(default="0.0.0.0", alias="NLQ_AGENT_HOST")
     agent_port: int = Field(default=8090, alias="NLQ_AGENT_PORT")
 
-    # --- mcp server ---
     nlq_db_dsn: str = Field(default="", alias="NLQ_DB_DSN")
     nlq_user_scope: Literal["team", "own"] = Field(default="team", alias="NLQ_USER_SCOPE")
     nlq_max_rows: int = Field(default=20, ge=1, le=20, alias="NLQ_MAX_ROWS")
@@ -66,7 +53,6 @@ class Settings(BaseSettings):
     mcp_host: str = Field(default="0.0.0.0", alias="NLQ_MCP_HOST")
     mcp_port: int = Field(default=8900, alias="NLQ_MCP_PORT")
 
-    # --- dbinit (superuser, one-shot) ---
     admin_dsn: str = Field(default="", alias="ADMIN_DSN")
     postgres_user: str = Field(default="", alias="POSTGRES_USER")
     postgres_password: str = Field(default="", alias="POSTGRES_PASSWORD")
@@ -88,7 +74,7 @@ class Settings(BaseSettings):
 
     @property
     def today_override(self) -> str | None:
-        """NLQ_TODAY is honoured only outside production (§5.1 p.4)."""
+        """NLQ_TODAY is honoured only outside production."""
         if self.is_production:
             return None
         return self.nlq_today or None

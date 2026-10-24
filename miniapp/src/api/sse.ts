@@ -1,5 +1,4 @@
-// Инкрементальный разбор SSE. Принимает текст (байты декодирует вызывающий
-// через TextDecoder('utf-8', {stream:true})).
+// Инкрементальный разбор SSE.
 
 export interface SseEvent {
   event: string
@@ -32,7 +31,6 @@ export function createSseParser(onEvent: (e: SseEvent) => void): SseParser {
       return
     }
     if (line.startsWith(':')) {
-      // комментарий
       return
     }
     const colon = line.indexOf(':')
@@ -52,15 +50,12 @@ export function createSseParser(onEvent: (e: SseEvent) => void): SseParser {
       dataLines.push(value)
       hasData = true
     }
-    // id/retry игнорируем
   }
 
   return {
     push(text: string): void {
       buffer += text
-      // Если буфер заканчивается на '\r', это может быть начало CRLF, разорванного
-      // между чанками. Не разбираем последний '\r', пока не придёт следующий чанк —
-      // иначе ведущий '\n' даст ложную пустую строку и ложный dispatch.
+      // Если буфер заканчивается на '\r', это может быть начало CRLF, разорванного между чанками.
       let work = buffer
       let held = ''
       if (work.endsWith('\r')) {
@@ -73,7 +68,6 @@ export function createSseParser(onEvent: (e: SseEvent) => void): SseParser {
       for (const line of parts) handleLine(line)
     },
     end(): void {
-      // Незавершённое событие отбрасывается (по спеке SSE).
       buffer = ''
     },
   }

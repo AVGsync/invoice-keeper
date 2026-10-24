@@ -1,9 +1,4 @@
-"""Shared dataclasses for the agent loop: tool calls, tool results, LLM output.
-
-These keep the loop (``loop.py``), the LLM clients (``openrouter``/``rules``/
-``fake``), the MCP client and the renderer talking in the same vocabulary
-without importing each other.
-"""
+"""Shared dataclasses for the agent loop: tool calls, tool results, LLM output."""
 
 from __future__ import annotations
 
@@ -33,11 +28,7 @@ class ToolCall:
 
 @dataclass(slots=True)
 class ToolResult:
-    """Outcome of executing one tool call: the parsed MCP envelope + metadata.
-
-    ``payload`` is the decoded JSON envelope (``{"ok": ..., ...}``). ``repeated``
-    marks a deduplicated identical call (§7.5). ``ms`` is wall-clock latency.
-    """
+    """Outcome of executing one tool call: the parsed MCP envelope + metadata."""
 
     call_id: str
     name: str
@@ -54,12 +45,7 @@ class ToolResult:
         return None if self.ok else str(self.payload.get("error") or "error")
 
     def for_llm(self) -> str:
-        """Compact JSON string handed back to the model as the tool message.
-
-        Rows are already trimmed to <= 20 by the MCP server; here we only drop a
-        few id-ish fields the model never needs to cite, keeping the context and
-        the PII surface small (§7.6, §8.5).
-        """
+        """Compact JSON string handed back to the model as the tool message."""
         return json.dumps(_slim_for_llm(self.payload), ensure_ascii=False)
 
 
@@ -79,7 +65,7 @@ class LLMResponse:
 
 @dataclass(slots=True)
 class LoopTelemetry:
-    """Accumulated over a request for ``meta`` and logging (§7.9, §11)."""
+    """Accumulated over a request for ``meta`` and logging."""
 
     llm_calls: int = 0
     model: str | None = None
@@ -107,8 +93,6 @@ class LoopTelemetry:
             "ok": result.ok,
             "rows": n,
             "ms": result.ms,
-            # Validated args (post-pydantic), so eval can check key arguments and
-            # the renderer/telemetry can show what was actually requested.
             "args": args or {},
         }
         if not result.ok:
@@ -129,8 +113,6 @@ def _slim_for_llm(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _slim_row(row: dict[str, Any]) -> dict[str, Any]:
     slim = {k: v for k, v in row.items() if k not in _SLIM_DROP}
-    # Keep the user_id the model needs for a follow-up assignee filter, but only
-    # on people rows (find_people) where there are no amount fields.
     if "full_name" in row and "user_id" in row:
         slim["user_id"] = row["user_id"]
     title = slim.get("title")

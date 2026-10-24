@@ -69,6 +69,7 @@ export interface TgWebApp {
   MainButton: TgMainButton
   BackButton: TgBackButton
   HapticFeedback: TgHaptic
+  openLink?(url: string, options?: { try_instant_view?: boolean }): void
   showAlert(message: string, cb?: () => void): void
   showConfirm(message: string, cb?: (ok: boolean) => void): void
   enableClosingConfirmation(): void
@@ -141,6 +142,13 @@ export function alert(message: string): Promise<void> {
   return Promise.resolve()
 }
 
+// Открывает адрес во внешнем браузере (в Telegram — через openLink).
+export function openExternal(url: string): void {
+  const tg = getWebApp()
+  if (tg?.openLink) tg.openLink(url)
+  else window.open(url, '_blank', 'noopener')
+}
+
 export function setClosingConfirmation(on: boolean): void {
   const tg = getWebApp()
   if (!tg || !supports('6.2')) return
@@ -148,15 +156,12 @@ export function setClosingConfirmation(on: boolean): void {
   else tg.disableClosingConfirmation()
 }
 
-// Тема и покраска хрома Telegram вынесены в ./theme.ts (applyTheme). Здесь
-// подписываемся лишь на события safe-area (их переменные обновляет сам SDK).
+// Тема и покраска хрома Telegram вынесены в ./theme.ts (applyTheme).
 export function initSafeAreaEvents(): void {
   const tg = getWebApp()
   if (!tg) return
   tg.onEvent('safeAreaChanged', () => {
-    /* переменные обновляются самим SDK */
   })
   tg.onEvent('contentSafeAreaChanged', () => {
-    /* то же */
   })
 }

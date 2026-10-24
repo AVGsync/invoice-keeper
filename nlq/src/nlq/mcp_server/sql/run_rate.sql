@@ -1,13 +1,5 @@
--- Normalized average monthly load per currency (decision #2, run_rate basis).
--- B ships a real periodicity: recurrent_payments.frequency ('monthly'|'weekly')
--- and "interval" (every N periods). We normalise each active payment to a
--- monthly amount (major units):
---   monthly: amount / interval        (every `interval` months)
---   weekly:  amount * 52 / 12 / interval  (every `interval` weeks -> per month)
--- amount is stored in MINOR units, so divide by 100 first. Only active payments
--- (stopped_at IS NULL) count. Totals are strictly per currency, never mixed.
--- `interval` is a reserved word, always written quoted: rp."interval".
--- Knows B columns, so it lives next to occurrences_base.sql.
+-- Средняя месячная нагрузка по валютам: monthly = amount / interval, weekly = amount * 52 / 12 / interval.
+-- Суммы хранятся в минимальных единицах, считаются только активные платежи. interval — зарезервированное слово.
 -- Params: $1 currency, $2 assignee_id (model), $3 assignee_id (visibility own).
 WITH rated AS (
     SELECT rp.currency AS currency,

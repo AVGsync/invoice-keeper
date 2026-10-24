@@ -12,7 +12,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/response"
 )
 
-// mockHistory — подмена сервиса истории. Пишет запрошенные аргументы.
+// mockHistory — подмена сервиса истории.
 type mockHistory struct {
 	turns    []model.AssistantTurn
 	total    int

@@ -34,8 +34,7 @@ func NewNotificationsService(repository NotificationsRepository) *NotificationsS
 // SetAuditRecorder подключает журнал действий.
 func (s *NotificationsService) SetAuditRecorder(r audit.Recorder) { s.audit = r }
 
-// notificationChanges собирает changes настроек уведомлений. email маскируется
-// в audit.Logger при редакции (ключ "email").
+// notificationChanges собирает changes настроек уведомлений.
 func notificationChanges(before, after model.UserNotificationSettings) map[string]audit.Change {
 	return audit.Diff().
 		Add("email", before.Email, after.Email).
@@ -122,7 +121,6 @@ func (s *NotificationsService) Update(
 		Timezone:      req.Timezone,
 	}
 
-	// Снимок «до» для changes (при ошибке чтения — пустой: PUT считаем заменой).
 	before, _ := s.repository.GetByUserID(userID, ctx)
 
 	if err := s.repository.Update(settings, ctx); err != nil {
@@ -204,7 +202,6 @@ func (s *NotificationsService) Delete(
 	userID string,
 	ctx context.Context,
 ) error {
-	// Снимок email до удаления — в журнал пишем маскированным.
 	before, _ := s.repository.GetByUserID(userID, ctx)
 
 	if err := s.repository.Delete(userID, ctx); err != nil {

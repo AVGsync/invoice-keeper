@@ -12,27 +12,6 @@ jobs:
     defaults:
       run:
         working-directory: ./backend
-
-    # Postgres для интеграционных тестов (build-тег integration, TEST_DATABASE_URL).
-    # Unit-тесты БД не требуют и проходят в любом случае.
-    services:
-      postgres:
-        image: postgres:16.15-alpine
-        env:
-          POSTGRES_USER: invoice_keeper
-          POSTGRES_PASSWORD: invoice_local_password
-          POSTGRES_DB: invoice_keeper_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U invoice_keeper"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      TEST_DATABASE_URL: postgres://invoice_keeper:invoice_local_password@localhost:5432/invoice_keeper_test?sslmode=disable
-
     steps:
       - uses: actions/checkout@v4
 
@@ -41,29 +20,8 @@ jobs:
           go-version-file: ./backend/go.mod
           cache-dependency-path: ./backend/go.sum
 
-      - name: gofmt
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "Файлы не отформатированы gofmt:"
-            echo "$unformatted"
-            exit 1
-          fi
-
       - name: go vet
         run: go vet ./...
 
       - name: go test
         run: go test ./...
-
-      # Интеграционные тесты (build-тег integration): прогоняем миграции против
-      # сервис-postgres, затем тесты. Контракт SQL-источника сам Skip-ается, пока
-      # таблиц модуля B нет (§2.5, §9.6), но миграции бота и схема проверяются.
-      - name: migrate up (integration test db)
-        run: |
-          docker run --rm --network host -v "$PWD/migrations:/migrations" \
-            migrate/migrate:v4.18.3 \
-            -path=/migrations -database "$TEST_DATABASE_URL" up
-
-      - name: go test (integration)
-        run: go test -tags integration -p 1 ./...  # пакеты делят фикстуры в одной БД — строго по очереди

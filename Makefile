@@ -26,7 +26,7 @@ ps:
 
 migrate-create:
 	@if [ -z "$(seq)" ]; then \
-		echo "Отсутствует необходимый параметр seq. Пример: make migrate-create seq=init"; \
+		echo "Нужен параметр seq, например: make migrate-create seq=init"; \
 		exit 1; \
 	fi
 	@$(COMPOSE_LOCAL) run --rm migrate create -ext sql -dir /migrations -seq "$(seq)"
@@ -43,16 +43,9 @@ migrate-version:
 test:
 	@cd backend && go test ./...
 
-# Интеграционные тесты пакетов postgres и apiserver делят одну TEST_DATABASE_URL
-# и одни и те же UUID фикстур, поэтому гоняем строго последовательно (-p 1),
-# иначе параллельные пакеты наступают друг на друга (duplicate key / гонки сида).
-test-integration:
-	@cd backend && go test -tags integration -p 1 -count=1 ./...
-
 vet:
 	@cd backend && go vet ./...
 
-# Перегенерация backend/docs (swagger.yaml/json) из аннотаций хендлеров.
 swagger:
 	@cd backend && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init -g cmd/apiserver/main.go -o docs
 

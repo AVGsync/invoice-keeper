@@ -51,8 +51,6 @@ export const assistant = {
   },
 
   // Подтягивает серверную историю диалога в локальный фид, если он пуст.
-  // Берём только обмены, которые бэкенд держит в контексте (in_context).
-  // Любая ошибка (в т. ч. 404 на старом бэкенде) — молча игнорируется.
   async loadHistory(): Promise<void> {
     if (assistantState.history.length) return
     try {
@@ -70,12 +68,11 @@ export const assistant = {
         }))
       if (restored.length) assistantState.history.push(...restored)
     } catch {
-      /* молча: истории может не быть, ручка может отсутствовать */
+      // молча: истории может не быть, ручка может отсутствовать
     }
   },
 
   // Начинает новый диалог: просит бэкенд забыть историю и чистит фид.
-  // На старом бэкенде (404/405) чистим только локально; иные ошибки пробрасываем.
   async resetConversation(): Promise<void> {
     try {
       await clearAssistantHistory()
@@ -118,15 +115,13 @@ export const assistant = {
         onStep: (s) => ex.steps.push(s),
         onBlock: (b) => ex.blocks.push(b),
         onText: (delta) => {
-          // Дописываем дельты; done при необходимости перезапишет целиком.
           ex.text += delta
         },
         onDone: (env) => applyEnvelope(env),
         onError: (code) => {
           ex.status = 'error'
           ex.error = code
-          // Текст ошибки берём из codeMessage по коду (в UI), серверное
-          // англоязычное сообщение не показываем.
+          // Текст ошибки берём из codeMessage по коду (в UI), серверное англоязычное сообщение не показываем.
           if (code === 'assistant_disabled') assistantState.status.enabled = false
         },
       },
@@ -134,8 +129,6 @@ export const assistant = {
       { setAssistantDisabled: () => (assistantState.status.enabled = false) },
     )
     ex.busy = false
-    // Пользователь нажал «стоп» — помечаем обмен как остановленный (askAssistant
-    // при abort выходит молча, поэтому решение принимаем здесь).
     if (signal?.aborted && ex.status !== 'error') {
       ex.status = 'error'
       ex.error = 'aborted'

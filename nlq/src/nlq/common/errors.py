@@ -1,8 +1,4 @@
-"""Stable error codes shared by the MCP tools and the agent.
-
-The codes are a closed set. Postgres error text, SQL, or any PII must never be
-placed in ``message`` — it is surfaced to the model and the user.
-"""
+"""Stable error codes shared by the MCP tools and the agent."""
 
 from __future__ import annotations
 

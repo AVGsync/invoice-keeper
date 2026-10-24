@@ -13,9 +13,7 @@ import (
 	"time"
 )
 
-// signInitData собирает корректную initData по алгоритму Telegram: тот же
-// data_check_string и тот же порядок HMAC, что и в ValidateInitData. Служит
-// генератором проверочного вектора (§3.3, §9.1).
+// signInitData собирает корректную initData по алгоритму Telegram: тот же data_check_string и тот же порядок HMAC, что и в ValidateInitData.
 func signInitData(fields map[string]string, botToken string) string {
 	pairs := make([]string, 0, len(fields))
 	for k, v := range fields {
@@ -80,7 +78,6 @@ func TestValidateInitData_TamperedHash(t *testing.T) {
 		t.Fatalf("err = %v, want ErrInitDataInvalid", err)
 	}
 
-	// Меняем полезные данные после подписи — hash перестаёт совпадать.
 	bad := strings.Replace(raw, "id%3A42", "id%3A99", 1)
 	if bad != raw {
 		if _, err := ValidateInitData(bad, token, 10*time.Minute, now); err != ErrInitDataInvalid {
@@ -103,9 +100,6 @@ func TestValidateInitData_Stale(t *testing.T) {
 	}
 }
 
-// TestValidateInitData_SignatureIncluded проверяет, что поле signature (Bot API
-// 8.0+) учитывается в data_check_string при проверке по hash: оно подписывается
-// как обычная пара и успешно валидируется.
 func TestValidateInitData_SignatureIncluded(t *testing.T) {
 	const token = "123456:TEST-TOKEN"
 	now := time.Unix(1_700_000_000, 0)
@@ -124,8 +118,6 @@ func TestValidateInitData_SignatureIncluded(t *testing.T) {
 		t.Errorf("UserID = %d, want 7", data.UserID)
 	}
 
-	// signature, добавленная ПОСЛЕ подписи (не вошедшая в data_check_string),
-	// обязана ломать проверку: иначе её молча игнорировали бы.
 	tampered := signInitData(map[string]string{
 		"auth_date": "1699999940",
 		"user":      `{"id":7,"username":"adm"}`,
@@ -135,14 +127,7 @@ func TestValidateInitData_SignatureIncluded(t *testing.T) {
 	}
 }
 
-// TestValidateInitData_RealVector прогоняет проверку на НАСТОЯЩЕЙ initData,
-// снятой из dev-бота (§3.3, §9.1). Вектор и токен задаются через окружение,
-// иначе тест пропускается — секреты в репозиторий не кладём:
-//
-//	TG_TEST_INIT_DATA='query_id=...&user=...&auth_date=...&signature=...&hash=...'
-//	TG_TEST_BOT_TOKEN='<dev bot token>'
-//
-// Возраст initData не ограничиваем (вектор может быть старым): maxAge огромный.
+// TestValidateInitData_RealVector прогоняет проверку на НАСТОЯЩЕЙ initData, снятой из dev-бота.
 func TestValidateInitData_RealVector(t *testing.T) {
 	raw := os.Getenv("TG_TEST_INIT_DATA")
 	token := os.Getenv("TG_TEST_BOT_TOKEN")

@@ -3,7 +3,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getWebApp, supports } from '../telegram/webapp'
 import { session } from '../stores/session'
 
-// Вызывается один раз в App.vue. Возвращает showInlineBack для fallback-стрелки.
+// Вызывается один раз в App.vue.
 export function useBackButton(): { showInlineBack: Ref<boolean>; goBack: () => void } {
   const route = useRoute()
   const router = useRouter()
@@ -28,8 +28,6 @@ export function useBackButton(): { showInlineBack: Ref<boolean>; goBack: () => v
     [() => route.fullPath, () => session.phase],
     () => {
       const tg = getWebApp()
-      // Вне фазы ready (Boot/Link/Fatal) RouterView скрыт — кнопку «назад» прячем,
-      // иначе она висит поверх FatalScreen/LinkScreen и дёргает невидимый роутер.
       if (session.phase !== 'ready') {
         if (tg && available) tg.BackButton.hide()
         showInlineBack.value = false

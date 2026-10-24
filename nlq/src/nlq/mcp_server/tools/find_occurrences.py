@@ -1,4 +1,4 @@
-"""find_occurrences: payment periods (occurrences) with filters (§5.3)."""
+"""find_occurrences: payment periods (occurrences) with filters."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ async def execute(
         max_amount,                             # $6
         assignee_model,                         # $7
         visibility.own_filter,                  # $8
-        title,                                  # $9  tsquery
+        title,  # $9 tsquery
         escape_like(title) if title else None,  # $10 ilike
         limit,                                  # $11
         category,                               # $12

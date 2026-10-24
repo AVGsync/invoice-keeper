@@ -7,9 +7,6 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-// TestEnvconfigEmbedding проверяет ключевое допущение дизайна [Д §2.6]:
-// envconfig читает поля анонимно встроенной TelegramConfig по их собственным
-// тегам, без префикса родителя. Если это сломается, бот молча получит дефолты.
 func TestEnvconfigEmbedding(t *testing.T) {
 	env := map[string]string{
 		"JWT_ACCESS_SECRET":     "a",
@@ -158,8 +155,6 @@ func TestValidateTelegramModes(t *testing.T) {
 	})
 
 	t.Run("production with all telegram vars unset passes", func(t *testing.T) {
-		// Прод-compose c APP_ENV=production, но без токена (бот выключен) и
-		// дефолтным REMINDER_SOURCE=stub должен стартовать, а не крашиться.
 		cfg := base()
 		cfg.Environment = "production"
 		if err := cfg.Validate(); err != nil {
@@ -176,7 +171,6 @@ func TestValidateTelegramModes(t *testing.T) {
 		if err := cfg.Validate(); err == nil {
 			t.Error("expected error: stub source in production with bot enabled")
 		}
-		// С REMINDER_SOURCE=db прод с включённым ботом валиден.
 		cfg.ReminderSource = "db"
 		if err := cfg.Validate(); err != nil {
 			t.Errorf("прод с db-источником не должен падать: %v", err)

@@ -15,8 +15,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/service"
 )
 
-// handleFreeText обрабатывает свободный текст в личке как NL-вопрос (§4.4).
-// Непривязанному пользователю — подсказка; при выключенной фиче молчим.
+// handleFreeText обрабатывает свободный текст в личке как NL-вопрос.
 func (s *Service) handleFreeText(ctx context.Context, msg *telegram.Message, question string) {
 	if s.nl == nil || msg.From == nil {
 		return
@@ -27,13 +26,10 @@ func (s *Service) handleFreeText(ctx context.Context, msg *telegram.Message, que
 			"Привяжите Telegram в профиле на сайте, и я смогу отвечать на вопросы о платежах. Команды: /help.")
 		return
 	}
-	// Свободный текст — всегда личка (§4.4): разговор tg:dm.
 	s.dispatchNL(ctx, msg.Chat.ID, link.UserID, "tg:dm", question)
 }
 
-// handleAsk обрабатывает команду /ask <вопрос> (§4.4, решение №8). В группе —
-// только в командном чате; в любом чате — только привязанному пользователю,
-// иначе короткая подсказка.
+// handleAsk обрабатывает команду /ask <вопрос>.
 func (s *Service) handleAsk(ctx context.Context, msg *telegram.Message, arg string) {
 	if s.nl == nil {
 		if msg.Chat.Type == "private" {
@@ -47,12 +43,10 @@ func (s *Service) handleAsk(ctx context.Context, msg *telegram.Message, arg stri
 		return
 	}
 
-	// Разговор: личка → tg:dm; командный чат → tg:<chat_id> (своя история у
-	// каждого пользователя в группе, SPEC §D.1).
 	conversation := "tg:dm"
 	switch msg.Chat.Type {
 	case "group", "supergroup":
-		// В группе отвечаем только в активном командном чате (решение №8).
+		// В группе отвечаем только в активном командном чате.
 		chat, err := s.repo.GetActiveChat(ctx)
 		if err != nil || chat.TGChatID != msg.Chat.ID {
 			s.reply(ctx, msg.Chat.ID, "Команда /ask работает в личке или в командном чате.")
@@ -60,7 +54,6 @@ func (s *Service) handleAsk(ctx context.Context, msg *telegram.Message, arg stri
 		}
 		conversation = fmt.Sprintf("tg:%d", msg.Chat.ID)
 	case "private":
-		// ок
 	default:
 		return
 	}
@@ -77,10 +70,6 @@ func (s *Service) handleAsk(ctx context.Context, msg *telegram.Message, arg stri
 	s.dispatchNL(ctx, msg.Chat.ID, link.UserID, conversation, question)
 }
 
-// handleReset обрабатывает команды /new и /reset: начинает новый диалог,
-// очищая память разговора пользователя (личка → tg:dm; командный чат →
-// tg:<chat_id>). Без привязки — подсказка; при выключенном ассистенте — короткое
-// сообщение (SPEC §D.5).
 func (s *Service) handleReset(ctx context.Context, msg *telegram.Message) {
 	if s.nl == nil {
 		if msg.Chat.Type == "private" {
@@ -99,7 +88,6 @@ func (s *Service) handleReset(ctx context.Context, msg *telegram.Message) {
 		}
 		conversation = fmt.Sprintf("tg:%d", msg.Chat.ID)
 	case "private":
-		// ок
 	default:
 		return
 	}
@@ -113,7 +101,6 @@ func (s *Service) handleReset(ctx context.Context, msg *telegram.Message) {
 		return
 	}
 
-	// Канал bot для журнала действий (history_clear).
 	rctx := audit.WithMeta(ctx, audit.Meta{Channel: audit.ChannelBot, ActorID: link.UserID})
 	if _, err := s.nl.ResetConversation(rctx, link.UserID, audit.ChannelBot, conversation); err != nil {
 		s.reply(ctx, msg.Chat.ID, "Не удалось начать новый диалог, попробуйте позже.")
@@ -122,8 +109,7 @@ func (s *Service) handleReset(ctx context.Context, msg *telegram.Message) {
 	s.reply(ctx, msg.Chat.ID, "Начинаем новый диалог: прошлые вопросы больше не учитываются.")
 }
 
-// dispatchNL запускает NL-ответ в фоне, не блокируя цикл апдейтов. singleflight
-// по userID и семафор горутин не дают долгому LLM накапливать работу (§4.4).
+// dispatchNL запускает NL-ответ в фоне, не блокируя цикл апдейтов.
 func (s *Service) dispatchNL(ctx context.Context, chatID int64, userID, conversation, question string) {
 	if utf8.RuneCountInString(question) > nlQuestionMaxRunes {
 		s.reply(ctx, chatID, "Вопрос слишком длинный, сократите до 500 символов.")
@@ -146,8 +132,6 @@ func (s *Service) dispatchNL(ctx context.Context, chatID int64, userID, conversa
 	s.nlInflight[userID] = struct{}{}
 	s.nlMu.Unlock()
 
-	// Фон под корневым контекстом (а не request-ctx вебхука): ответ до 30 с не
-	// должен обрываться возвратом HTTP-обработчика и обязан дожиться при shutdown.
 	root := s.nlRootCtx
 	if root == nil {
 		root = context.Background()
@@ -174,8 +158,6 @@ func (s *Service) answerNL(root context.Context, chatID int64, userID, conversat
 	askCtx, cancel := context.WithTimeout(root, nlAskTimeout)
 	defer cancel()
 
-	// Индикатор «печатает…» в отдельной горутине; дожидаемся её завершения перед
-	// выходом, чтобы фоновых обращений к Bot API не оставалось после ответа.
 	stop := make(chan struct{})
 	typingDone := make(chan struct{})
 	go func() {
@@ -222,7 +204,7 @@ func (s *Service) typingLoop(ctx context.Context, chatID int64, stop <-chan stru
 	}
 }
 
-// nlErrorText — короткое человекочитаемое сообщение об ошибке ассистента (§4.4).
+// nlErrorText — короткое человекочитаемое сообщение об ошибке ассистента.
 func nlErrorText(err error) string {
 	switch {
 	case errors.Is(err, service.ErrAssistantRateLimited):
@@ -236,9 +218,7 @@ func nlErrorText(err error) string {
 	}
 }
 
-// renderNLAnswer собирает текст ответа: сам ответ + компактный рендер блоков +
-// подсказки. Весь текст из данных HTML-экранируется (§8.4), результат бьётся на
-// сообщения по лимиту Telegram (4096).
+// renderNLAnswer собирает текст ответа: сам ответ + компактный рендер блоков + подсказки.
 func renderNLAnswer(ans model.AssistantAnswer) []string {
 	var b strings.Builder
 	if t := strings.TrimSpace(ans.Text); t != "" {
@@ -273,8 +253,7 @@ func renderNLAnswer(ans model.AssistantAnswer) []string {
 	return splitForTelegram(out, tgMessageLimit)
 }
 
-// renderBlock компактно (≤ 10 строк) рендерит один блок данных. Блоки приходят
-// разобранным JSON, поэтому поля читаются защищённо.
+// renderBlock компактно (≤ 10 строк) рендерит один блок данных.
 func renderBlock(block map[string]any) string {
 	const maxLines = 10
 	switch asString(block["type"]) {
@@ -431,7 +410,6 @@ func splitForTelegram(text string, limit int) []string {
 		lineLen := utf8.RuneCountInString(line)
 		switch {
 		case lineLen >= limit:
-			// Одна строка длиннее лимита: режем по рунам.
 			flush()
 			for _, part := range splitRunes(line, limit) {
 				out = append(out, part)
@@ -466,8 +444,6 @@ func splitRunes(s string, limit int) []string {
 	}
 	return out
 }
-
-// --- защищённое чтение разобранного JSON ---
 
 func asString(v any) string {
 	if s, ok := v.(string); ok {

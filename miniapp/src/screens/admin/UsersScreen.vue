@@ -40,6 +40,13 @@ useMainButton({
           <span class="role" :class="u.role">{{ u.role === 'admin' ? 'Админ' : 'Сотрудник' }}</span>
         </div>
         <div class="sub hint">@{{ u.login }}<span v-if="u.persona"> · {{ u.persona.name }}</span></div>
+        <div class="sub hint tg" :class="{ on: u.telegram_linked }">
+          {{
+            u.telegram_linked
+              ? 'Telegram привязан' + (u.telegram_username ? ' · @' + u.telegram_username : '')
+              : 'Telegram не привязан'
+          }}
+        </div>
       </div>
     </Section>
   </div>
@@ -76,6 +83,9 @@ useMainButton({
   border-color: var(--snow);
   background: var(--snow);
   color: var(--ink);
+}
+.tg.on {
+  color: var(--ash-text);
 }
 .sub {
   font-size: var(--fs-small);

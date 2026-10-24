@@ -54,7 +54,7 @@ function cell(v: string | null | undefined): string {
   color: var(--ash-text);
   margin-bottom: var(--sp-3);
 }
-/* горизонтальный скролл с хвостовым спейсером (приём A.1) */
+/* горизонтальный скролл с хвостовым спейсером */
 .tbl-scroll {
   overflow-x: auto;
   margin: 0 calc(-1 * var(--sp-4));

@@ -1,7 +1,6 @@
 package response
 
-// AssistantStatusResponse — ответ GET /api/v1/assistant/status
-// (docs/NL_QUERIES.md §9.1). UI прячет ассистента при enabled=false.
+// AssistantStatusResponse — ответ GET /api/v1/assistant/status. UI прячет ассистента при enabled=false.
 type AssistantStatusResponse struct {
 	// Включена ли фича (NLQ_ENABLED).
 	Enabled bool `json:"enabled" example:"true"`
@@ -11,14 +10,12 @@ type AssistantStatusResponse struct {
 	Mode string `json:"mode,omitempty" example:"openrouter"`
 	// Примеры вопросов для подсказки в UI.
 	Examples []string `json:"examples" example:"Что просрочено?,Сколько платим в долларах в этом месяце?,Кто отвечает за аренду?"`
-	// Сводка о памяти диалога (из конфига): включена ли, сколько ходов в контекст,
-	// срок жизни контекста (SPEC §D.5).
+	// Сводка о памяти диалога (из конфига): включена ли, сколько ходов в контекст, срок жизни.
 	Memory AssistantMemoryInfo `json:"memory"`
 }
 
-// AssistantAnswerResponse документирует конверт ответа агента (§7.9) для swagger.
-// Фактический ответ ручки /ask проксируется от агента байт-в-байт, поэтому здесь
-// поля описаны обзорно (точная схема блоков и meta — в docs/NL_QUERIES.md §7.9).
+// AssistantAnswerResponse документирует конверт ответа агента для swagger.
+// Фактический ответ /ask проксируется от агента как есть, поэтому поля описаны обзорно.
 type AssistantAnswerResponse struct {
 	// AnswerID совпадает с X-Request-ID.
 	AnswerID string `json:"answer_id" example:"f16cc96e-aaf4-44fb-a462-836ed4d0b135"`

@@ -12,8 +12,6 @@ import (
 	"github.com/lib/pq"
 )
 
-// Алиасы на единые sentinel-ошибки модели: хендлер сверяет с model.*, поэтому
-// репозиторий обязан возвращать именно их (иначе 500 вместо 404/409).
 var (
 	ErrNotificationSettingsNotFound = model.ErrNotificationSettingsNotFound
 	ErrNotificationSettingsExists   = model.ErrNotificationSettingsExists
@@ -115,7 +113,6 @@ func (r *NotificationsRepository) Create(
 }
 
 // Update полностью обновляет настройки.
-// Подтверждение email сбрасывается, если адрес изменился.
 func (r *NotificationsRepository) Update(
 	settings model.UserNotificationSettings,
 	ctx context.Context,
@@ -158,7 +155,6 @@ func (r *NotificationsRepository) Update(
 }
 
 // Patch обновляет только переданные поля.
-// Указатель nil означает, что поле не меняется.
 func (r *NotificationsRepository) Patch(
 	userID string,
 	patch request.PatchUserNotificationSettingsRequest,

@@ -1,7 +1,6 @@
 import type { Currency } from '../api/types'
 
-// Форматирование денег. Суммы — целое число минимальных единиц (копейки/центы).
-// Свой форматтер (не Intl), чтобы вывод был одинаков во всех движках.
+// Форматирование денег.
 
 const NNBSP = ' ' // narrow no-break space — группировка разрядов
 const NBSP = ' ' // no-break space — перед символом валюты
@@ -39,7 +38,6 @@ export function formatMoney(minor: number, cur: Currency): string {
 }
 
 // Разбор пользовательского ввода суммы в минорные единицы.
-// Принимает "," или ".", ≤2 знака дроби, только цифры. Результат > 0 и ≤ 1e13.
 export function parseMoneyInput(s: string): number | null {
   if (typeof s !== 'string') return null
   let t = s.replace(/[\s  ]/g, '')
@@ -64,7 +62,7 @@ export function parseMoneyInput(s: string): number | null {
 
 const ORDER: Currency[] = ['RUB', 'USD', 'EUR']
 
-// Суммирование по валютам. Валюты НИКОГДА не складываются между собой.
+// Суммирование по валютам.
 export function sumByCurrency<T>(
   items: readonly T[],
   pick: (item: T) => { currency: Currency; amount: number } | null,

@@ -11,9 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// botCtx оборачивает контекст метаданными журнала для действий, инициированных
-// ботом: канал всегда bot, актор — привязанный пользователь. role передаётся,
-// если известна (иначе пусто).
+// botCtx оборачивает контекст метаданными журнала для действий, инициированных ботом: канал всегда bot, актор — привязанный пользователь.
 func (s *Service) botCtx(ctx context.Context, userID, role string) context.Context {
 	return audit.WithMeta(ctx, audit.Meta{
 		ActorID:   userID,
@@ -23,7 +21,6 @@ func (s *Service) botCtx(ctx context.Context, userID, role string) context.Conte
 }
 
 // miniAppAuthReason переводит ошибку входа в Mini App в код причины для журнала.
-// Пустая строка — событие не аудируется (напр. бот выключен).
 func miniAppAuthReason(err error) string {
 	switch {
 	case errors.Is(err, telegram.ErrInitDataInvalid):
@@ -52,7 +49,6 @@ func miniAppLinkReason(err error) string {
 }
 
 // occurrenceIDFromHex превращает hex из callback_data (p:<uuid hex>) в UUID-строку.
-// При ошибке возвращает исходный hex — чтобы запись журнала не потерялась.
 func occurrenceIDFromHex(occHex string) string {
 	b, err := hex.DecodeString(occHex)
 	if err != nil || len(b) != 16 {

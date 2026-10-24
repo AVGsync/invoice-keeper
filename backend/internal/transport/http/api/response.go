@@ -14,8 +14,7 @@ import (
 
 type requestIDKey struct{}
 
-// RequestIDMiddleware gives every new JSON API response a correlation ID. A
-// printable client ID is preserved; malformed/untrusted values are replaced.
+// RequestIDMiddleware gives every new JSON API response a correlation ID.
 func RequestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestID := r.Header.Get("X-Request-ID")

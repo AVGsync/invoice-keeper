@@ -15,7 +15,6 @@ import FatalScreen from './screens/FatalScreen.vue'
 const route = useRoute()
 const { showInlineBack, goBack } = useBackButton()
 
-// activated (8.0+): обновляем данные, если они старше 60 с.
 onMounted(() => {
   const tg = getWebApp()
   if (tg && supports('8.0')) {
@@ -27,8 +26,7 @@ onMounted(() => {
 
 // Панель живёт всю сессию и уезжает вниз на экранах без вкладок — без пересоздания.
 const showTabBar = computed(() => session.phase === 'ready')
-// Панель уезжает вниз на экранах без вкладок и когда фокус в композере «Спросить»
-// (чтобы не висеть над экранной клавиатурой).
+// Панель уезжает вниз на экранах без вкладок и когда фокус в композере «Спросить» (чтобы не висеть над экранной клавиатурой).
 const tabBarAway = computed(() => !route.meta.tab || ui.composerFocused)
 const isFatal = computed(() =>
   ['no_telegram', 'expired', 'invalid', 'disabled', 'rate_limited', 'offline'].includes(

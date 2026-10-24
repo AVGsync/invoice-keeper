@@ -1,8 +1,4 @@
-"""Process-wide state for the MCP server, set once at startup.
-
-Tools are module-level functions, so they reach the database, settings and the
-actor public key through this holder rather than globals scattered per module.
-"""
+"""Process-wide state for the MCP server, set once at startup."""
 
 from __future__ import annotations
 
@@ -14,7 +10,6 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from ..config import Settings
 from .db import Database
 
-# Payment-schema health, re-checked periodically by selfcheck (section 5.9 p.6-7).
 SCHEMA_OK = "ok"
 SCHEMA_MISSING = "missing"
 SCHEMA_DRIFT = "drift"
@@ -25,7 +20,6 @@ SCHEMA_BROKEN = "broken"  # a rendered tool template failed to prepare
 class SchemaStatus:
     value: str = SCHEMA_MISSING
     reason: str | None = "payments_schema_missing"
-    # Whether B's optional recurring_payments.category column is present.
     category_available: bool = False
 
     @property

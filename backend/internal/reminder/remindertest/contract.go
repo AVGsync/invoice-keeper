@@ -1,8 +1,4 @@
-// Package remindertest содержит контрактные проверки портов reminder
-// (docs/TELEGRAM_BOT.md §2.5). Их проходит и in-memory заглушка, и SQL-адаптер к
-// таблицам модуля B. Вынесено в отдельный пакет, чтобы интеграционный тест
-// postgres мог вызвать те же функции; "testing" сюда импортируется намеренно —
-// пакет используется только из тестов.
+// Package remindertest содержит контрактные проверки портов reminder.
 package remindertest
 
 import (
@@ -15,8 +11,6 @@ import (
 )
 
 // Fixtures — канонический набор периодов и ролей для контрактных проверок.
-// Фабрика в тесте устанавливает Occurrences в источник (в БД B или in-memory) и
-// возвращает порт; проверки опираются на именованные id.
 type Fixtures struct {
 	Today      clock.Date
 	Lead       int
@@ -105,14 +99,11 @@ type sourceContractOpts struct {
 	assigneeRequired bool
 }
 
-// AssigneeRequired ослабляет проверку 5: у реального источника B payments.user_id
-// NOT NULL, поэтому период без ответственного невозможен — проверяем лишь, что
-// период в выборке. MemoryStore этот параметр не передаёт (у него AssigneeID=nil).
 func AssigneeRequired() SourceContractOption {
 	return func(o *sourceContractOpts) { o.assigneeRequired = true }
 }
 
-// RunSourceContract проверяет инварианты OccurrenceSource (§2.5, 1–5).
+// RunSourceContract проверяет инварианты OccurrenceSource.
 func RunSourceContract(t *testing.T, newSrc func(t *testing.T, fx Fixtures) reminder.OccurrenceSource, opts ...SourceContractOption) {
 	t.Helper()
 	var o sourceContractOpts
@@ -138,7 +129,6 @@ func RunSourceContract(t *testing.T, newSrc func(t *testing.T, fx Fixtures) remi
 	if contains(due, fx.EndedID) {
 		t.Error("DueBetween вернул период завершённого платежа")
 	}
-	// 3: границы включительно, to+1 исключён.
 	if !contains(due, fx.FromID) {
 		t.Error("нижняя граница окна не попала в выборку")
 	}
@@ -168,7 +158,6 @@ func RunSourceContract(t *testing.T, newSrc func(t *testing.T, fx Fixtures) remi
 		}
 	}
 
-	// 2 (продолжение): GetByIDs возвращает завершённый с Ended=true.
 	got, err := src.GetByIDs(ctx, []string{fx.EndedID, fx.PaidID})
 	if err != nil {
 		t.Fatalf("GetByIDs: %v", err)
@@ -181,7 +170,7 @@ func RunSourceContract(t *testing.T, newSrc func(t *testing.T, fx Fixtures) remi
 	}
 }
 
-// RunPayerContract проверяет инвариант 6 (§2.5): права и sentinel-ошибки.
+// RunPayerContract проверяет инвариант 6: права и sentinel-ошибки.
 func RunPayerContract(t *testing.T, newPayer func(t *testing.T, fx Fixtures) reminder.Payer) {
 	t.Helper()
 	today := clock.Date{Y: 2026, M: 10, D: 24}
@@ -193,7 +182,6 @@ func RunPayerContract(t *testing.T, newPayer func(t *testing.T, fx Fixtures) rem
 	if err := payer.MarkPaid(ctx, fx.PayableID, today, fx.Other); err != reminder.ErrForbidden {
 		t.Errorf("MarkPaid чужим: got %v want ErrForbidden", err)
 	}
-	// Ответственный — успех.
 	if err := payer.MarkPaid(ctx, fx.PayableID, today, fx.Assignee); err != nil {
 		t.Errorf("MarkPaid ответственным: got %v want nil", err)
 	}
@@ -201,11 +189,9 @@ func RunPayerContract(t *testing.T, newPayer func(t *testing.T, fx Fixtures) rem
 	if err := payer.MarkPaid(ctx, fx.PayableID, today, fx.Assignee); err != reminder.ErrAlreadyPaid {
 		t.Errorf("повторный MarkPaid: got %v want ErrAlreadyPaid", err)
 	}
-	// Завершённый платёж.
 	if err := payer.MarkPaid(ctx, fx.EndedID, today, fx.Admin); err != reminder.ErrPaymentEnded {
 		t.Errorf("MarkPaid завершённого: got %v want ErrPaymentEnded", err)
 	}
-	// Неизвестный id.
 	if err := payer.MarkPaid(ctx, "44444444-4444-4444-4444-444444444444", today, fx.Admin); err != reminder.ErrOccurrenceNotFound {
 		t.Errorf("MarkPaid неизвестного: got %v want ErrOccurrenceNotFound", err)
 	}

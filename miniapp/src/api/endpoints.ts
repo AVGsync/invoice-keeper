@@ -13,6 +13,8 @@ import type {
   AssistantStatus,
   AssistantEnvelope,
   AssistantHistoryResponse,
+  Receipt,
+  ReceiptAccess,
 } from './types'
 
 // Auth
@@ -53,6 +55,31 @@ export function confirmOccurrence(id: string, paidDate?: string): Promise<void> 
 
 export function cancelOccurrence(id: string): Promise<void> {
   return request('PATCH', `/payment-occurrences/${id}`, { body: { action: 'cancel' } })
+}
+
+// Receipts
+export async function listReceipts(paymentId: string, signal?: AbortSignal): Promise<Receipt[]> {
+  const res = await request<{ items: Receipt[] }>('GET', `/payment-occurrences/${paymentId}/receipts`, { signal })
+  return res.items
+}
+
+export function uploadReceipt(paymentId: string, file: File, title?: string): Promise<Receipt> {
+  const form = new FormData()
+  if (title) form.append('title', title)
+  form.append('file', file, file.name)
+  return request('POST', `/payment-occurrences/${paymentId}/receipts`, { body: form })
+}
+
+export function addReceiptLink(paymentId: string, url: string, title?: string): Promise<Receipt> {
+  return request('POST', `/payment-occurrences/${paymentId}/receipts/link`, { body: { url, title: title ?? '' } })
+}
+
+export function deleteReceipt(id: string): Promise<void> {
+  return request('DELETE', `/receipts/${id}`)
+}
+
+export function receiptAccess(id: string): Promise<ReceiptAccess> {
+  return request('GET', `/receipts/${id}/access`)
 }
 
 // Recurring
@@ -99,7 +126,6 @@ export function ask(question: string, signal?: AbortSignal): Promise<AssistantEn
   })
 }
 
-// История диалога (память ассистента, трек D). Канал всегда miniapp.
 export function assistantHistory(
   limit = 20,
   signal?: AbortSignal,

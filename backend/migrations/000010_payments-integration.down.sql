@@ -1,5 +1,4 @@
--- Откат интеграционной миграции 000010: снимаем ограничения, индексы и колонки,
--- возвращаем FK payments.user_id на ON DELETE CASCADE (исходное поведение B).
+-- Откат 000010: снимаем ограничения, индексы и колонки, FK payments.user_id возвращаем на ON DELETE CASCADE.
 ALTER TABLE user_recurrent_payments DROP CONSTRAINT IF EXISTS user_recurrent_payments_user_id_fkey,
     ADD CONSTRAINT user_recurrent_payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_user_id_fkey,

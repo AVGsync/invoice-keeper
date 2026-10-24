@@ -66,11 +66,8 @@ func TestClient_Migrate(t *testing.T) {
 	}
 }
 
-// Токен бота не должен попадать в текст ошибки сети: *url.Error включает полный
-// URL с /bot<TOKEN>/, и эта ошибка уходит в логи и в last_error outbox.
 func TestClient_DoError_NoTokenLeak(t *testing.T) {
 	const token = "123456:SECRET-TOKEN"
-	// Недостижимый адрес: Do вернёт *url.Error с URL в тексте.
 	c := NewClient(token, "http://127.0.0.1:1")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

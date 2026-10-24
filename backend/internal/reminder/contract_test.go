@@ -7,8 +7,6 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/reminder/remindertest"
 )
 
-// Заглушка MemoryStore должна проходить тот же контракт, что и SQL-адаптер (§2.5).
-
 func TestMemoryStoreSourceContract(t *testing.T) {
 	remindertest.RunSourceContract(t, func(t *testing.T, fx remindertest.Fixtures) reminder.OccurrenceSource {
 		return reminder.NewMemoryStore(fx.Occurrences, nil)

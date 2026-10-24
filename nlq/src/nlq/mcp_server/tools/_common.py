@@ -32,12 +32,7 @@ def render_occurrences_base(state: AppState) -> str:
 
 
 def category_filter(state: AppState, requested: str | None) -> tuple[str | None, bool]:
-    """Resolve the optional category filter against B's schema (decision #3).
-
-    Returns ``(bound_value, unavailable)``: when B has no category column the
-    filter is dropped (``None``) and ``unavailable`` is True so the caller can
-    surface a ``category_unavailable`` note instead of silently returning empty.
-    """
+    """Resolve the optional category filter against the payments schema."""
     if not requested:
         return None, False
     if state.schema.category_available:
@@ -48,12 +43,7 @@ def category_filter(state: AppState, requested: str | None) -> tuple[str | None,
 async def compute_coverage(
     state: AppState, bounds: tuple[date, date] | None
 ) -> tuple[Any, bool]:
-    """Per-active-payment horizon (section 5.4, decision #4).
-
-    Returns ``(coverage_until, coverage_incomplete)``. Coverage is incomplete
-    when any active payment has no periods, has none at all, or its last period
-    is before the end of the requested window.
-    """
+    """Per-active-payment horizon."""
     rows = await state.db.ro_query(load_sql("horizon.sql"))
     row = rows[0] if rows else None
     coverage_until = row["coverage_until"] if row else None
@@ -66,11 +56,7 @@ async def compute_coverage(
 
 
 def validate_args(model_name: str, raw: dict[str, Any]) -> Any:
-    """Re-validate collected arguments through the pydantic model.
-
-    This runs the cross-field validators (e.g. amount requires currency). Only
-    non-None values are passed so optional fields keep their defaults.
-    """
+    """Re-validate collected arguments through the pydantic model."""
     model_cls, _ = tool_specs.ALL_TOOLS[model_name]
     provided = {k: v for k, v in raw.items() if v is not None}
     try:

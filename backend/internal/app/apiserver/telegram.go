@@ -19,10 +19,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// telegramRuntime — собранные компоненты бота. Единственное место, где склеены
-// клиент Bot API, сервис, HTTP-хендлер и поллер (docs/TELEGRAM_BOT.md §8).
-// Когда бот выключен (режим off или пустой токен), enabled=false: REST-ручки
-// работают (link-code отдаёт 503, чтение привязки доступно), но горутин нет.
+// telegramRuntime — собранные компоненты бота.
 type telegramRuntime struct {
 	service *telegrambot.Service
 	handler *handler.TelegramHandler
@@ -32,10 +29,7 @@ type telegramRuntime struct {
 	mode    string
 }
 
-// buildTelegram собирает компоненты бота из конфигурации. Вызывается из
-// configureRouter. UserReader — репозиторий пользователей (GetUserByID,
-// GetUserByLogin); tokens — UserService (вход в Mini App, §3.3); hasher —
-// проверка пароля при входе по логину.
+// buildTelegram собирает компоненты бота из конфигурации.
 func (s *APIServer) buildTelegram(tokens telegrambot.TokenIssuer, hasher telegrambot.Hasher) *telegramRuntime {
 	enabled := s.config.TelegramMode != "off" && s.config.TelegramBotToken != ""
 
@@ -61,7 +55,6 @@ func (s *APIServer) buildTelegram(tokens telegrambot.TokenIssuer, hasher telegra
 			InitDataMaxAge: s.config.TelegramInitDataMaxAge,
 		},
 	)
-	// Журнал действий бота (привязки, командный чат, «Оплачено»).
 	service.SetAuditRecorder(s.audit)
 
 	rt := &telegramRuntime{
@@ -72,23 +65,16 @@ func (s *APIServer) buildTelegram(tokens telegrambot.TokenIssuer, hasher telegra
 		mode:    s.config.TelegramMode,
 	}
 
-	// Движок напоминаний поднимается только с живым клиентом (бот включён):
-	// без него некому отправлять сообщения и нажимать «Оплачено».
 	if enabled {
 		s.buildReminder(rt, realClient)
 	}
 	return rt
 }
 
-// buildReminder собирает движок напоминаний и подключает кнопку «Оплачено» к
-// сервису бота. Источник периодов и запись оплаты зависят от REMINDER_SOURCE:
-// stub (in-memory демо) или db (SQL по таблицам B; Payer — заглушка до этапа 4).
+// buildReminder собирает движок напоминаний и подключает кнопку «Оплачено» к сервису бота.
 func (s *APIServer) buildReminder(rt *telegramRuntime, client *telegram.Client) {
 	clk := clock.New(s.config.Location())
 
-	// isAdmin читает роль из users.role: реальный привязанный админ должен мочь
-	// нажать «Оплачено» и в stub-режиме (решение №4). Используется заглушкой
-	// MemoryStore; в db-режиме права проверяет сервис B.
 	users := s.db.User()
 	isAdmin := func(ctx context.Context, userID string) bool {
 		u, err := users.GetUserByID(userID, ctx)
@@ -102,11 +88,8 @@ func (s *APIServer) buildReminder(rt *telegramRuntime, client *telegram.Client) 
 	switch s.config.ReminderSource {
 	case "db":
 		source = s.db.TelegramSource()
-		// paymentsPayer: права и запись — через сервис B, «завершён» — по источнику.
 		payer = paymentsPayer{payments: s.payments, source: source, isAdmin: isAdmin}
 	default: // stub
-		// Назначаем демо-платежи реальному админу (если он уже создан), чтобы
-		// «Оплачено» работало и как ответственный, и как админ.
 		adminID := ""
 		if u, err := users.GetUserByLogin(s.config.AdminLogin, context.Background()); err == nil {
 			adminID = u.ID
@@ -128,8 +111,7 @@ func (s *APIServer) buildReminder(rt *telegramRuntime, client *telegram.Client) 
 	botSvc := reminder.NewBotService(source, payer, notif, client, clk, rcfg)
 	rt.service.AttachPayments(botSvc)
 
-	// ensurer: в режиме db периоды гарантирует PaymentScheduler перед выборкой
-	// (§2.2). В stub источник сам отдаёт фикстуры, ensurer не нужен.
+	// ensurer: в режиме db периоды гарантирует PaymentScheduler перед выборкой.
 	var ensurer reminder.OccurrenceEnsurer
 	if s.config.ReminderSource == "db" && s.scheduler != nil {
 		ensurer = s.scheduler
@@ -137,8 +119,7 @@ func (s *APIServer) buildReminder(rt *telegramRuntime, client *telegram.Client) 
 	rt.loop = reminder.NewLoop(source, notif, s.db.Telegram(), client, clk, ensurer, rcfg)
 }
 
-// mountTelegramWebhook монтирует публичный маршрут webhook (вне групп Auth и
-// лимитеров, только MaxBytes, ответ всегда 200). Только в режиме webhook (§6.1).
+// mountTelegramWebhook монтирует публичный маршрут webhook (вне групп Auth и лимитеров, только MaxBytes, ответ всегда 200).
 func (s *APIServer) mountTelegramWebhook(r chi.Router, mw *middleware.Middleware) {
 	if s.tg == nil || s.tg.mode != "webhook" {
 		return
@@ -149,10 +130,7 @@ func (s *APIServer) mountTelegramWebhook(r chi.Router, mw *middleware.Middleware
 	})
 }
 
-// mountTelegramMiniApp монтирует публичные эндпоинты входа в Mini App (§7).
-// Вне групп Auth: аутентификация идёт по initData Telegram, а не по JWT.
-// Лимит по IP (auth 30/min, link 10/min как /auth/login), MaxBytes, JSON-ошибки
-// с request_id (RequestIDMiddleware). Раздаётся с того же origin, CORS не нужен.
+// mountTelegramMiniApp монтирует публичные эндпоинты входа в Mini App.
 func (s *APIServer) mountTelegramMiniApp(r chi.Router, mw *middleware.Middleware) {
 	if s.tg == nil {
 		return
@@ -160,7 +138,6 @@ func (s *APIServer) mountTelegramMiniApp(r chi.Router, mw *middleware.Middleware
 	h := s.tg.handler
 	r.Group(func(r chi.Router) {
 		r.Use(api.RequestIDMiddleware)
-		// Канал для этих ручек всегда miniapp (вход/привязка из Mini App).
 		r.Use(mw.AuditContextFor(audit.ChannelMiniApp))
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
 
@@ -169,8 +146,7 @@ func (s *APIServer) mountTelegramMiniApp(r chi.Router, mw *middleware.Middleware
 	})
 }
 
-// mountTelegram монтирует REST привязки и командного чата. Ошибки в едином
-// JSON-формате (§7), поэтому используются *JSON-варианты middleware.
+// mountTelegram монтирует REST привязки и командного чата.
 func (s *APIServer) mountTelegram(r chi.Router, mw *middleware.Middleware) {
 	if s.tg == nil {
 		return
@@ -188,7 +164,6 @@ func (s *APIServer) mountTelegram(r chi.Router, mw *middleware.Middleware) {
 		r.Get("/me/telegram", h.GetLink())
 		r.Delete("/me/telegram", h.DeleteLink())
 
-		// Админские ручки командного чата.
 		r.Group(func(r chi.Router) {
 			r.Use(mw.IsAdminJSON)
 			r.Get("/telegram/team-chat", h.GetTeamChat())
@@ -197,29 +172,19 @@ func (s *APIServer) mountTelegram(r chi.Router, mw *middleware.Middleware) {
 	})
 }
 
-// startTelegram поднимает фоновые задачи бота: засев командного чата, проверку
-// токена, поллер (polling) или регистрацию webhook (webhook). Все горутины
-// слушают ctx и учтены в wg (§5.3).
+// startTelegram поднимает фоновые задачи бота: засев командного чата, проверку токена, поллер (polling) или регистрацию webhook (webhook).
 func (s *APIServer) startTelegram(ctx context.Context, wg *sync.WaitGroup) {
 	if s.tg == nil || !s.tg.enabled {
 		slog.Info("telegram bot: disabled (mode off or empty token)")
 		return
 	}
 
-	// NL-ответы считаются в фоне под корневым контекстом и общим wg: долгий
-	// LLM-ответ (до 30 с) не висит на request-ctx вебхука и дожидается при
-	// graceful shutdown (docs/NL_QUERIES.md §4.4, §5.3).
 	if s.assistant != nil {
 		s.tg.service.StartNL(ctx, wg)
 	}
 
-	// В stub-режиме не засеваем командный чат из TELEGRAM_TEAM_CHAT_ID: при общем
-	// боте (решение №7) локальный запуск с прод-настройками иначе отправил бы
-	// демо-напоминания в реальный рабочий чат (риск §11, finding). Демо-сообщения
-	// помечены [DEMO]; командный чат в demo задаётся вручную через /bind.
 	seedTeamChat := s.config.ReminderSource == "db"
 
-	// Засев командного чата из TELEGRAM_TEAM_CHAT_ID, если активного ещё нет.
 	if raw := s.config.TelegramTeamChatID; seedTeamChat && raw != "" {
 		if id, err := strconv.ParseInt(raw, 10, 64); err != nil {
 			slog.Error("telegram bot: bad TELEGRAM_TEAM_CHAT_ID", "value", raw, "error", err)
@@ -263,8 +228,6 @@ func (s *APIServer) startTelegram(ctx context.Context, wg *sync.WaitGroup) {
 		wcancel()
 	}
 
-	// Движок напоминаний: одна горутина, первый тик сразу (§5.3). Работает в
-	// обоих режимах приёма апдейтов.
 	if s.tg.loop != nil {
 		wg.Add(1)
 		go func() {

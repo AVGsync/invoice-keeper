@@ -65,7 +65,6 @@ func newTestService(t *testing.T, agentURL string, cfg AssistantConfig) *Assista
 		cfg.MaxConcurrent = 4
 	}
 	users := fakeUsers{users: map[string]model.User{"u1": {ID: "u1", Role: "admin"}}}
-	// Реальные часы: клеймы nbf/exp сверяются с настоящим временем в jwt.Parse.
 	return NewAssistantService(users, cfg, clock.New(time.UTC))
 }
 
@@ -111,9 +110,6 @@ func TestAssistant_TokenClaims(t *testing.T) {
 	}
 	tokenStr := gotAuth[len(prefix):]
 
-	// Проверяем подпись публичным ключом (то же делает Python verify_actor) и
-	// обязательные клеймы: алгоритм EdDSA, aud=nlq, iss=invoice-keeper-backend,
-	// role перечитана из БД (admin), ch=bot, exp=iat+60.
 	pub := testKey().Public().(ed25519.PublicKey)
 	claims := jwt.MapClaims{}
 	tok, err := jwt.ParseWithClaims(tokenStr, claims, func(tk *jwt.Token) (any, error) {
@@ -219,7 +215,6 @@ func TestAssistant_Busy_Semaphore(t *testing.T) {
 		_, err := svc.Ask(context.Background(), "u1", "bot", "первый")
 		done <- err
 	}()
-	// Ждём, пока первый займёт семафор.
 	deadline := time.Now().Add(time.Second)
 	for !inflight.Load() && time.Now().Before(deadline) {
 		time.Sleep(5 * time.Millisecond)
@@ -250,23 +245,16 @@ func TestValidateQuestion(t *testing.T) {
 	if _, err := ValidateQuestion("что\x00просрочено"); !errors.Is(err, ErrAssistantBadQuestion) {
 		t.Errorf("control char should be bad")
 	}
-	// Зеркалим Python validate_question (общий набор правил, §9.1): руны категории
-	// Unicode C отвергаются ещё в Go, не тратя лимит на 400 от агента.
-	// ZWJ (U+200D), BOM (U+FEFF), мягкий перенос (U+00AD) — категория Cf.
-	// Кодпойнты числом, чтобы исходник оставался ASCII (без скрытых символов).
 	for _, cp := range []rune{0x200D, 0xFEFF, 0x00AD} {
 		bad := "vopros" + string(cp) + "end"
 		if _, err := ValidateQuestion(bad); !errors.Is(err, ErrAssistantBadQuestion) {
 			t.Errorf("Cf char U+%04X should be bad", cp)
 		}
 	}
-	// ZWJ-эмодзи (U+1F468 U+200D U+1F4BB) содержит ZWJ → отклоняется.
 	emoji := string(rune(0x1F468)) + string(rune(0x200D)) + string(rune(0x1F4BB))
 	if _, err := ValidateQuestion("emoji " + emoji); !errors.Is(err, ErrAssistantBadQuestion) {
 		t.Errorf("ZWJ emoji should be bad")
 	}
-	// Длину считаем по ВСЕМ рунам, включая \n (перевод в середине не срежется
-	// TrimSpace): 250 + 1 + 250 = 501 руны → отказ.
 	withNL := strings.Repeat("я", 250) + "\n" + strings.Repeat("я", 250)
 	if _, err := ValidateQuestion(withNL); !errors.Is(err, ErrAssistantBadQuestion) {
 		t.Errorf("newlines must count toward the 500-rune limit")

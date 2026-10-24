@@ -1,1 +1,1 @@
-"""nlq-agent: the agent loop over OpenRouter + the FastAPI app (§7)."""
+"""nlq-agent: the agent loop over OpenRouter + the FastAPI app."""

@@ -1,11 +1,4 @@
-"""Single source of truth for tool arguments.
-
-Each tool is defined once as a pydantic model (``extra="forbid"`` → unknown
-fields such as ``user_id``/``scope``/``today`` become ``bad_args``) together
-with a *flat* JSON schema for the LLM (no ``$ref``/``anyOf``/``default``/
-``format`` so it survives ``provider.require_parameters`` across vendors, §5.3).
-A unit test asserts the two stay in sync on enums and required fields.
-"""
+"""Single source of truth for tool arguments."""
 
 from __future__ import annotations
 
@@ -206,8 +199,6 @@ class RecallConversationArgs(_Args):
     query: str | None = Field(default=None, min_length=1, max_length=100)
     limit: int = Field(default=3, ge=1, le=5)
 
-
-# --- Flat JSON schemas for the LLM (OpenAI function-calling format) ---
 
 FIND_OCCURRENCES_SCHEMA: Final[dict[str, Any]] = {
     "type": "function",
@@ -577,7 +568,6 @@ RECALL_CONVERSATION_SCHEMA: Final[dict[str, Any]] = {
     },
 }
 
-# tool name -> (pydantic model, flat schema)
 MCP_TOOLS: Final[dict[str, tuple[type[_Args], dict[str, Any]]]] = {
     "find_occurrences": (FindOccurrencesArgs, FIND_OCCURRENCES_SCHEMA),
     "sum_occurrences": (SumOccurrencesArgs, SUM_OCCURRENCES_SCHEMA),
@@ -595,10 +585,8 @@ LOCAL_TOOLS: Final[dict[str, tuple[type[_Args], dict[str, Any]]]] = {
     "recall_conversation": (RecallConversationArgs, RECALL_CONVERSATION_SCHEMA),
 }
 
-# Local tools that still return data (executed in-process, not via MCP), §D.6.
 LOCAL_DATA_TOOLS: Final[frozenset[str]] = frozenset({"recall_conversation"})
 
 ALL_TOOLS: Final[dict[str, tuple[type[_Args], dict[str, Any]]]] = {**MCP_TOOLS, **LOCAL_TOOLS}
 
-# Schemas passed to OpenRouter on every request (9 MCP + 2 local), §7.1 / §D.7.
 LLM_TOOL_SCHEMAS: Final[list[dict[str, Any]]] = [schema for _, schema in ALL_TOOLS.values()]

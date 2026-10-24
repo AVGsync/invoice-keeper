@@ -11,8 +11,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// MemoryConfig — параметры памяти диалога (SPEC §D.3). Проверяются на старте
-// независимо от NLQ_ENABLED: ручки истории работают и при выключенном ассистенте.
+// MemoryConfig — параметры памяти диалога.
 type MemoryConfig struct {
 	// Enabled — читать/писать историю и слать history агенту.
 	Enabled bool
@@ -20,15 +19,13 @@ type MemoryConfig struct {
 	Turns int
 	// TTL — максимальный возраст хода для попадания в промпт.
 	TTL time.Duration
-	// MaxTurns — сколько ходов передаётся агенту всего (in_prompt:false видит
-	// только recall_conversation), Turns..50.
+	// MaxTurns — сколько ходов передаётся агенту всего (in_prompt:false видит только recall_conversation), Turns..50.
 	MaxTurns int
 	// Keep — сколько ходов разговора хранить (прочее prune после вставки).
 	Keep int
 }
 
-// HistoryTurn — компактный ход для передачи агенту (протокол §D.4). Порядок — от
-// старых к новым; текущий вопрос не входит.
+// HistoryTurn — компактный ход для передачи агенту.
 type HistoryTurn struct {
 	Q        string          `json:"q"`
 	A        string          `json:"a"`
@@ -52,8 +49,7 @@ type AppendRecord struct {
 	Memory       []byte // сырой объект memory (≤8 КБ, иначе {})
 }
 
-// AssistantHistoryRepo — хранилище ходов (реализует
-// postgres.AssistantHistoryRepository).
+// AssistantHistoryRepo — хранилище ходов (реализует postgres.AssistantHistoryRepository).
 type AssistantHistoryRepo interface {
 	Append(ctx context.Context, t model.AssistantTurn) (model.AssistantTurn, error)
 	ListRecent(ctx context.Context, userID, conversation string, limit int, statuses []string) ([]model.AssistantTurn, error)
@@ -63,9 +59,7 @@ type AssistantHistoryRepo interface {
 	Prune(ctx context.Context, userID, conversation string, keep int) error
 }
 
-// AssistantHistoryService — история диалогов ассистента: контекст для
-// уточняющих вопросов, чтение и очистка (SPEC §D.5). Есть всегда, в т. ч. при
-// NLQ_ENABLED=false (ручки истории опираются только на БД).
+// AssistantHistoryService — история диалогов ассистента: контекст для уточняющих вопросов, чтение и очистка.
 type AssistantHistoryService struct {
 	repo  AssistantHistoryRepo
 	cfg   MemoryConfig
@@ -91,9 +85,7 @@ func (s *AssistantHistoryService) Enabled() bool { return s.cfg.Enabled }
 // Config возвращает конфигурацию памяти (для GET /status и /history).
 func (s *AssistantHistoryService) Config() MemoryConfig { return s.cfg }
 
-// selectContext помечает InContext у последних N подряд-идущих с конца ходов,
-// пока их возраст укладывается в ttl. Разрыв (ход старше ttl) обрывает цепочку.
-// turns — хронологически (старые → новые).
+// selectContext помечает InContext у последних N подряд-идущих с конца ходов, пока их возраст укладывается в ttl.
 func selectContext(turns []model.AssistantTurn, now time.Time, turnsN int, ttl time.Duration) int {
 	if turnsN <= 0 {
 		return 0
@@ -113,9 +105,7 @@ func selectContext(turns []model.AssistantTurn, now time.Time, turnsN int, ttl t
 	return marked
 }
 
-// ContextFor грузит контекст разговора для промпта: до MaxTurns ходов ok|partial
-// (старые → новые) с проставленным in_prompt. Возвращает ходы и число in_prompt.
-// При выключенной памяти — пусто.
+// ContextFor грузит контекст разговора для промпта: до MaxTurns ходов ok|partial (старые → новые) с проставленным in_prompt.
 func (s *AssistantHistoryService) ContextFor(ctx context.Context, userID, conversation string) ([]HistoryTurn, int, error) {
 	if s == nil || !s.cfg.Enabled {
 		return nil, 0, nil
@@ -145,8 +135,7 @@ func (s *AssistantHistoryService) ContextFor(ctx context.Context, userID, conver
 	return out, inPrompt, nil
 }
 
-// Append записывает ход (после успешного ответа агента) и подрезает разговор до
-// Keep. Выполняется с WithoutCancel, чтобы запись не отменилась вместе с запросом.
+// Append записывает ход (после успешного ответа агента) и подрезает разговор до Keep.
 func (s *AssistantHistoryService) Append(ctx context.Context, rec AppendRecord) error {
 	if s == nil || !s.cfg.Enabled {
 		return nil
@@ -174,16 +163,12 @@ func (s *AssistantHistoryService) Append(ctx context.Context, rec AppendRecord) 
 	return nil
 }
 
-// History возвращает последние limit ходов разговора по возрастанию времени,
-// общее число и флаг in_context у каждого (та же selectContext, что для промпта).
 func (s *AssistantHistoryService) History(ctx context.Context, userID, conversation string, limit int) ([]model.AssistantTurn, int, error) {
 	total, err := s.repo.Count(ctx, userID, conversation)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Множество in_context строится по свежим ok|partial ходам (как для промпта),
-	// независимо от limit выдачи.
 	recentOK, err := s.repo.ListRecent(ctx, userID, conversation, s.cfg.MaxTurns, []string{"ok", "partial"})
 	if err != nil {
 		return nil, 0, err
@@ -208,8 +193,7 @@ func (s *AssistantHistoryService) History(ctx context.Context, userID, conversat
 	return items, total, nil
 }
 
-// Clear удаляет историю: разговор или (all) все разговоры пользователя. Пишет
-// аудит assistant.history_clear с числом удалённых.
+// Clear удаляет историю: разговор или (all) все разговоры пользователя.
 func (s *AssistantHistoryService) Clear(ctx context.Context, userID, channel, conversation string, all bool) (int, error) {
 	var (
 		deleted int

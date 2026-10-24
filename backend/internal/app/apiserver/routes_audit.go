@@ -7,9 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// mountAudit монтирует ленты журнала действий. Вызывается внутри защищённой
-// группы (Auth, AuditContext, LimitByUser, IsUserOrAdmin). Полный журнал —
-// только администратору; своя лента и каталог действий — любому авторизованному.
+// mountAudit монтирует ленты журнала действий.
 func (s *APIServer) mountAudit(r chi.Router, mw *middleware.Middleware, h *handler.AuditHandler) {
 	r.Get("/me/activity", h.MyActivity())
 	r.Get("/audit-log/actions", h.Actions())

@@ -35,8 +35,6 @@ function pick(v: T): void {
   gap: 8px;
   overflow-x: auto;
   margin: 0 calc(-1 * var(--gutter));
-  /* правый padding убран: WebKit не прокручивает padding-inline-end — его
-     заменяет хвостовой спейсер ::after */
   padding: 2px 0 2px var(--gutter);
   scroll-padding-inline: var(--gutter);
   scrollbar-width: none;

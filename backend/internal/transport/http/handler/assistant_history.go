@@ -12,15 +12,13 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/middleware"
 )
 
-// AssistantHistoryUseCase — порт сервиса истории ассистента (реализует
-// *service.AssistantHistoryService).
+// AssistantHistoryUseCase — порт сервиса истории ассистента (реализует *service.AssistantHistoryService).
 type AssistantHistoryUseCase interface {
 	History(ctx context.Context, userID, conversation string, limit int) ([]model.AssistantTurn, int, error)
 	Clear(ctx context.Context, userID, channel, conversation string, all bool) (int, error)
 }
 
-// AssistantHistoryHandler — HTTP-контракт истории диалогов (SPEC §D.5). Ошибки —
-// JSON api.WriteError; работает и при NLQ_ENABLED=false.
+// AssistantHistoryHandler — HTTP-контракт истории диалогов.
 type AssistantHistoryHandler struct {
 	svc    AssistantHistoryUseCase
 	memory response.AssistantMemoryInfo

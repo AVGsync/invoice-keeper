@@ -15,7 +15,6 @@ jobs:
       contents: read
       packages: write
     strategy:
-      # Падение одного образа не должно отменять сборку остальных.
       fail-fast: false
       matrix:
         include:
@@ -28,16 +27,12 @@ jobs:
           - name: frontend
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
-          # Telegram Mini App (miniapp/): отдельный статичный образ, раздаётся
-          # главным nginx по /tg/.
           - name: miniapp
             context: ./miniapp
             dockerfile: ./miniapp/Dockerfile
           - name: nginx
             context: ./nginx
             dockerfile: ./nginx/Dockerfile
-          # Один образ -nlq на три команды NL-ассистента (nlq.agent / nlq.mcp_server /
-          # nlq.dbinit); команда выбирается в compose (docs/NL_QUERIES.md §10.2).
           - name: nlq
             context: ./nlq
             dockerfile: ./nlq/Dockerfile
@@ -65,6 +60,5 @@ jobs:
           tags: |
             ${{ steps.prep.outputs.image }}:latest
             ${{ steps.prep.outputs.image }}:${{ github.sha }}
-          # Отдельный scope на каждый образ, иначе кэши затирают друг друга.
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}

@@ -1,7 +1,4 @@
-# Продовый стек: образы тянутся из GHCR, ничего не собирается на сервере.
-#   cp .env.example .env   # заполнить секреты
-#   docker compose pull && docker compose up -d
-# Другой владелец/тег: IMAGE_PREFIX=ghcr.io/<owner>/invoice-keeper IMAGE_TAG=<sha>
+# Прод: образы из GHCR, на сервере ничего не собирается. Запуск описан в README.md.
 services:
   postgres:
     image: postgres:16.15-alpine3.24
@@ -42,6 +39,9 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       BIND_ADDR: "8080"
+      RECEIPTS_DIR: /data/receipts
+    volumes:
+      - receipts-data:/data/receipts
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -60,8 +60,7 @@ services:
         condition: service_healthy
     networks: [app]
 
-  # Telegram Mini App (miniapp/): отдельный статичный образ (nginx + собранный
-  # Vite-бандл). Главный nginx проксирует на него /tg/. Портов наружу нет.
+  # Mini App: статика, главный nginx проксирует на неё /tg/.
   miniapp:
     image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-miniapp:${IMAGE_TAG:-latest}
     restart: unless-stopped
@@ -76,9 +75,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # fullchain.pem и key.pem: scripts/cert.sh issue (или свои файлы)
+      # fullchain.pem и key.pem: scripts/cert.sh issue
       - ./certs:/etc/nginx/certs:ro
-      # webroot для продления сертификата без остановки nginx
       - ./certbot-www:/var/www/certbot:ro
     depends_on:
       - backend
@@ -86,20 +84,7 @@ services:
       - miniapp
     networks: [app]
 
-  # ---- NL-ассистент (docs/NL_QUERIES.md §10.2) ----
-  # Один образ -nlq, три команды. backend НЕ зависит от nlq-* : без ассистента
-  # приложение обязано работать. Сервисы поднимаются обычным `docker compose up -d`
-  # вместе с остальным стеком; без ключей ассистент просто недоступен (503).
-  # Переменные ассистента заданы с безопасными дефолтами (`:-`), иначе пустой
-  # прод-.env ломал бы интерполяцию всего файла даже при выключенном ассистенте;
-  # сами сервисы fail-closed, если ключ пуст/битый. Ключ OpenRouter живёт только
-  # в .env.nlq у агента.
-  #
-  # Генерация ключей actor-JWT (один раз, положить в .env). Не требует compose-
-  # интерполяции и работает до появления ключей:
-  #   docker run --rm ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nlq:${IMAGE_TAG:-latest} nlq.keygen
-  #   -> NLQ_ACTOR_PRIVATE_KEY (только backend) и NLQ_ACTOR_PUBLIC_KEY (agent+mcp)
-  # Пароль роли nlq_reader — свой секрет в NLQ_DB_PASSWORD.
+  # NL-ассистент: один образ, три команды. Backend от него не зависит, без ключей ассистент отвечает 503.
 
   nlq-db-init:
     image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nlq:${IMAGE_TAG:-latest}
@@ -119,7 +104,7 @@ services:
     image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nlq:${IMAGE_TAG:-latest}
     command: ["nlq.mcp_server"]
     restart: unless-stopped
-    # БЕЗ env_file: переменные пробрасываются поимённо, ключа OpenRouter здесь нет.
+    # Без env_file: ключа OpenRouter здесь быть не должно.
     environment:
       APP_ENV: production
       NLQ_DB_DSN: postgres://nlq_reader:${NLQ_DB_PASSWORD:-}@postgres:5432/${POSTGRES_DB}?sslmode=disable
@@ -139,16 +124,14 @@ services:
     tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    # Без app: нет интернета (эксфильтрация невозможна), не виден nginx/frontend.
+    # Без сети app: интернета нет.
     networks: [nlq, nlq-db]
 
   nlq-agent:
     image: ${IMAGE_PREFIX:-ghcr.io/avgsync/invoice-keeper}-nlq:${IMAGE_TAG:-latest}
     command: ["nlq.agent"]
     restart: unless-stopped
-    # Только OPENROUTER_API_KEY. Файл .env.nlq в .gitignore (пример —
-    # nlq/.env.nlq.example). required: false — без файла агент стартует в режиме
-    # rules (ключа нет), остальной стек не ломается.
+    # Только OPENROUTER_API_KEY; без файла агент работает в режиме rules.
     env_file:
       - path: .env.nlq
         required: false
@@ -173,16 +156,17 @@ services:
     tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    # app — вход от backend и выход в интернет (OpenRouter); nlq — к MCP.
+    # app: вход от backend и выход к OpenRouter; nlq: связь с MCP.
     networks: [app, nlq]
 
 volumes:
   postgres-data:
+  receipts-data:
 
 networks:
   app:
     driver: bridge
-  # Внутренние сети без доступа в интернет: MCP их не покидает (§8.3).
+  # Внутренние сети без доступа в интернет.
   nlq:
     internal: true
   nlq-db:

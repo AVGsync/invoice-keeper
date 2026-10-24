@@ -15,7 +15,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Задаёт ассистенту вопрос на естественном языке о платежах команды\n(«что просрочено?», «сколько платим в долларах в этом месяце?»). Go\nаутентифицирует пользователя, применяет лимиты, перечитывает роль из БД,\nподписывает короткоживущий actor-JWT и проксирует вопрос в nlq-agent.\nОтвет — конверт §7.9: короткий текст плюс блоки с данными. Числа и даты\nсчитает БД, текст проходит grounding-check.",
+                "description": "Задаёт ассистенту вопрос на естественном языке о платежах команды\n(«что просрочено?», «сколько платим в долларах в этом месяце?»). Go\nаутентифицирует пользователя, применяет лимиты, перечитывает роль из БД,\nподписывает короткоживущий actor-JWT и проксирует вопрос в nlq-agent.\nОтвет — конверт: короткий текст плюс блоки с данными. Числа и даты\nсчитает БД, текст проходит grounding-check.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1491,6 +1491,212 @@
                 }
             }
         },
+        "/payment-occurrences/{id}/receipts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Файлы и ссылки, прикреплённые к периоду платежа. Доступно ответственному за платёж и администратору.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Receipts"
+                ],
+                "summary": "Чеки платежа",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID периода платежа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.ReceiptListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Платёж не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "`multipart/form-data` с полем `file`. Подпись — query-параметр `title` или поле формы `title`, если оно идёт раньше файла.\nФорматы определяются по содержимому: PDF, JPEG, PNG, GIF, WebP, HEIC, TXT, CSV, DOCX, XLSX, ODT, ODS.\nМаксимальный размер задаёт `RECEIPTS_MAX_MB` (по умолчанию 10 МБ), не больше 20 чеков на платёж.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Receipts"
+                ],
+                "summary": "Загрузить файл чека",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID периода платежа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Подпись, до 120 символов",
+                        "name": "title",
+                        "in": "query"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Файл чека",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.ReceiptResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Нет файла или пустой файл",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Платёж не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Достигнут лимит чеков",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "413": {
+                        "description": "Файл слишком большой",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "415": {
+                        "description": "Неподдерживаемый формат",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/payment-occurrences/{id}/receipts/link": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Принимаются только http и https; без схемы подставляется https. Логин и пароль в адресе запрещены.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Receipts"
+                ],
+                "summary": "Прикрепить ссылку на чек",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID периода платежа",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ссылка и подпись",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.AddReceiptLinkRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.ReceiptResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректная ссылка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Платёж не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Достигнут лимит чеков",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/payments/summary": {
             "get": {
                 "security": [
@@ -1818,6 +2024,138 @@
                 "responses": {
                     "200": {
                         "description": "pong",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/receipt-files/{id}": {
+            "get": {
+                "description": "Адрес выдаёт `GET /receipts/{id}/access`; без сессии, действует 5 минут. PDF и изображения открываются в браузере, остальное скачивается.",
+                "tags": [
+                    "Receipts"
+                ],
+                "summary": "Скачать файл чека по подписанному адресу",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID чека",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Время окончания, unix",
+                        "name": "exp",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Подпись",
+                        "name": "sig",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Файл",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Адрес недействителен или файла нет",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/receipts/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаляет ссылку или файл вместе с содержимым. Доступно ответственному за платёж и администратору.",
+                "tags": [
+                    "Receipts"
+                ],
+                "summary": "Удалить чек",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID чека",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Чек удалён"
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Чек не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/receipts/{id}/access": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Для ссылки возвращает её саму. Для файла — путь `/api/v1/receipt-files/{id}?exp=…\u0026sig=…`,\nкоторый открывается без авторизации (в браузере, в том числе внутри Telegram) в течение 5 минут.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Receipts"
+                ],
+                "summary": "Адрес для открытия чека",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID чека",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.ReceiptAccessResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Недостаточно прав",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Чек не найден",
                         "schema": {
                             "type": "string"
                         }
@@ -2913,6 +3251,21 @@
                         "user"
                     ],
                     "example": "user"
+                },
+                "telegram_linked": {
+                    "description": "Привязан ли Telegram-аккаунт (таблица telegram_links).",
+                    "type": "boolean",
+                    "example": true
+                },
+                "telegram_linked_at": {
+                    "description": "Когда привязан Telegram; не задано, если не привязан.",
+                    "type": "string",
+                    "example": "2026-10-23T20:05:31Z"
+                },
+                "telegram_username": {
+                    "description": "Username в Telegram без @; пусто, если не привязан или username не задан.",
+                    "type": "string",
+                    "example": "olga_iv"
                 }
             }
         },
@@ -2945,6 +3298,21 @@
                 },
                 "user_id": {
                     "type": "string"
+                }
+            }
+        },
+        "request.AddReceiptLinkRequest": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "description": "Подпись, до 120 символов. Необязательно.",
+                    "type": "string",
+                    "example": "Чек за октябрь"
+                },
+                "url": {
+                    "description": "Адрес чека: http или https, до 2048 символов. Без схемы подставляется https.",
+                    "type": "string",
+                    "example": "https://check.example.com/r/123"
                 }
             }
         },
@@ -3442,7 +3810,7 @@
                     "example": true
                 },
                 "memory": {
-                    "description": "Сводка о памяти диалога (из конфига): включена ли, сколько ходов в контекст,\nсрок жизни контекста (SPEC §D.5).",
+                    "description": "Сводка о памяти диалога (из конфига): включена ли, сколько ходов в контекст, срок жизни.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/response.AssistantMemoryInfo"
@@ -3730,6 +4098,107 @@
                     "description": "Сколько всего персон.",
                     "type": "integer",
                     "example": 1
+                }
+            }
+        },
+        "response.ReceiptAccessResponse": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "description": "Когда перестанет работать адрес файла; у ссылок не задано.",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "`file` или `link`.",
+                    "type": "string",
+                    "enum": [
+                        "file",
+                        "link"
+                    ]
+                },
+                "url": {
+                    "description": "Для `link` — сама ссылка. Для `file` — путь вида `/api/v1/receipt-files/{id}?exp=…\u0026sig=…`,\nоткрывается без авторизации до `expires_at`.",
+                    "type": "string",
+                    "example": "/api/v1/receipt-files/5f0a1e5e-8c9b-4a3e-9d3b-0b8f6f5a2c11?exp=1792866000\u0026sig=abc"
+                }
+            }
+        },
+        "response.ReceiptListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.ReceiptResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 2
+                }
+            }
+        },
+        "response.ReceiptResponse": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "description": "MIME-тип файла, определённый по содержимому.",
+                    "type": "string",
+                    "example": "application/pdf"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2026-10-24T18:20:00Z"
+                },
+                "file_name": {
+                    "description": "Имя файла (только для `kind=file`).",
+                    "type": "string",
+                    "example": "check.pdf"
+                },
+                "id": {
+                    "description": "Идентификатор чека.",
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "5f0a1e5e-8c9b-4a3e-9d3b-0b8f6f5a2c11"
+                },
+                "kind": {
+                    "description": "Тип: `file` — файл на сервере, `link` — внешняя ссылка.",
+                    "type": "string",
+                    "enum": [
+                        "file",
+                        "link"
+                    ],
+                    "example": "file"
+                },
+                "payment_id": {
+                    "description": "Период платежа, к которому прикреплён чек.",
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "9a191dfa-5e71-47aa-bcb2-ed5e9c071830"
+                },
+                "size_bytes": {
+                    "description": "Размер файла в байтах.",
+                    "type": "integer",
+                    "example": 48213
+                },
+                "title": {
+                    "description": "Подпись; пустая, если не задана.",
+                    "type": "string",
+                    "example": "Чек за октябрь"
+                },
+                "uploaded_by": {
+                    "description": "Кто прикрепил; пусто, если пользователь удалён.",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "uploaded_by_name": {
+                    "type": "string",
+                    "example": "Ольга Иванова"
+                },
+                "url": {
+                    "description": "Адрес ссылки (только для `kind=link`).",
+                    "type": "string",
+                    "example": "https://example.com/receipt/123"
                 }
             }
         },

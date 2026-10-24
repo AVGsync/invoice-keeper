@@ -10,20 +10,16 @@ import (
 	"github.com/lib/pq"
 )
 
-// ErrRecurrentPaymentNotFound — алиас на единый sentinel модели, чтобы код B,
-// ссылающийся на postgres.ErrRecurrentPaymentNotFound, продолжал собираться.
 var ErrRecurrentPaymentNotFound = model.ErrRecurrentPaymentNotFound
 
-// ErrInvalidRecurrentPayment — нарушение ссылочной целостности при назначении
-// (например, несуществующий ответственный). Маппится в сервисе в 400.
+// ErrInvalidRecurrentPayment — нарушение ссылочной целостности при назначении (например, несуществующий ответственный).
 var ErrInvalidRecurrentPayment = errors.New("invalid recurrent payment")
 
 type RecurrentPaymentRepository struct {
 	database *DB
 }
 
-// scanRecurrentPayment читает строку шаблона. id и start_date приходят как ::text
-// (UUID и DATE без зоны), ответственный — через LEFT JOIN LATERAL (§D2).
+// scanRecurrentPayment читает строку шаблона.
 func scanRecurrentPayment(row interface{ Scan(dest ...any) error }) (model.RecurrentPayment, error) {
 	var (
 		payment      model.RecurrentPayment
@@ -61,8 +57,7 @@ func scanRecurrentPayment(row interface{ Scan(dest ...any) error }) (model.Recur
 	return payment, nil
 }
 
-// recurrentPaymentSelect — общая проекция. "interval" квотируем (reserved word);
-// ответственный берётся по ORDER BY user_id LIMIT 1 ради устойчивости (§D2).
+// recurrentPaymentSelect — общая проекция.
 const recurrentPaymentSelect = `
 	SELECT
 		rp.id::text,
@@ -125,8 +120,7 @@ func (r *RecurrentPaymentRepository) CreateRecurrentPayment(
 	return id, nil
 }
 
-// CreateWithAssignee создаёт шаблон и назначает ответственного в одной
-// транзакции. FK 23503 (нет такого пользователя) → ErrInvalidRecurrentPayment.
+// CreateWithAssignee создаёт шаблон и назначает ответственного в одной транзакции.
 func (r *RecurrentPaymentRepository) CreateWithAssignee(
 	payment model.RecurrentPayment,
 	assigneeID string,
@@ -235,8 +229,7 @@ func (r *RecurrentPaymentRepository) GetRecurrentPaymentByID(
 	return payment, nil
 }
 
-// GetAllRecurrentPayments получает все шаблоны (вместе с остановленными),
-// отсортированные по описанию.
+// GetAllRecurrentPayments получает все шаблоны (вместе с остановленными), отсортированные по описанию.
 func (r *RecurrentPaymentRepository) GetAllRecurrentPayments(
 	ctx context.Context,
 ) ([]model.RecurrentPayment, error) {
@@ -266,8 +259,6 @@ func (r *RecurrentPaymentRepository) GetAllRecurrentPayments(
 	return payments, nil
 }
 
-// ListActiveForSchedule возвращает активные (stopped_at IS NULL) шаблоны для
-// генератора периодов — с ответственным и максимальной уже созданной due_date.
 func (r *RecurrentPaymentRepository) ListActiveForSchedule(
 	ctx context.Context,
 ) ([]model.RecurrentPayment, error) {
@@ -296,7 +287,6 @@ func (r *RecurrentPaymentRepository) ListActiveForSchedule(
 }
 
 // UpdateRecurrentPayment обновляет изменяемые поля (сумма, валюта, описание).
-// Поля графика неизменяемы (см. сервис), поэтому здесь не трогаются.
 func (r *RecurrentPaymentRepository) UpdateRecurrentPayment(
 	payment model.RecurrentPayment,
 	ctx context.Context,
@@ -331,8 +321,7 @@ func (r *RecurrentPaymentRepository) UpdateRecurrentPayment(
 	return nil
 }
 
-// Stop — мягкая остановка (D7): проставляет stopped_at и удаляет неоплаченные
-// будущие периоды (due_date > today). Идемпотентна. Одна транзакция.
+// Stop — мягкая остановка (D7): проставляет stopped_at и удаляет неоплаченные будущие периоды (due_date > today).
 func (r *RecurrentPaymentRepository) Stop(
 	id string,
 	today string,
@@ -376,8 +365,7 @@ func (r *RecurrentPaymentRepository) Stop(
 	return nil
 }
 
-// DeleteRecurrentPayment — жёсткое удаление шаблона (через HTTP не вызывается;
-// FK payments.recurrent_payment_id = SET NULL сохраняет историю).
+// DeleteRecurrentPayment — жёсткое удаление шаблона (через HTTP не вызывается; FK payments.recurrent_payment_id = SET NULL сохраняет историю).
 func (r *RecurrentPaymentRepository) DeleteRecurrentPayment(
 	id string,
 	ctx context.Context,
@@ -403,7 +391,6 @@ func (r *RecurrentPaymentRepository) DeleteRecurrentPayment(
 }
 
 // SubscribeUsers назначает пользователей на платёж.
-// Операция выполняется целиком в транзакции.
 func (r *RecurrentPaymentRepository) SubscribeUsers(
 	paymentID string,
 	userIDs []string,
@@ -460,8 +447,7 @@ func (r *RecurrentPaymentRepository) UnsubscribeUsers(
 	return nil
 }
 
-// GetUsersByRecurrentPaymentID получает ID пользователей,
-// назначенных на конкретный платёж.
+// GetUsersByRecurrentPaymentID получает ID пользователей, назначенных на конкретный платёж.
 func (r *RecurrentPaymentRepository) GetUsersByRecurrentPaymentID(
 	paymentID string,
 	ctx context.Context,

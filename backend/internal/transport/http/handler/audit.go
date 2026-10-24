@@ -19,7 +19,7 @@ type AuditUseCase interface {
 	List(ctx context.Context, f model.AuditFilter) ([]model.AuditEntry, int, error)
 }
 
-// AuditHandler обслуживает ленты журнала действий. Ошибки — JSON (api.WriteError).
+// AuditHandler обслуживает ленты журнала действий.
 type AuditHandler struct {
 	svc AuditUseCase
 	clk clock.Clock

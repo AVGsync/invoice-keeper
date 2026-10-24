@@ -1,9 +1,4 @@
-"""Assemble the response envelope (§7.9).
-
-The envelope is the one contract every client (web, Mini App, bot, Go) depends
-on. It is built here from the model text (after cleaning + grounding) and the
-code-built blocks/notes/followups, never directly from the model.
-"""
+"""Assemble the response envelope."""
 
 from __future__ import annotations
 
@@ -17,7 +12,6 @@ from .types import LoopTelemetry, ToolResult
 
 _EMPTY_MEMORY: dict[str, Any] = {"v": 1, "tools": [], "facts": "", "numbers": []}
 
-# status / error_code closed sets (§7.9).
 STATUS_OK = "ok"
 STATUS_PARTIAL = "partial"
 STATUS_ERROR = "error"
@@ -57,7 +51,7 @@ def finalize_answer(
 
     if local_message is not None:
         text = clean_text(local_message)
-        # No digits allowed in a reply_without_data message (§5.7).
+        # No digits allowed in a reply_without_data message.
         if not is_grounded(text, {str(today.year), str(today.month), str(today.day)}):
             text = _strip_digits(text)
     else:
@@ -71,7 +65,6 @@ def finalize_answer(
 
     status, error_code = _status(data_error, blocks, local_message)
 
-    # Компактная память этого хода: для local_message — пустая (SPEC §D.6).
     if local_message is not None:
         memory_obj = dict(_EMPTY_MEMORY)
     else:

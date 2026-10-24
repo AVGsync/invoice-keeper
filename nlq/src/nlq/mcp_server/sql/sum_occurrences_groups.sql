@@ -1,8 +1,4 @@
--- Per (currency, assignee) breakdown for group_by=currency_assignee. The
--- cross-currency per-currency totals come from sum_occurrences.sql (no LIMIT);
--- this query only lists groups and reports total_groups so the caller can set
--- groups_truncated (section 0.1 #7). base is occurrences_base.sql; status_sql
--- chosen by code. Placeholders are written without braces in comments.
+-- Разбивка по (валюта, ответственный) для group_by=currency_assignee; total_groups нужен для groups_truncated.
 -- Params: $1 today, $2 date_from, $3 date_to, $4 currency, $5 title tsquery,
 --         $6 title ilike (escaped), $7 assignee_id (model), $8 assignee_id (own),
 --         $9 category.

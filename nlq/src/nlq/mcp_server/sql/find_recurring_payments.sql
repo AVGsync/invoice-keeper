@@ -1,10 +1,4 @@
--- Knows B columns (rp.amount minor units, currency, stopped_at). order_sql is
--- chosen by code. The category_col fragment is code-selected
--- (fragments.category_col): B has no category column, so it is NULL::text and
--- the category filter reports unavailable (decision #3). The assignee is the
--- single row in user_recurrent_payments (LIMIT 1 ORDER BY user_id for
--- robustness). No user text reaches SQL. Placeholders are written without braces
--- in comments so str.format never substitutes a fragment into a comment line.
+-- Шаблоны регулярных платежей; order_sql и category_col выбирает код, текст пользователя в SQL не попадает.
 -- Params: $1 today, $2 include_ended (bool), $3 currency, $4 min_amount,
 --         $5 max_amount, $6 assignee_id (model), $7 assignee_id (own),
 --         $8 title tsquery, $9 title ilike (escaped), $10 limit, $11 category.

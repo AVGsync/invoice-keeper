@@ -1,5 +1,4 @@
--- Журнал действий пользователей (веб, Mini App, бот, система). Без FK на users:
--- запись живёт дольше пользователя и не мешает его удалению.
+-- Журнал действий пользователей (веб, Mini App, бот, система); без FK на users, запись переживает пользователя.
 CREATE TABLE IF NOT EXISTS audit_log (
     id          BIGSERIAL PRIMARY KEY,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),

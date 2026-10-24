@@ -99,8 +99,6 @@ func TestUUIDHexRoundTrip(t *testing.T) {
 	}
 }
 
-// Кнопка «Открыть» ведёт на Direct Link Mini App в домене t.me (а не plain-https
-// на /tg, который startapp не понимает) — решения №6, №8, finding.
 func TestReminderKeyboard_MiniAppDirectLink(t *testing.T) {
 	id := "11111111-2222-3333-4444-555555555555"
 	hex := uuidToHex(id)
@@ -121,7 +119,6 @@ func TestReminderKeyboard_MiniAppDirectLink(t *testing.T) {
 		t.Error("в группе web_app-кнопка запрещена; ожидалась обычная URL-кнопка")
 	}
 
-	// username + short_name => конкретное зарегистрированное Mini App.
 	mk = reminderKeyboard(id, Config{BotUsername: "ik_dev_bot", MiniAppShortName: "keeper"})
 	if want := "https://t.me/ik_dev_bot/keeper?startapp=occ_" + hex; mk.InlineKeyboard[0][1].URL != want {
 		t.Errorf("URL = %q, want %q", mk.InlineKeyboard[0][1].URL, want)

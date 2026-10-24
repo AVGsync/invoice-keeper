@@ -1,11 +1,4 @@
-"""Authentication for the MCP HTTP app.
-
-An ASGI middleware rejects any request without a valid actor-JWT with 401
-(except ``/healthz``) and caps the request body at 64 KB (§5.8). Inside a tool,
-``current_actor()`` re-reads and re-verifies the ``Authorization`` header, so
-identity never depends on how the library propagates context between tasks
-(§5.1 p.1).
-"""
+"""Authentication for the MCP HTTP app."""
 
 from __future__ import annotations
 

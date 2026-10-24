@@ -16,8 +16,7 @@ import (
 // Алиас на единый sentinel валидации платежей.
 var ErrInvalidPayment = errors.New("invalid payment")
 
-// PaymentActor — субъект операции над периодом. Права проверяются только здесь,
-// в сервисе, который общий для HTTP и Telegram (D10).
+// PaymentActor — субъект операции над периодом.
 type PaymentActor struct {
 	UserID  string
 	IsAdmin bool
@@ -116,8 +115,7 @@ func (s *PaymentService) GetAllPayments(
 	return payments, nil
 }
 
-// UpdatePayment меняет сумму/валюту/описание неоплаченного периода. Доступ
-// только администратору — проверяется в HTTP-слое (D10). due_date неизменяема.
+// UpdatePayment меняет сумму/валюту/описание неоплаченного периода.
 func (s *PaymentService) UpdatePayment(
 	id string,
 	req request.UpdatePaymentRequest,
@@ -139,8 +137,6 @@ func (s *PaymentService) UpdatePayment(
 	}
 
 	if req.Currency != nil {
-		// Нормализуем так же, как валидирует validCurrency (TrimSpace+ToUpper),
-		// иначе " usd" пройдёт проверку и упадёт на CHECK/VARCHAR(3) с 500.
 		payment.Currency = strings.ToUpper(strings.TrimSpace(*req.Currency))
 	}
 

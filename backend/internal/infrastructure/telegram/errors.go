@@ -5,9 +5,7 @@ import (
 	"strings"
 )
 
-// APIError — ошибка Bot API: ok=false. Поля parameters (retry_after,
-// migrate_to_chat_id) разбираются из ответа, по ним движок принимает решения
-// (docs/TELEGRAM_BOT.md §5.4).
+// APIError — ошибка Bot API: ok=false.
 type APIError struct {
 	Code            int
 	Description     string
@@ -46,14 +44,12 @@ func (e *APIError) IsMigrate() bool {
 	return e.MigrateToChatID != 0
 }
 
-// IsMessageNotModified — editMessage без изменений: безопасно игнорировать (§5.6).
+// IsMessageNotModified — editMessage без изменений: безопасно игнорировать.
 func (e *APIError) IsMessageNotModified() bool {
 	return strings.Contains(strings.ToLower(e.Description), "message is not modified")
 }
 
-// IsEditUnrecoverable — правку сообщения уже не выполнить и повтор не поможет:
-// сообщение удалено/недоступно или чат потерян. Reconcile на такой ошибке
-// фиксирует целевой shown_status, чтобы не долбить editMessageText вечно (§5.6).
+// IsEditUnrecoverable — правку сообщения уже не выполнить и повтор не поможет: сообщение удалено/недоступно или чат потерян.
 func (e *APIError) IsEditUnrecoverable() bool {
 	if e.Code != 400 && e.Code != 403 {
 		return false

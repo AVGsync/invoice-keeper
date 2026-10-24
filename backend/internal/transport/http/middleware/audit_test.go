@@ -53,7 +53,6 @@ func TestAuditContextMeta(t *testing.T) {
 	r.Header.Set("X-Client", "miniapp")
 	r.Header.Set("User-Agent", "UA/1.0")
 	r.Header.Set("X-Real-IP", "203.0.113.9")
-	// claims + request_id в контексте
 	ctx := context.WithValue(r.Context(), ClaimsKey, &model.Claims{UserID: "u-1", Role: "admin"})
 	ctx = requestIDCtx(ctx, "req-42")
 	r = r.WithContext(ctx)
@@ -87,7 +86,6 @@ func TestAuditContextForFixedChannel(t *testing.T) {
 		got, _ = audit.MetaFrom(r.Context())
 	}))
 	r := httptest.NewRequest(http.MethodGet, "/x", nil)
-	// Даже с cookie-признаком web канал остаётся miniapp.
 	r.AddCookie(&http.Cookie{Name: "AccessToken", Value: "x"})
 	h.ServeHTTP(httptest.NewRecorder(), r)
 	if got.Channel != audit.ChannelMiniApp {
@@ -107,8 +105,7 @@ func TestAuditContextNoClaims(t *testing.T) {
 	}
 }
 
-// requestIDCtx кладёт request_id так же, как api.RequestIDMiddleware, чтобы
-// auditMeta его увидел через api.RequestID.
+// requestIDCtx кладёт request_id так же, как api.RequestIDMiddleware, чтобы auditMeta его увидел через api.RequestID.
 func requestIDCtx(ctx context.Context, id string) context.Context {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Request-ID", id)

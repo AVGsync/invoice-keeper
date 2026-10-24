@@ -1,6 +1,4 @@
 // Чистая логика композера «Спросить»: решает, отправлять ли по нажатию Enter.
-// Enter без модификаторов отправляет; Shift+Enter — перевод строки; во время
-// ввода через IME (isComposing или keyCode 229) Enter не отправляет.
 export interface KeyInfo {
   key: string
   shiftKey: boolean

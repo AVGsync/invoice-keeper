@@ -19,9 +19,6 @@ import (
 
 const testBotToken = "123456:TEST-TOKEN"
 
-// buildInitData собирает валидную строку initData, подписанную тем же алгоритмом,
-// что проверяет telegram.ValidateInitData (§3.3): secret = HMAC("WebAppData", token),
-// hash = hex(HMAC(secret, data_check_string)).
 func buildInitData(tgUserID int64, username string, allowsWrite bool, authDate time.Time) string {
 	userJSON := fmt.Sprintf(`{"id":%d,"username":%q,"allows_write_to_pm":%t}`, tgUserID, username, allowsWrite)
 	fields := map[string]string{
@@ -86,7 +83,6 @@ func newMiniAppService(repo *memRepo, users memUsers, tokens *fakeTokens) *Servi
 
 func TestMiniAppAuth_Linked(t *testing.T) {
 	repo := newMemRepo()
-	// Привязка tg 777 -> u1 уже есть.
 	if err := repo.UpsertLink(context.Background(), "u1", 777, "ivan"); err != nil {
 		t.Fatalf("seed link: %v", err)
 	}
@@ -171,7 +167,6 @@ func TestMiniAppLink_Success(t *testing.T) {
 	if res.AccessToken != "access-link" {
 		t.Errorf("token = %q", res.AccessToken)
 	}
-	// Привязка создана.
 	link, err := repo.GetLinkByTGUserID(context.Background(), 999)
 	if err != nil || link.UserID != "u1" {
 		t.Errorf("link = %+v err=%v", link, err)
@@ -205,7 +200,6 @@ func TestMiniAppLink_UnknownLogin(t *testing.T) {
 
 func TestMiniAppLink_AlreadyLinkedToAnother(t *testing.T) {
 	repo := newMemRepo()
-	// tg 999 уже за u2.
 	if err := repo.UpsertLink(context.Background(), "u2", 999, "other"); err != nil {
 		t.Fatalf("seed link: %v", err)
 	}

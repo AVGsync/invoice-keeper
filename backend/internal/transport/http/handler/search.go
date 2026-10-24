@@ -13,8 +13,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/middleware"
 )
 
-// SearchUseCase — серверный поиск платежей (трек B). Реализуется
-// service.PaymentSearchService.
+// SearchUseCase — серверный поиск платежей.
 type SearchUseCase interface {
 	SearchOccurrences(ctx context.Context, f model.OccurrenceFilter) ([]model.Payment, int, error)
 	SearchRecurring(ctx context.Context, f model.RecurringFilter) ([]model.RecurringSearchRow, int, error)

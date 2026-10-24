@@ -9,13 +9,7 @@ import (
 	"github.com/lib/pq"
 )
 
-// Серверный поиск платежей (трек B, пункт 4). WHERE собирается whereBuilder'ом
-// с позиционными параметрами; пользовательский текст в SQL-строку не попадает.
-// today — "YYYY-MM-DD" в зоне приложения (из clock), чтобы статус overdue/pending
-// и ближайший срок next_due совпадали с остальной системой.
-
-// SearchPayments ищет периоды по фильтру. Возвращает страницу и общее число строк
-// по фильтру (без учёта limit/offset).
+// SearchPayments ищет периоды по фильтру.
 func (r *PaymentRepository) SearchPayments(
 	ctx context.Context,
 	f model.OccurrenceFilter,
@@ -94,8 +88,6 @@ func (r *PaymentRepository) SearchPayments(
 
 	whereSQL := w.sql()
 
-	// Общее число — отдельной выборкой с тем же WHERE (корректный total при offset
-	// за пределом страницы). Аргументы фиксируем до добавления limit/offset.
 	countArgs := append([]any(nil), w.args...)
 	var total int
 	countQuery := `
@@ -134,7 +126,7 @@ func (r *PaymentRepository) SearchPayments(
 	return payments, total, nil
 }
 
-// occurrenceOrderBy — белый список сортировок периодов. d — "ASC"/"DESC".
+// occurrenceOrderBy — белый список сортировок периодов.
 func occurrenceOrderBy(sort, d string) string {
 	switch sort {
 	case "amount":
@@ -151,7 +143,6 @@ func occurrenceOrderBy(sort, d string) string {
 }
 
 // recurringSearchSelect — проекция шаблонов с ближайшим неоплаченным сроком.
-// %s — плейсхолдер «сегодня» для LATERAL nx (recurrentPaymentSelect не трогаем).
 const recurringSearchSelect = `
 	SELECT
 		rp.id::text,
@@ -246,15 +237,13 @@ func scanRecurringSearchRow(row rowScanner) (model.RecurringSearchRow, error) {
 	return out, nil
 }
 
-// SearchRecurrentPayments ищет шаблоны по фильтру. today задаёт порог для
-// ближайшего неоплаченного срока (next_due ≥ сегодня).
+// SearchRecurrentPayments ищет шаблоны по фильтру.
 func (r *RecurrentPaymentRepository) SearchRecurrentPayments(
 	ctx context.Context,
 	f model.RecurringFilter,
 	today string,
 ) ([]model.RecurringSearchRow, int, error) {
 	w := &whereBuilder{}
-	// «Сегодня» нужен проекции nx всегда (и в data, и в count) — добавляем первым.
 	todayPH := w.arg(today)
 
 	if f.Query != "" {
@@ -339,7 +328,7 @@ func (r *RecurrentPaymentRepository) SearchRecurrentPayments(
 	return out, total, nil
 }
 
-// recurringOrderBy — белый список сортировок шаблонов. d — "ASC"/"DESC".
+// recurringOrderBy — белый список сортировок шаблонов.
 func recurringOrderBy(sort, d string) string {
 	switch sort {
 	case "amount":
@@ -355,8 +344,7 @@ func recurringOrderBy(sort, d string) string {
 	}
 }
 
-// direction переводит order ("asc"/"desc") в SQL-ключевое слово. Направление
-// берётся только из этого белого списка, не из пользовательского ввода.
+// direction переводит order ("asc"/"desc") в SQL-ключевое слово.
 func direction(order string) string {
 	if order == "desc" {
 		return "DESC"

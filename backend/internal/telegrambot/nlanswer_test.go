@@ -99,8 +99,7 @@ func nlAnswer() model.AssistantAnswer {
 	}
 }
 
-// newNLService собирает сервис с привязанным пользователем u1 (tg 555) и
-// подключённым fakeNL. Возвращает wg для ожидания фоновой горутины ответа.
+// newNLService собирает сервис с привязанным пользователем u1 (tg 555) и подключённым fakeNL.
 func newNLService(t *testing.T, nl *fakeNL) (*Service, *memRepo, *telegram.FakeClient, *sync.WaitGroup) {
 	t.Helper()
 	repo := newMemRepo()
@@ -237,7 +236,6 @@ func TestAsk_GroupNonTeam_Hint(t *testing.T) {
 func TestAsk_GroupTeamChat_CallsAgent(t *testing.T) {
 	nl := &fakeNL{answer: nlAnswer()}
 	svc, repo, _, wg := newNLService(t, nl)
-	// Делаем чат -200 активным командным.
 	if _, _, err := repo.BindChat(context.Background(), -200, "supergroup", "Команда", "u1"); err != nil {
 		t.Fatalf("BindChat: %v", err)
 	}
@@ -308,12 +306,10 @@ func TestAsk_Disabled_NoNLAnswerer(t *testing.T) {
 	fake := telegram.NewFakeClient()
 	svc := newService(repo, users, fake) // без AttachNLAnswerer
 
-	// Свободный текст в личке при выключенной фиче — молчим.
 	svc.HandleUpdate(context.Background(), privateAsk(555, 100, "что просрочено?"))
 	if _, ok := fake.LastSent(); ok {
 		t.Fatalf("disabled assistant must stay silent on free text")
 	}
-	// /ask в личке — вежливый отказ.
 	svc.HandleUpdate(context.Background(), privateAsk(555, 100, "/ask что просрочено?"))
 	sent, ok := fake.LastSent()
 	if !ok || !strings.Contains(sent.Text, "недоступен") {
@@ -325,12 +321,10 @@ func TestAsk_SingleflightBusy(t *testing.T) {
 	nl := &fakeNL{answer: nlAnswer(), delay: 150 * time.Millisecond}
 	svc, _, fake, wg := newNLService(t, nl)
 
-	// Первый вопрос занимает слот; второй приходит, пока первый в работе.
 	svc.HandleUpdate(context.Background(), privateAsk(555, 100, "/ask первый вопрос"))
 	svc.HandleUpdate(context.Background(), privateAsk(555, 100, "/ask второй вопрос"))
 	wg.Wait()
 
-	// Один из двух получил «ещё думаю».
 	busy := false
 	for _, m := range fake.Sent {
 		if strings.Contains(m.Text, "Ещё думаю") {
@@ -345,9 +339,6 @@ func TestAsk_SingleflightBusy(t *testing.T) {
 	}
 }
 
-// TestHelpText_NLEnabled_NoRawAngleBrackets проверяет, что при подключённом
-// ассистенте справка не содержит сырых '<'/'>' (их отверг бы Telegram с
-// ParseMode HTML: "Unsupported start tag"), а плейсхолдер экранирован.
 func TestHelpText_NLEnabled_NoRawAngleBrackets(t *testing.T) {
 	nl := &fakeNL{answer: nlAnswer()}
 	svc, _, _, wg := newNLService(t, nl)

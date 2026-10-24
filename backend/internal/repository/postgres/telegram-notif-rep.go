@@ -11,10 +11,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/reminder"
 )
 
-// TelegramNotificationRepository — outbox напоминаний (telegram_notifications,
-// docs/TELEGRAM_BOT.md §5.1). Реализует reminder.NotificationStore. Фабрика
-// объявлена здесь, db.go не трогаем (§2.3). Даты due_date читаются как ::text и
-// разбираются clock.ParseDate — без сдвигов зоны (§5.2).
+// TelegramNotificationRepository — outbox напоминаний.
 type TelegramNotificationRepository struct {
 	database *DB
 }
@@ -64,7 +61,7 @@ func scanNotification(rows interface{ Scan(dest ...any) error }) (model.Telegram
 	return n, nil
 }
 
-// Enqueue ставит строки с дедупом; cancelled возвращает в pending (§5.3).
+// Enqueue ставит строки с дедупом; cancelled возвращает в pending.
 func (r *TelegramNotificationRepository) Enqueue(ctx context.Context, items []reminder.EnqueueItem) error {
 	if len(items) == 0 {
 		return nil
@@ -154,7 +151,7 @@ func (r *TelegramNotificationRepository) MarkSent(ctx context.Context, id string
 	return nil
 }
 
-// MarkFailed откладывает повтор; incrementAttempt=false для 429 (§5.4).
+// MarkFailed откладывает повтор; incrementAttempt=false для 429.
 func (r *TelegramNotificationRepository) MarkFailed(ctx context.Context, id string, nextAttemptAt time.Time, incrementAttempt bool, lastErr string, now time.Time) error {
 	inc := 0
 	if incrementAttempt {
@@ -194,7 +191,7 @@ func (r *TelegramNotificationRepository) Cancel(ctx context.Context, id string, 
 	return nil
 }
 
-// SetShownStatus меняет показанный статус отправленного сообщения (§5.6).
+// SetShownStatus меняет показанный статус отправленного сообщения.
 func (r *TelegramNotificationRepository) SetShownStatus(ctx context.Context, id, shownStatus string, now time.Time) error {
 	_, err := r.database.db.ExecContext(ctx, `
 		UPDATE telegram_notifications
@@ -206,8 +203,7 @@ func (r *TelegramNotificationRepository) SetShownStatus(ctx context.Context, id,
 	return nil
 }
 
-// ResetFailedByRecipient возвращает отложенные строки адресата к немедленной
-// отправке (после /bind, §5.4).
+// ResetFailedByRecipient возвращает отложенные строки адресата к немедленной отправке.
 func (r *TelegramNotificationRepository) ResetFailedByRecipient(ctx context.Context, recipient string, now time.Time) error {
 	_, err := r.database.db.ExecContext(ctx, `
 		UPDATE telegram_notifications

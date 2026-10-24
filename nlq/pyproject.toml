@@ -2,7 +2,6 @@
 name = "nlq"
 version = "0.1.0"
 description = "Invoice Keeper NL-query feature: read-only MCP server + agent over OpenRouter"
-readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp==4.1.3",
@@ -26,12 +25,7 @@ nlq-keygen = "nlq.keygen:main"
 
 [dependency-groups]
 dev = [
-    "pytest==9.1.1",
-    "pytest-asyncio==1.4.0",
-    "respx==0.23.1",
     "ruff==0.17.2",
-    "pyright==1.1.414",
-    "pyyaml==6.0.3",
 ]
 
 [build-system]
@@ -44,24 +38,10 @@ packages = ["src/nlq"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["src", "tests"]
+src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
 # RUF001-003: Cyrillic text and NBSP in money/formatting are intentional.
 # ASYNC109: timeout parameters are threaded deliberately (deadline budgeting).
 ignore = ["E501", "RUF001", "RUF002", "RUF003", "ASYNC109"]
-
-[tool.pyright]
-include = ["src", "tests"]
-pythonVersion = "3.12"
-typeCheckingMode = "standard"
-venvPath = "."
-venv = ".venv"
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-testpaths = ["tests"]
-markers = [
-    "db: tests that need TEST_DATABASE_URL (skipped when absent)",
-]

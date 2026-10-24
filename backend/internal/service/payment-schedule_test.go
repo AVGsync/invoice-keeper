@@ -109,8 +109,6 @@ func TestEffectiveStatus(t *testing.T) {
 		{"paid on time", model.Payment{DueDate: "2026-10-24", PaidDate: ptrStr("2026-10-24")}, "paid", false},
 		{"paid late", model.Payment{DueDate: "2026-10-20", PaidDate: ptrStr("2026-10-24")}, "paid", true},
 		{"paid early", model.Payment{DueDate: "2026-10-30", PaidDate: ptrStr("2026-10-24")}, "paid", false},
-		// Остановленный/удалённый шаблон (Ended): неоплаченный прошедший период —
-		// "ended", не "overdue" (NL_QUERIES.md §6.4 п.5); оплата остаётся "paid".
 		{"ended unpaid past", model.Payment{DueDate: "2026-10-23", Ended: true}, model.ShownStatusEnded, false},
 		{"ended unpaid future", model.Payment{DueDate: "2026-10-30", Ended: true}, model.ShownStatusEnded, false},
 		{"ended but paid", model.Payment{DueDate: "2026-10-23", PaidDate: ptrStr("2026-10-23"), Ended: true}, "paid", false},

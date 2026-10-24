@@ -20,8 +20,7 @@ type PersonaRepository interface {
 	DeletePersona(id string, ctx context.Context) error
 }
 
-// PersonaService ведёт справочник персон (должностей), которые администратор
-// назначает пользователям при создании.
+// PersonaService ведёт справочник персон (должностей), которые администратор назначает пользователям при создании.
 type PersonaService struct {
 	repository PersonaRepository
 	// audit — журнал действий; по умолчанию Nop (конструктор не меняется).
@@ -106,7 +105,6 @@ func (s *PersonaService) UpdatePersona(id string, req request.UpdatePersonaReque
 }
 
 func (s *PersonaService) DeletePersona(id string, ctx context.Context) error {
-	// Имя читаем до удаления — в журнал пишем снимок названия.
 	name := ""
 	if p, err := s.repository.GetPersonaByID(id, ctx); err == nil {
 		name = p.Name

@@ -28,7 +28,7 @@ func (m *memNotif) first() model.TelegramNotification {
 	return all[0]
 }
 
-// 429 retry_after: строка failed, attempts НЕ растёт, next_attempt_at = now+N (§5.4).
+// 429 retry_after: строка failed, attempts НЕ растёт, next_attempt_at = now+N.
 func TestLoop_SendError_RetryAfter(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 	h.fake.QueueSendErr(&telegram.APIError{Code: 429, RetryAfter: 7})
@@ -47,7 +47,7 @@ func TestLoop_SendError_RetryAfter(t *testing.T) {
 	}
 }
 
-// chat not found: командный чат деактивируется, строка failed c backoff 15 мин (§5.4).
+// chat not found: командный чат деактивируется, строка failed c backoff 15 мин.
 func TestLoop_SendError_ChatNotFound(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 	h.fake.QueueSendErr(&telegram.APIError{Code: 400, Description: "Bad Request: chat not found"})
@@ -66,7 +66,7 @@ func TestLoop_SendError_ChatNotFound(t *testing.T) {
 	}
 }
 
-// migrate_to_chat_id: меняем chat_id и один раз повторяем — строка уходит sent (§5.4).
+// migrate_to_chat_id: меняем chat_id и один раз повторяем — строка уходит sent.
 func TestLoop_SendError_MigrateThenRetry(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 	const newID = int64(-1009999999999)
@@ -88,7 +88,7 @@ func TestLoop_SendError_MigrateThenRetry(t *testing.T) {
 	}
 }
 
-// Прочая 400 — строка dead сразу (§5.4).
+// Прочая 400 — строка dead сразу.
 func TestLoop_SendError_Other400Dead(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 	h.fake.QueueSendErr(&telegram.APIError{Code: 400, Description: "Bad Request: message text is too long"})
@@ -100,7 +100,7 @@ func TestLoop_SendError_Other400Dead(t *testing.T) {
 	}
 }
 
-// 5xx: backoff с ростом attempts, после maxSendAttempts — dead (§5.4).
+// 5xx: backoff с ростом attempts, после maxSendAttempts — dead.
 func TestLoop_SendError_5xxBackoffThenDead(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 
@@ -111,7 +111,6 @@ func TestLoop_SendError_5xxBackoffThenDead(t *testing.T) {
 		t.Fatalf("после первого 5xx: state=%s attempts=%d, want failed/1", r.State, r.Attempts)
 	}
 
-	// Подводим к порогу и шлём ещё один 5xx: строка должна умереть.
 	h.notif.bumpAttempts(r.ID, maxSendAttempts-1)
 	h.fake.QueueSendErr(&telegram.APIError{Code: 503, Description: "Service Unavailable"})
 	h.loop.Tick(context.Background())
@@ -120,15 +119,11 @@ func TestLoop_SendError_5xxBackoffThenDead(t *testing.T) {
 	}
 }
 
-// Застрявшая overdue-строка после простоя: при отправке слишком старую просрочку
-// отменяем, а не шлём пачкой (§5.7, finding). Имитирует 'no team chat' → повтор
-// через 10 дней после срока.
+// Застрявшая overdue-строка после простоя: при отправке слишком старую просрочку отменяем, а не шлём пачкой.
 func TestLoop_StaleOverdueCancelledOnSend(t *testing.T) {
 	due := h2today(t).AddDays(-10) // срок 10 дней назад, вне окна enqueue
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, due)})
 
-	// Строка overdue, поставленная раньше (когда просрочка была свежей) и
-	// зависшая; теперь ей «пора» (next_attempt_at в прошлом).
 	if err := h.notif.Enqueue(context.Background(), []EnqueueItem{{
 		OccurrenceID: testOccID, DueDate: due,
 		Kind: model.NotificationKindOverdue, Recipient: model.NotificationRecipientTeam,
@@ -146,8 +141,6 @@ func TestLoop_StaleOverdueCancelledOnSend(t *testing.T) {
 	}
 }
 
-// Reconcile: невосстановимая ошибка правки (сообщение удалено) не зацикливается —
-// фиксируем целевой shown_status, чтобы строка ушла из очереди (§5.6, finding).
 func TestLoop_ReconcileUnrecoverableEditFixesStatus(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 	ctx := context.Background()
@@ -156,7 +149,6 @@ func TestLoop_ReconcileUnrecoverableEditFixesStatus(t *testing.T) {
 	if err := h.store.MarkPaid(ctx, testOccID, h.today, testAdmin); err != nil {
 		t.Fatalf("MarkPaid: %v", err)
 	}
-	// Сообщение удалили из чата: editMessageText вернёт невосстановимую 400.
 	h.fake.EditErr = &telegram.APIError{Code: 400, Description: "Bad Request: message to edit not found"}
 
 	h.loop.Tick(ctx) // reconcile
@@ -174,8 +166,6 @@ func TestLoop_ReconcileUnrecoverableEditFixesStatus(t *testing.T) {
 	}
 }
 
-// Период удалён остановкой платежа (D7): reconcile правит сообщение в нейтральный
-// текст и фиксирует ended, чтобы строка не всплывала в очереди бесконечно (§5.6, G9).
 func TestLoop_DeletedOccurrenceReconciled(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 	ctx := context.Background()

@@ -23,7 +23,6 @@ defineProps<{ title?: string; footer?: string }>()
   line-height: 1.3;
   margin: 0 0 var(--sp-2) var(--sp-1);
 }
-/* grouped list on a graphite panel: rows keep their own hairlines, the last one drops it */
 .section-body {
   background: var(--graphite);
   border: 1px solid var(--line);

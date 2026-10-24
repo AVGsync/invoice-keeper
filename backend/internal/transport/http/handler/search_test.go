@@ -43,8 +43,6 @@ func withSearchClaims(r *http.Request) *http.Request {
 }
 
 func TestSearchOccurrencesEnvelope(t *testing.T) {
-	// Непросроченный и просроченный периоды — статус должен считаться
-	// через EffectiveStatus (due_date относительно «сегодня» = 2026-06-15).
 	due := "2026-06-01"
 	svc := &fakeSearch{
 		occ: []model.Payment{

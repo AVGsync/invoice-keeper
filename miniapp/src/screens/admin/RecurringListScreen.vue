@@ -30,7 +30,6 @@ onMounted(() => {
   void occurrences.load()
 })
 
-// Если пришли с ?focus — выбираем вкладку по состоянию шаблона и прокручиваем к нему.
 watch(
   [() => recState.loaded, focusId],
   async ([loaded, id]) => {

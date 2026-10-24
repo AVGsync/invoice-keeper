@@ -10,11 +10,10 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// maxScheduleIterations ограничивает генерацию дат, чтобы кривой шаблон не ушёл
-// в бесконечный цикл.
+// maxScheduleIterations ограничивает генерацию дат, чтобы кривой шаблон не ушёл в бесконечный цикл.
 const maxScheduleIterations = 1000
 
-// Горизонт генерации периодов: today + horizonDays. Константа, без нового env.
+// Горизонт генерации периодов: today + horizonDays.
 const horizonDays = 31
 
 // ScheduleRecurrentRepository — чтение активных шаблонов для планировщика.
@@ -29,8 +28,7 @@ type SchedulePaymentRepository interface {
 	SweepOverdue(today string, ctx context.Context) (int64, error)
 }
 
-// PaymentScheduler генерирует периоды из шаблонов и переводит просроченные в
-// overdue. Реализует reminder.OccurrenceEnsurer.
+// PaymentScheduler генерирует периоды из шаблонов и переводит просроченные в overdue.
 type PaymentScheduler struct {
 	recRepo ScheduleRecurrentRepository
 	payRepo SchedulePaymentRepository
@@ -45,8 +43,7 @@ func NewPaymentScheduler(
 	return &PaymentScheduler{recRepo: recRepo, payRepo: payRepo, clk: clk}
 }
 
-// Horizon возвращает верхнюю границу генерации: today + 31 (или больше, если
-// окно напоминаний шире).
+// Horizon возвращает верхнюю границу генерации: today + 31 (или больше, если окно напоминаний шире).
 func (s *PaymentScheduler) Horizon(leadDays int) clock.Date {
 	days := horizonDays
 	if leadDays > days {
@@ -55,8 +52,7 @@ func (s *PaymentScheduler) Horizon(leadDays int) clock.Date {
 	return s.clk.Today().AddDays(days)
 }
 
-// EnsureOccurrencesUntil гарантирует наличие периодов до until для всех активных
-// шаблонов (satisfies reminder.OccurrenceEnsurer).
+// EnsureOccurrencesUntil гарантирует наличие периодов до until для всех активных шаблонов (satisfies reminder.OccurrenceEnsurer).
 func (s *PaymentScheduler) EnsureOccurrencesUntil(ctx context.Context, until clock.Date) error {
 	payments, err := s.recRepo.ListActiveForSchedule(ctx)
 	if err != nil {
@@ -131,10 +127,7 @@ func (s *PaymentScheduler) Sweep(ctx context.Context) error {
 	return nil
 }
 
-// DueDates — чистая функция графика (D9). Возвращает даты d строго после after и
-// не позже until, начиная с якоря start_date.
-//   - monthly: период k в месяце start+k*interval на min(day_offset, последний день месяца);
-//   - weekly:  start_date + 7*interval*k.
+// DueDates — чистая функция графика (D9).
 func DueDates(rp model.RecurrentPayment, after, until clock.Date) []clock.Date {
 	start, err := clock.ParseDate(rp.StartDate)
 	if err != nil {
@@ -172,10 +165,8 @@ func DueDates(rp model.RecurrentPayment, after, until clock.Date) []clock.Date {
 	return out
 }
 
-// monthlyDate возвращает дату в месяце (baseYear, baseMonth + addMonths) на день
-// min(day, последний день месяца). Несуществующий день → последний день месяца.
+// monthlyDate возвращает дату в месяце (baseYear, baseMonth + addMonths) на день min(day, последний день месяца).
 func monthlyDate(baseYear, baseMonth, day, addMonths int) clock.Date {
-	// Нормализуем месяц.
 	m := baseMonth - 1 + addMonths
 	y := baseYear + m/12
 	m = m % 12
@@ -193,7 +184,6 @@ func monthlyDate(baseYear, baseMonth, day, addMonths int) clock.Date {
 
 // lastDayOfMonth — число дней в месяце с учётом високосных лет.
 func lastDayOfMonth(year int, month time.Month) int {
-	// День 0 следующего месяца == последний день текущего.
 	t := time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC)
 	return t.Day()
 }

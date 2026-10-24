@@ -1,9 +1,4 @@
-"""Money handling: Decimal in, canonical string + Russian display out.
-
-Currencies are never summed across each other and never converted (§1.1). Money
-is serialised as a string because Decimal is not JSON-native and float loses
-precision (§5.1 p.9).
-"""
+"""Money handling: Decimal in, canonical string + Russian display out."""
 
 from __future__ import annotations
 
@@ -23,11 +18,7 @@ def to_amount_string(value: Decimal) -> str:
 
 
 def display(value: Decimal, currency: str) -> str:
-    """Human display, Russian convention: ``150 000,00 ₽``.
-
-    Thousands separated by a regular space, decimal comma, symbol after the
-    number. Falls back to the ISO code for unknown currencies.
-    """
+    """Human display, Russian convention: ``150 000,00 ₽``."""
     q = value.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
     sign = "-" if q < 0 else ""
     digits = f"{abs(q):.2f}"

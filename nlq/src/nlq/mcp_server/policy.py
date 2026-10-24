@@ -1,9 +1,4 @@
-"""Visibility policy (§5.1 p.3).
-
-Identity comes only from the verified actor, never from tool arguments. The
-policy produces the two assignee parameters the SQL expects: the model's
-explicit ``assignee_id`` filter and the server-imposed ``own`` filter.
-"""
+"""Visibility policy."""
 
 from __future__ import annotations
 
@@ -33,11 +28,7 @@ def resolve_visibility(actor: Actor, user_scope: str) -> Visibility:
 def resolve_assignee(
     assignee_id: str | None, actor: Actor, visibility: Visibility
 ) -> UUID | None:
-    """Turn the model's assignee filter into a UUID.
-
-    "me" always resolves to the actor. Under ``own`` scope an explicit *other*
-    assignee is forbidden; the names directory itself stays available (§5.6).
-    """
+    """Turn the model's assignee filter into a UUID."""
     if assignee_id is None:
         return None
     if assignee_id == "me":

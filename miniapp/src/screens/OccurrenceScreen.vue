@@ -15,6 +15,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 import Section from '../components/Section.vue'
 import Cell from '../components/Cell.vue'
 import Skeleton from '../components/Skeleton.vue'
+import ReceiptsSection from '../components/ReceiptsSection.vue'
 import type { PaymentResponse } from '../api/types'
 
 const route = useRoute()
@@ -62,7 +63,6 @@ watch(
   { immediate: true },
 )
 
-// Если список обновился в сторе, подхватываем свежую версию.
 watch(
   () => occState.items,
   () => {
@@ -244,6 +244,8 @@ onUnmounted(() => controller?.abort())
           Отметить оплату может ответственный ({{ occ.assignee_name || '—' }}) или администратор
         </p>
       </Section>
+
+      <ReceiptsSection v-if="canPay" :payment-id="occ.id" />
 
       <Section v-if="history.length" title="История">
         <button

@@ -13,8 +13,7 @@ type AuditLister interface {
 	List(ctx context.Context, f model.AuditFilter) ([]model.AuditEntry, int, error)
 }
 
-// AuditService отдаёт журнал действий на чтение. Запись журнала идёт мимо него —
-// через audit.Logger прямо из доменных сервисов (решение C.1).
+// AuditService отдаёт журнал действий на чтение.
 type AuditService struct {
 	repo AuditLister
 }

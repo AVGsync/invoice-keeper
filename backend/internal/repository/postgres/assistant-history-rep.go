@@ -9,10 +9,7 @@ import (
 	"github.com/lib/pq"
 )
 
-// AssistantHistoryRepository хранит ходы диалогов с ассистентом (таблица
-// assistant_turns, миграция 000013). Единственный владелец истории — Go; агент и
-// MCP сюда не пишут (SPEC §D.1). Текст вопроса/ответа уходит позиционными
-// параметрами, в SQL не встраивается.
+// AssistantHistoryRepository хранит ходы диалогов с ассистентом (таблица assistant_turns, миграция 000013).
 type AssistantHistoryRepository struct {
 	database *DB
 }
@@ -44,8 +41,7 @@ func (r *AssistantHistoryRepository) Append(ctx context.Context, t model.Assista
 	return t, nil
 }
 
-// ListRecent возвращает последние limit ходов разговора (новые первыми). Если
-// statuses непусты — только с этими статусами (для контекста промпта: ok,partial).
+// ListRecent возвращает последние limit ходов разговора (новые первыми).
 func (r *AssistantHistoryRepository) ListRecent(ctx context.Context, userID, conversation string, limit int, statuses []string) ([]model.AssistantTurn, error) {
 	q := assistantTurnSelect + " WHERE user_id = $1 AND conversation = $2"
 	args := []any{userID, conversation}

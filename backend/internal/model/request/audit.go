@@ -12,11 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Разбор параметров чтения журнала действий (трек C). Тексты ошибок — дословно
-// из SPEC §C.6; проверки идут в порядке строк. Мульти-значения — через запятую и
-// повтором (хелпер multiValues из search.go). Пользовательский текст (q) в SQL не
-// попадает — он уходит позиционным параметром и экранируется в репозитории.
-
 var (
 	// actionParamRe — точный код или префикс с '*': "recurring.update", "recurring.*".
 	actionParamRe = regexp.MustCompile(`^[a-z_]+(\.[a-z_]+)*(\.\*)?$`)
@@ -24,9 +19,7 @@ var (
 	entityTypeRe = regexp.MustCompile(`^[a-z_]{1,64}$`)
 )
 
-// ParseAuditFilter разбирает query-параметры лент журнала. loc — зона приложения
-// (APP_TIMEZONE) для дат YYYY-MM-DD. Для /me/activity вызывающий переопределяет
-// ActorIDs идентификатором из JWT.
+// ParseAuditFilter разбирает query-параметры лент журнала.
 func ParseAuditFilter(q url.Values, loc *time.Location) (model.AuditFilter, error) {
 	var f model.AuditFilter
 
@@ -115,10 +108,6 @@ func ParseAuditFilter(q url.Values, loc *time.Location) (model.AuditFilter, erro
 }
 
 // parseAuditBound разбирает границу времени: YYYY-MM-DD в зоне loc или RFC3339.
-// Возвращает приведённую к сравнению границу (t — для хранения, cmp — для
-// проверки from<=to). Для YYYY-MM-DD «to» сдвигается на сутки вперёд (окно
-// [from 00:00, to+1d 00:00)); для RFC3339 «to» получает +1 нс, чтобы граница была
-// включительной при строгом `<` в SQL.
 func parseAuditBound(raw string, loc *time.Location, isTo bool, onErr string) (*time.Time, time.Time, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

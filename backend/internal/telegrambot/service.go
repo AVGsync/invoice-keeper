@@ -25,19 +25,17 @@ import (
 var ErrBotDisabled = errors.New("telegram bot is disabled")
 
 // ErrMiniAppInvalidCredentials — неверный логин или пароль при входе в Mini App.
-// Логин и пароль не различаются в ответе, чтобы не раскрывать существование аккаунта.
 var ErrMiniAppInvalidCredentials = errors.New("invalid credentials")
 
-// maxActiveCodes — сколько активных кодов привязки держим на пользователя (§3.1).
+// maxActiveCodes — сколько активных кодов привязки держим на пользователя.
 const maxActiveCodes = 3
 
-// sendTimeout — таймаут одиночного вызова Bot API из обработчика (§5.4).
+// sendTimeout — таймаут одиночного вызова Bot API из обработчика.
 const sendTimeout = 5 * time.Second
 
-// Параметры NL-ответов бота (docs/NL_QUERIES.md §4.4).
+// Параметры NL-ответов бота.
 const (
-	// nlMaxGoroutines — потолок одновременных NL-вопросов в боте, чтобы долгий
-	// LLM не плодил горутины и не блокировал цикл апдейтов.
+	// nlMaxGoroutines — потолок одновременных NL-вопросов в боте, чтобы долгий LLM не плодил горутины и не блокировал цикл апдейтов.
 	nlMaxGoroutines = 4
 	// nlAskTimeout — запас поверх бюджета ассистента (Go ждёт 25 с).
 	nlAskTimeout = 30 * time.Second
@@ -45,7 +43,7 @@ const (
 	nlTypingInterval = 4 * time.Second
 	// tgMessageLimit — лимит длины одного сообщения Telegram.
 	tgMessageLimit = 4096
-	// nlQuestionMaxRunes — предел длины вопроса (как в HTTP-контракте §9.1).
+	// nlQuestionMaxRunes — предел длины вопроса.
 	nlQuestionMaxRunes = 500
 )
 
@@ -55,7 +53,7 @@ type Config struct {
 	BotUsername    string        // для deep link t.me/<username>
 	MiniAppURL     string        // web_app-кнопка в личке, если задан
 	LinkCodeTTL    time.Duration // TTL кода привязки
-	BotToken       string        // для проверки подписи initData Mini App (§3.3)
+	BotToken       string        // для проверки подписи initData Mini App
 	InitDataMaxAge time.Duration // максимальный возраст initData (auth_date)
 }
 
@@ -65,19 +63,13 @@ type Service struct {
 	users  UserReader
 	client BotAPI
 	tokens TokenIssuer // выпуск access-токена Mini App; nil, когда бот выключен
-	hasher Hasher      // проверка пароля при входе в Mini App; nil, когда бот выключен
+	hasher Hasher
 	cfg    Config
 	// payments — операции движка напоминаний (кнопка «Оплачено», команды-сводки).
-	// nil, пока движок не подключён (AttachPayments) или бот выключен.
 	payments *reminder.BotService
 
 	// nl — NL-ассистент (порт NLAnswerer), подключается AttachNLAnswerer.
-	// nil, когда фича выключена (NLQ_ENABLED=false): свободный текст и /ask тогда
-	// обрабатываются как прежде.
-	nl NLAnswerer
-	// nlRootCtx/nlWG — корневой контекст и WaitGroup фоновых воркеров (StartNL):
-	// NL-ответы считаются в фоне под ними, а не под request-ctx вебхука, и
-	// завершаются при graceful shutdown (§5.3).
+	nl        NLAnswerer
 	nlRootCtx context.Context
 	nlWG      *sync.WaitGroup
 	// nlSem — семафор горутин NL-ответов; nlInflight — singleflight по userID.
@@ -89,8 +81,7 @@ type Service struct {
 	audit audit.Recorder
 }
 
-// NewService собирает сервис бота. tokens и hasher нужны только входу в Mini App
-// и могут быть nil, когда бот выключен (методы MiniApp* вернут ErrBotDisabled).
+// NewService собирает сервис бота.
 func NewService(repo Repository, users UserReader, client BotAPI, tokens TokenIssuer, hasher Hasher, cfg Config) *Service {
 	if cfg.LinkCodeTTL <= 0 {
 		cfg.LinkCodeTTL = 10 * time.Minute
@@ -101,7 +92,7 @@ func NewService(repo Repository, users UserReader, client BotAPI, tokens TokenIs
 	return &Service{repo: repo, users: users, client: client, tokens: tokens, hasher: hasher, cfg: cfg, audit: audit.Nop{}}
 }
 
-// SetAuditRecorder подключает журнал действий. Вызывается из apiserver.
+// SetAuditRecorder подключает журнал действий.
 func (s *Service) SetAuditRecorder(r audit.Recorder) { s.audit = r }
 
 // MiniAppResult — результат входа в Mini App: access-токен и профиль пользователя.
@@ -109,16 +100,11 @@ type MiniAppResult struct {
 	AccessToken string
 	ExpiresIn   int
 	User        model.User
-	// DMAvailable — может ли бот писать пользователю в личку (allows_write_to_pm из
-	// initData). Фронт по нему решает, звать ли requestWriteAccess (§3.3).
+	// DMAvailable — может ли бот писать пользователю в личку (allows_write_to_pm из initData).
 	DMAvailable bool
 }
 
-// MiniAppAuth выполняет вход в Mini App по уже существующей привязке (§3.3).
-// Проверяет подпись initData, находит привязку по tg_user_id и выпускает
-// access-токен. Ошибки: telegram.ErrInitDataInvalid / telegram.ErrInitDataStale
-// (неверная или устаревшая initData), model.ErrTelegramNotLinked (привязки нет),
-// ErrBotDisabled (бот выключен).
+// MiniAppAuth выполняет вход в Mini App по уже существующей привязке.
 func (s *Service) MiniAppAuth(ctx context.Context, initData string) (MiniAppResult, error) {
 	id, err := s.validateInitData(initData)
 	if err != nil {
@@ -147,8 +133,7 @@ func (s *Service) MiniAppAuth(ctx context.Context, initData string) (MiniAppResu
 	return res, err
 }
 
-// recordMiniAppAuthFailure пишет неуспешный вход в Mini App (канал miniapp из
-// контекста). Причины, которых нет в наборе (бот выключен), не аудируются.
+// recordMiniAppAuthFailure пишет неуспешный вход в Mini App (канал miniapp из контекста).
 func (s *Service) recordMiniAppAuthFailure(ctx context.Context, err error) {
 	reason := miniAppAuthReason(err)
 	if reason == "" {
@@ -162,11 +147,7 @@ func (s *Service) recordMiniAppAuthFailure(ctx context.Context, err error) {
 	})
 }
 
-// MiniAppLink привязывает Telegram к аккаунту по логину и паролю из Mini App и
-// сразу выполняет вход (§3.3). Пароль вводится один раз. Ошибки:
-// telegram.ErrInitDataInvalid / telegram.ErrInitDataStale, ErrMiniAppInvalidCredentials
-// (неверный логин/пароль), model.ErrTelegramAlreadyLinked (этот Telegram уже за
-// другим аккаунтом), ErrBotDisabled.
+// MiniAppLink привязывает Telegram к аккаунту по логину и паролю из Mini App и сразу выполняет вход.
 func (s *Service) MiniAppLink(ctx context.Context, initData, login, password string) (MiniAppResult, error) {
 	id, err := s.validateInitData(initData)
 	if err != nil {
@@ -203,8 +184,7 @@ func (s *Service) MiniAppLink(ctx context.Context, initData, login, password str
 	return s.issueMiniApp(ctx, user.ID, id.AllowsWriteToPM)
 }
 
-// recordMiniAppLinkFailure пишет неуспешную привязку через Mini App. actorID —
-// если известен (ошибка пароля/уже привязан); для ошибок initData пусто.
+// recordMiniAppLinkFailure пишет неуспешную привязку через Mini App.
 func (s *Service) recordMiniAppLinkFailure(ctx context.Context, actorID string, err error) {
 	reason := miniAppLinkReason(err)
 	if reason == "" {
@@ -224,7 +204,6 @@ func (s *Service) recordMiniAppLinkFailure(ctx context.Context, actorID string, 
 }
 
 // validateInitData — общая проверка подписи initData для обоих Mini App-потоков.
-// Сырые initData не логируются ни на каком уровне (§3.3).
 func (s *Service) validateInitData(initData string) (telegram.InitData, error) {
 	if !s.cfg.Enabled || s.tokens == nil || s.hasher == nil {
 		return telegram.InitData{}, ErrBotDisabled
@@ -250,15 +229,12 @@ func (s *Service) issueMiniApp(ctx context.Context, userID string, dmAvailable b
 	}, nil
 }
 
-// AttachPayments подключает операции движка напоминаний (§6.3). Вызывается из
-// склейки apiserver после сборки движка.
+// AttachPayments подключает операции движка напоминаний.
 func (s *Service) AttachPayments(p *reminder.BotService) {
 	s.payments = p
 }
 
-// AttachNLAnswerer подключает NL-ассистента (порт NLAnswerer, §4.4). Вызывается
-// из склейки apiserver при NLQ_ENABLED=true. Инициализирует семафор горутин и
-// карту singleflight.
+// AttachNLAnswerer подключает NL-ассистента.
 func (s *Service) AttachNLAnswerer(a NLAnswerer) {
 	s.nl = a
 	s.nlSem = make(chan struct{}, nlMaxGoroutines)
@@ -266,14 +242,10 @@ func (s *Service) AttachNLAnswerer(a NLAnswerer) {
 }
 
 // StartNL задаёт корневой контекст и WaitGroup для фоновых NL-ответов.
-// Вызывается из startTelegram с rootCtx и общим wg, чтобы ответы (до 30 с) не
-// висели на request-ctx вебхука и завершались при остановке (§5.3).
 func (s *Service) StartNL(ctx context.Context, wg *sync.WaitGroup) {
 	s.nlRootCtx = ctx
 	s.nlWG = wg
 }
-
-// ---- REST-операции (вызываются из HTTP-хендлера) ----
 
 // LinkStatus — состояние привязки для GET /me/telegram.
 type LinkStatus struct {
@@ -284,8 +256,7 @@ type LinkStatus struct {
 	LinkedAt   time.Time
 }
 
-// CreateLinkCode выдаёт deep link для привязки Telegram. Возвращает ErrBotDisabled,
-// если бот выключен, и model.ErrTelegramTooManyCodes при превышении лимита кодов.
+// CreateLinkCode выдаёт deep link для привязки Telegram.
 func (s *Service) CreateLinkCode(ctx context.Context, userID string) (deepLink string, expiresIn int, err error) {
 	if !s.cfg.Enabled || s.cfg.BotUsername == "" {
 		return "", 0, ErrBotDisabled
@@ -339,8 +310,7 @@ func (s *Service) GetLinkStatus(ctx context.Context, userID string) (LinkStatus,
 	}, nil
 }
 
-// Unlink удаляет привязку пользователя. Возвращает model.ErrTelegramNotLinked,
-// если привязки не было.
+// Unlink удаляет привязку пользователя.
 func (s *Service) Unlink(ctx context.Context, userID string) error {
 	if err := s.repo.DeleteLink(ctx, userID); err != nil {
 		if errors.Is(err, model.ErrTelegramNotLinked) {
@@ -357,10 +327,7 @@ func (s *Service) Unlink(ctx context.Context, userID string) error {
 	return nil
 }
 
-// GetTeamChat возвращает активный командный чат. Если активного нет, но чат
-// когда-то был привязан, возвращает последний деактивированный (IsActive=false)
-// с last_error — чтобы админ в UI видел, ПОЧЕМУ напоминания встали (§5.4).
-// model.ErrTelegramNoTeamChat возвращается только если чата не было вовсе.
+// GetTeamChat возвращает активный командный чат.
 func (s *Service) GetTeamChat(ctx context.Context) (model.TelegramChat, error) {
 	chat, err := s.repo.GetActiveChat(ctx)
 	if err == nil {
@@ -377,8 +344,6 @@ func (s *Service) GetTeamChat(ctx context.Context) (model.TelegramChat, error) {
 }
 
 // SendTeamChatTest отправляет тестовое сообщение в командный чат.
-// model.ErrTelegramNoTeamChat — чат не привязан; ErrBotDisabled — бот выключен;
-// прочие ошибки — ошибка Bot API.
 func (s *Service) SendTeamChatTest(ctx context.Context) error {
 	if !s.cfg.Enabled {
 		return ErrBotDisabled
@@ -420,27 +385,20 @@ func (s *Service) SendTeamChatTest(ctx context.Context) error {
 	return nil
 }
 
-// SeedTeamChat вставляет начальный командный чат из TELEGRAM_TEAM_CHAT_ID при
-// старте, если активного ещё нет (§4). Пустой id игнорируется вызывающим.
+// SeedTeamChat вставляет начальный командный чат из TELEGRAM_TEAM_CHAT_ID при старте, если активного ещё нет.
 func (s *Service) SeedTeamChat(ctx context.Context, tgChatID int64) error {
 	if _, err := s.repo.GetActiveChat(ctx); err == nil {
 		return nil // активный чат уже есть
 	} else if !errors.Is(err, model.ErrTelegramNoTeamChat) {
 		return fmt.Errorf("telegram service: seed team chat: %w", err)
 	}
-	// Тип группы на старте неизвестен; группа — безопасное значение, уточнится
-	// при первом /bind или сервисном апдейте.
 	if err := s.repo.SeedChat(ctx, tgChatID, "group"); err != nil {
 		return fmt.Errorf("telegram service: seed team chat: %w", err)
 	}
 	return nil
 }
 
-// ---- Приём апдейтов ----
-
-// HandleUpdate — единая точка обработки апдейта для polling и webhook (§6.1).
-// Дедуп по update_id; повторный апдейт игнорируется. Ошибки обработки
-// логируются, наружу не пробрасываются: webhook всегда отвечает 200.
+// HandleUpdate — единая точка обработки апдейта для polling и webhook.
 func (s *Service) HandleUpdate(ctx context.Context, upd telegram.Update) {
 	fresh, err := s.repo.MarkUpdateSeen(ctx, upd.UpdateID)
 	if err != nil {
@@ -462,7 +420,6 @@ func (s *Service) HandleUpdate(ctx context.Context, upd telegram.Update) {
 }
 
 func (s *Service) handleMessage(ctx context.Context, msg *telegram.Message) {
-	// Сервисное migrate_to_chat_id: группа стала супергруппой.
 	if msg.MigrateToChatID != 0 {
 		if err := s.repo.UpdateChatID(ctx, msg.Chat.ID, msg.MigrateToChatID); err != nil {
 			slog.Error("telegram bot: migrate chat id", "error", err)
@@ -475,7 +432,7 @@ func (s *Service) handleMessage(ctx context.Context, msg *telegram.Message) {
 		return
 	}
 	if !strings.HasPrefix(text, "/") {
-		// Свободный текст — NL-вопрос только в личке (§4.4, решение №8).
+		// Свободный текст — NL-вопрос только в личке.
 		if msg.Chat.Type == "private" {
 			s.handleFreeText(ctx, msg, text)
 		}
@@ -511,7 +468,6 @@ func (s *Service) handleMessage(ctx context.Context, msg *telegram.Message) {
 	case "/chatid":
 		s.reply(ctx, msg.Chat.ID, fmt.Sprintf("ID этого чата: <code>%d</code>", msg.Chat.ID))
 	default:
-		// Незнакомую команду молча пропускаем в группах, в личке подсказываем.
 		if msg.Chat.Type == "private" {
 			s.reply(ctx, msg.Chat.ID, s.helpText())
 		}
@@ -563,8 +519,7 @@ func (s *Service) handleStartLink(ctx context.Context, msg *telegram.Message, co
 		return
 	}
 
-	// Повтор /start link при уже существующей привязке этого аккаунта к тому же
-	// пользователю — не ошибка (§3.1).
+	// Повтор /start link при уже существующей привязке этого аккаунта к тому же пользователю — не ошибка.
 	if link, err := s.repo.GetLinkByTGUserID(ctx, msg.From.ID); err == nil && link.UserID == userID {
 		s.reply(ctx, msg.Chat.ID, "Этот Telegram уже привязан к вашему аккаунту.")
 		return
@@ -617,7 +572,6 @@ func (s *Service) handleBind(ctx context.Context, msg *telegram.Message) {
 		s.reply(ctx, msg.Chat.ID, "Команда /bind работает только в группе.")
 		return
 	}
-	// Анонимный админ или канал: from.id отсутствует/непривязываем.
 	if msg.SenderChat != nil || msg.From == nil {
 		s.reply(ctx, msg.Chat.ID, "Отправьте команду от своего имени, а не анонимно.")
 		return
@@ -658,7 +612,6 @@ func (s *Service) handleBind(ctx context.Context, msg *telegram.Message) {
 	if hadPrev {
 		s.reply(ctx, prev.TGChatID, "Этот чат больше не командный: напоминания переключены на другую группу.")
 	}
-	// Отложенные из-за отсутствия чата напоминания отправятся на ближайшем тике.
 	if s.payments != nil {
 		s.payments.ResetTeamQueue(ctx)
 	}
@@ -718,9 +671,7 @@ func (s *Service) handleCallback(ctx context.Context, cb *telegram.CallbackQuery
 	}
 }
 
-// handlePaidCallback обрабатывает кнопку «Оплачено» (§6.3). Авторизация по
-// from.id: кнопку может нажать только привязанный пользователь, права
-// (ответственный или админ) проверяет Payer.
+// handlePaidCallback обрабатывает кнопку «Оплачено».
 func (s *Service) handlePaidCallback(ctx context.Context, cb *telegram.CallbackQuery, occHex string) {
 	if s.payments == nil {
 		s.answer(ctx, cb.ID, "Кнопка недоступна.", false)
@@ -736,13 +687,10 @@ func (s *Service) handlePaidCallback(ctx context.Context, cb *telegram.CallbackQ
 		name = u.FullName
 		role = u.Role
 	}
-	// Канал bot прокидываем в контекст: занесётся и occurrence.confirm (пишется
-	// в PaymentService.MarkOccurrencePaid), и bot.paid_button ниже.
 	bctx := s.botCtx(ctx, link.UserID, role)
 	text, alert := s.payments.MarkPaidCallback(bctx, occHex, link.UserID, name)
 	s.answer(ctx, cb.ID, text, alert)
 
-	// Кнопка «Оплачено» аудируется при каждом нажатии: outcome по флагу alert.
 	outcome := audit.OutcomeSuccess
 	if alert {
 		outcome = audit.OutcomeFailure
@@ -756,10 +704,7 @@ func (s *Service) handlePaidCallback(ctx context.Context, cb *telegram.CallbackQ
 	})
 }
 
-// handleSummary отвечает read-only сводкой (/today, /week, /overdue). Сводка —
-// это суммы, валюты и сроки по всем неоплаченным платежам компании, поэтому
-// доступна только (а) в личке привязанному пользователю или (б) в активном
-// командном чате. В чужой группе и в личке без привязки — отказ (решение №1).
+// handleSummary отвечает read-only сводкой (/today, /week, /overdue).
 func (s *Service) handleSummary(ctx context.Context, msg *telegram.Message, kind string) {
 	if s.payments == nil {
 		s.reply(ctx, msg.Chat.ID, "Сводка недоступна: движок напоминаний выключен.")
@@ -783,8 +728,7 @@ func (s *Service) handleSummary(ctx context.Context, msg *telegram.Message, kind
 	s.reply(ctx, msg.Chat.ID, text)
 }
 
-// summaryAllowed разрешает read-only команды только в активном командном чате
-// или в личке привязанного пользователя (§6.2, решение №1).
+// summaryAllowed разрешает read-only команды только в активном командном чате или в личке привязанного пользователя.
 func (s *Service) summaryAllowed(ctx context.Context, msg *telegram.Message) bool {
 	switch msg.Chat.Type {
 	case "group", "supergroup":
@@ -850,7 +794,6 @@ func (s *Service) handleMyChatMember(ctx context.Context, cm *telegram.ChatMembe
 
 	switch {
 	case wasPresent && !isPresent:
-		// Бота удалили из чата: деактивируем, если это был командный чат.
 		if err := s.repo.DeactivateChat(ctx, cm.Chat.ID, "бот удалён из чата"); err != nil &&
 			!errors.Is(err, model.ErrTelegramNoTeamChat) {
 			slog.Error("telegram bot: deactivate on removal", "error", err)
@@ -863,8 +806,6 @@ func (s *Service) handleMyChatMember(ctx context.Context, cm *telegram.ChatMembe
 		}
 	}
 }
-
-// ---- Вспомогательное ----
 
 // reply отправляет короткое текстовое сообщение (HTML), ошибку только логирует.
 func (s *Service) reply(ctx context.Context, chatID int64, text string) {

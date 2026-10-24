@@ -1,11 +1,4 @@
-"""The agent loop and the top-level ``answer`` orchestrator (§7.5, §7.2).
-
-``answer`` picks the brain (openrouter / rules / fake), runs the bounded loop,
-and applies the two-level fallback: a manual backup-model retry inside the loop,
-then the rules router if the LLM is unavailable. Numbers, blocks and the safe
-fallback text are produced by ``render``/``envelope``; the model only proposes
-tool calls and writes prose.
-"""
+"""The agent loop and the top-level ``answer`` orchestrator."""
 
 from __future__ import annotations
 
@@ -145,7 +138,6 @@ class _Executor:
                 {"n": self._step_n, "tool": call.name, "label": _TOOL_LABELS.get(call.name, "Ищу данные")},
             )
 
-        # Локальные data-инструменты исполняются без MCP (recall_conversation).
         if is_local_data:
             payload = {"ok": True, "tool": call.name, **mem.recall(
                 self._history, args.get("query"), int(args.get("limit", 3))
@@ -195,8 +187,6 @@ class _Executor:
         return result
 
 
-# Keep at least this many seconds of the overall budget for the rules/template
-# fallback after the loop, and never start an LLM attempt with less than this.
 _FALLBACK_RESERVE = 2.5
 _MIN_STEP_BUDGET = 1.0
 
@@ -210,10 +200,7 @@ async def _chat_with_fallback(
     user: str | None,
     telemetry: LoopTelemetry,
 ) -> LLMResponse:
-    """Primary (with OpenRouter-side fallback list), then a manual backup try.
-    Each attempt is capped at the smaller of the step timeout and the budget
-    left before ``deadline``; the backup only runs if enough budget remains.
-    """
+    """Primary (with OpenRouter-side fallback list), then a manual backup try."""
     backup = llm.backup
     primary_timeout = min(cfg.step_timeout, max(deadline - time.monotonic(), 0.0))
     try:
@@ -265,8 +252,6 @@ async def run_loop(
     """Run the bounded agentic loop and return the finished envelope."""
     history = history or []
     start = time.monotonic()
-    # Stop driving the LLM early enough to leave _FALLBACK_RESERVE for the
-    # rules/template fallback within the overall budget (section 7.3).
     deadline = start + max(cfg.total_timeout - _FALLBACK_RESERVE, _MIN_STEP_BUDGET)
     telemetry = LoopTelemetry()
     messages: list[dict[str, Any]] = [
@@ -275,9 +260,6 @@ async def run_loop(
         {"role": "user", "content": question},
     ]
 
-    # Open the MCP session tolerantly: a greeting / out-of-scope answer
-    # (reply_without_data) needs no data, so it should still work when MCP is
-    # down. A data tool call with no session returns db_unavailable.
     session_cm = McpSession(cfg.mcp_url, token)
     try:
         session: McpSession | None = await session_cm.__aenter__()
@@ -305,8 +287,6 @@ async def run_loop(
 
             calls = resp.tool_calls
             if not calls:
-                # Truncated output (finish_reason=length) may carry an ungrounded
-                # half-number, so force the deterministic template instead.
                 model_text = None if resp.finish_reason == "length" else resp.content
                 return _finish(
                     answer_id, mode, model_text, question, executor, today, scope, telemetry, start, history
@@ -466,7 +446,7 @@ async def answer(
     history: list[Turn] | None = None,
     on_step: StepHook | None = None,
 ) -> dict[str, Any]:
-    """Top-level: run the chosen brain and apply the rules fallback (§7.2)."""
+    """Top-level: run the chosen brain and apply the rules fallback."""
     history = history or []
     if llm_mode == "rules":
         return await run_rules(
@@ -477,8 +457,6 @@ async def answer(
     assert llm is not None, "llm client required for openrouter/fake modes"
     mode = "fake" if llm_mode == "fake" else "llm"
     try:
-        # Hard cap on the whole loop so a hung attempt cannot blow the Go budget;
-        # the loop's own deadline normally fires first and leaves fallback time.
         async with asyncio.timeout(cfg.total_timeout):
             return await run_loop(
                 question=question, actor=actor, token=token, today=today, scope=scope,
@@ -498,7 +476,6 @@ async def answer(
             today=today, scope=scope, telemetry=LoopTelemetry(), latency_ms=0,
         )
     except McpError:
-        # The MCP server itself is unreachable: no data path.
         return env.error_envelope(
             answer_id=answer_id, mode=mode, error_code=env.ERR_DATA_UNAVAILABLE,
             text="Сейчас не могу получить данные о платежах. Попробуйте позже.",

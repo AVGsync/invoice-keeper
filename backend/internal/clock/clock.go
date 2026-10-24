@@ -1,9 +1,4 @@
 // Package clock задаёт единый источник «сегодня» и календарную дату без зоны.
-//
-// Во всей системе запрещено опираться на time.Local, CURRENT_DATE и now()::date:
-// зона приложения берётся из APP_TIMEZONE, а DATE передаётся в SQL строкой
-// "YYYY-MM-DD" (см. docs/TELEGRAM_BOT.md §5.2). Бот и модуль платежей B считают
-// «сегодня» одинаково, поэтому окно напоминаний и статус overdue совпадают.
 package clock
 
 import (
@@ -11,7 +6,7 @@ import (
 	"time"
 )
 
-// Date — календарная дата без времени и зоны. Сравнивается по значению.
+// Date — календарная дата без времени и зоны.
 type Date struct {
 	Y int
 	M time.Month
@@ -39,15 +34,12 @@ func DateOf(t time.Time, loc *time.Location) Date {
 }
 
 // AddDays возвращает дату, сдвинутую на n дней (n может быть отрицательным).
-// Нормализация — через time.Date, поэтому переходы через границы месяца и
-// года считаются корректно.
 func (d Date) AddDays(n int) Date {
 	t := time.Date(d.Y, d.M, d.D+n, 0, 0, 0, 0, time.UTC)
 	return Date{Y: t.Year(), M: t.Month(), D: t.Day()}
 }
 
-// Compare возвращает -1, 0 или +1 (как strings.Compare), сравнивая даты
-// хронологически.
+// Compare возвращает -1, 0 или +1 (как strings.Compare), сравнивая даты хронологически.
 func (d Date) Compare(o Date) int {
 	switch {
 	case d.Y != o.Y:
@@ -81,8 +73,7 @@ func sign(n int) int {
 	}
 }
 
-// Clock — источник текущего времени и «сегодня». Реальная реализация в New,
-// для тестов используется Fixed.
+// Clock — источник текущего времени и «сегодня».
 type Clock interface {
 	Now() time.Time
 	Today() Date
@@ -94,7 +85,7 @@ type Real struct {
 	loc *time.Location
 }
 
-// New создаёт реальные часы в зоне loc. При loc == nil используется UTC.
+// New создаёт реальные часы в зоне loc.
 func New(loc *time.Location) Clock {
 	if loc == nil {
 		loc = time.UTC
@@ -112,8 +103,7 @@ type Fixed struct {
 	Loc *time.Location
 }
 
-// NewFixed создаёт зафиксированные на момент t часы в зоне loc. При loc == nil
-// берётся зона t.
+// NewFixed создаёт зафиксированные на момент t часы в зоне loc.
 func NewFixed(t time.Time, loc *time.Location) Fixed {
 	if loc == nil {
 		loc = t.Location()

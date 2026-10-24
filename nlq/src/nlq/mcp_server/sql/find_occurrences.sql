@@ -1,7 +1,4 @@
--- base is occurrences_base.sql; status_sql and order_sql are chosen by code
--- from a fixed dictionary by enum. No user-supplied text ever reaches SQL
--- (section 5.1 p.7). Placeholders are written without braces in comments so
--- str.format never substitutes a multi-line fragment into this comment.
+-- Периоды оплаты по фильтрам; status_sql и order_sql выбирает код из фиксированного словаря.
 -- Params: $1 today, $2 date_from, $3 date_to, $4 currency, $5 min_amount,
 --         $6 max_amount, $7 assignee_id (model), $8 assignee_id (visibility own),
 --         $9 title tsquery, $10 title ilike (escaped), $11 limit, $12 category.

@@ -1,16 +1,5 @@
--- Copy of backend/migrations 000006, 000007, 000008 + the 000010 integration
--- columns/constraints, for LOCAL development and tests ONLY (§6.5). B's real
--- migrations CREATE these in public, so we must NOT create them there — dbinit
--- puts them in a separate schema (NLQ_DEV_SCHEMA, default nlq_dev) and sets
--- search_path before running this file. The MCP pool uses
--- search_path="<dev>, public" so unqualified names resolve here while users and
--- personas come from public.
---
--- This must mirror the real DDL exactly (column names and types): the
--- test_dev_schema_matches_public test compares information_schema.columns
--- against public once migrations have run, to guard against drift. There is NO
--- category column (decision #3). When B merges, set NLQ_DEV_SCHEMA empty and run
--- `python -m nlq.dbinit --drop-dev`.
+-- Копия миграций 000006-000008 и 000010 для локальной разработки в отдельной схеме (NLQ_DEV_SCHEMA).
+-- Должна точно повторять реальный DDL; при пустой NLQ_DEV_SCHEMA не используется.
 
 -- 000006 recurrent_payments + 000010 (start_date, stopped_at, currency CHECK)
 CREATE TABLE IF NOT EXISTS recurrent_payments (

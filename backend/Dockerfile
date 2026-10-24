@@ -13,7 +13,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/apiserv
 
 FROM alpine:3.20.10
 
-RUN adduser -D -H -u 10001 appuser
+RUN adduser -D -H -u 10001 appuser && mkdir -p /data/receipts && chown appuser /data/receipts
 
 WORKDIR /app
 COPY --from=builder /out/apiserver /app/apiserver

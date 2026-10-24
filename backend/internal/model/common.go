@@ -19,8 +19,7 @@ var ErrNotificationSettingsNotFound = errors.New("user notification settings not
 // ErrUserInUse запрещает удалять пользователя, на которого ссылаются другие записи.
 var ErrUserInUse = errors.New("user is referenced and cannot be deleted")
 
-// ErrAdminImmutable запрещает менять и удалять администратора через API:
-// его учётка задаётся только в .env.
+// ErrAdminImmutable запрещает менять и удалять администратора через API: его учётка задаётся только в .env.
 var ErrAdminImmutable = errors.New("admin account is managed via .env")
 
 // ErrPersonaNotFound — персоны с указанным id нет (в том числе при создании пользователя).
@@ -29,14 +28,13 @@ var ErrPersonaNotFound = errors.New("persona not found")
 // ErrPersonaNameTaken — персона с таким названием уже есть (без учёта регистра).
 var ErrPersonaNameTaken = errors.New("persona with this name already exists")
 
-// Единые sentinel-ошибки модуля платежей. Репозиторий и сервис возвращают их,
-// а HTTP-слой и Telegram-адаптер раскладывают по статусам/ошибкам reminder.
+// Единые sentinel-ошибки модуля платежей.
 var (
 	// ErrPaymentNotFound — периода (payments) с таким id нет.
 	ErrPaymentNotFound = errors.New("payment not found")
 	// ErrRecurrentPaymentNotFound — шаблона (recurrent_payments) с таким id нет.
 	ErrRecurrentPaymentNotFound = errors.New("recurrent payment not found")
-	// ErrPaymentForbidden — пользователь не ответственный и не админ (решение №4).
+	// ErrPaymentForbidden — пользователь не ответственный и не админ.
 	ErrPaymentForbidden = errors.New("payment action forbidden")
 	// ErrPaymentAlreadyPaid — период уже оплачен (повторное подтверждение).
 	ErrPaymentAlreadyPaid = errors.New("payment already paid")
@@ -58,6 +56,12 @@ type User struct {
 	Role string `json:"role" enums:"admin,user" example:"user"`
 	// Персона (должность) пользователя; `null`, если не назначена или была удалена.
 	Persona *PersonaRef `json:"persona" extensions:"x-nullable"`
+	// Привязан ли Telegram-аккаунт (таблица telegram_links).
+	TelegramLinked bool `json:"telegram_linked" example:"true"`
+	// Username в Telegram без @; пусто, если не привязан или username не задан.
+	TelegramUsername string `json:"telegram_username,omitempty" example:"olga_iv"`
+	// Когда привязан Telegram; не задано, если не привязан.
+	TelegramLinkedAt *time.Time `json:"telegram_linked_at,omitempty" example:"2026-10-23T20:05:31Z"`
 	// Когда создан.
 	CreatedAt time.Time `json:"created_at" example:"2026-10-23T20:05:31Z"`
 }
@@ -135,8 +139,7 @@ type Payment struct {
 	Currency    string `json:"currency"`
 	Description string `json:"description"`
 
-	// DueDate и PaidDate — календарные даты "YYYY-MM-DD" без зоны (читаются как
-	// due_date::text / paid_date::text, см. internal/clock, §5.2).
+	// DueDate и PaidDate — календарные даты "YYYY-MM-DD" без зоны.
 	DueDate  string     `json:"due_date"`
 	PaidDate *string    `json:"paid_date,omitempty"`
 	PaidAt   *time.Time `json:"paid_at,omitempty"`

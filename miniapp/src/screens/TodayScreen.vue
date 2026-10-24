@@ -156,7 +156,6 @@ onMounted(() => void occurrences.load())
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0) 60%);
   z-index: -1;
 }
-/* the gradient layer is wider than the card and drifts slowly — transform only */
 .ov-bg {
   position: absolute;
   inset: 0 -40%;

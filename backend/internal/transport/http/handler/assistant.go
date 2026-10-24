@@ -17,14 +17,12 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/middleware"
 )
 
-// AssistantUseCase — порт сервиса ассистента для HTTP-хендлера. Реализует
-// *service.AssistantService (docs/NL_QUERIES.md §9.1).
+// AssistantUseCase — порт сервиса ассистента для HTTP-хендлера.
 type AssistantUseCase interface {
 	Enabled() bool
 	Examples() []string
 	Status(ctx context.Context) (healthy bool, mode string)
-	// Proxy выполняет вопрос и возвращает «живой» ответ агента; release закрывает
-	// тело и освобождает семафор. При ошибке release == nil.
+	// Proxy выполняет вопрос и возвращает «живой» ответ агента; release закрывает тело и освобождает семафор.
 	Proxy(ctx context.Context, userID, channel, question, requestID, path string) (*http.Response, func(), error)
 	Timeout() time.Duration
 }
@@ -39,7 +37,7 @@ func NewAssistantHandler(useCase AssistantUseCase, memory response.AssistantMemo
 	return &AssistantHandler{useCase: useCase, memory: memory}
 }
 
-// parseAskRequest читает и валидирует тело вопроса. channel bot по HTTP запрещён.
+// parseAskRequest читает и валидирует тело вопроса.
 func parseAskRequest(w http.ResponseWriter, r *http.Request) (question, channel string, ok bool) {
 	var req request.AssistantAskRequest
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
@@ -59,7 +57,7 @@ func parseAskRequest(w http.ResponseWriter, r *http.Request) (question, channel 
 	return q, ch, true
 }
 
-// writeAssistantError маппит ошибку сервиса в HTTP-код и машинный код (§4.3, §9.1).
+// writeAssistantError маппит ошибку сервиса в HTTP-код и машинный код.
 func writeAssistantError(w http.ResponseWriter, r *http.Request, err error) {
 	var rl *service.RateLimitedError
 	switch {
@@ -88,7 +86,7 @@ func writeAssistantError(w http.ResponseWriter, r *http.Request, err error) {
 // @Description  («что просрочено?», «сколько платим в долларах в этом месяце?»). Go
 // @Description  аутентифицирует пользователя, применяет лимиты, перечитывает роль из БД,
 // @Description  подписывает короткоживущий actor-JWT и проксирует вопрос в nlq-agent.
-// @Description  Ответ — конверт §7.9: короткий текст плюс блоки с данными. Числа и даты
+// @Description  Ответ — конверт: короткий текст плюс блоки с данными. Числа и даты
 // @Description  считает БД, текст проходит grounding-check.
 // @Tags         Ассистент
 // @Accept       json
@@ -128,9 +126,7 @@ func (h *AssistantHandler) Ask() http.HandlerFunc {
 			return
 		}
 		if resp.StatusCode != http.StatusOK {
-			// Агент ответил не-200 (bad_question, not_ready): маппим и не
-			// протаскиваем сырое тело наружу. Логируем статус (без тела): иначе
-			// неверный actor-ключ или перекос часов виден лишь как общий 503.
+			// Агент ответил не-200 (bad_question, not_ready): маппим и не протаскиваем сырое тело наружу.
 			slog.Warn("assistant: agent answered non-200", "status", resp.StatusCode, "request_id", requestID)
 			switch resp.StatusCode {
 			case http.StatusBadRequest:
@@ -140,7 +136,6 @@ func (h *AssistantHandler) Ask() http.HandlerFunc {
 			}
 			return
 		}
-		// Конверт проксируется байт-в-байт: фронт получает точную схему блоков и meta.
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(body)
@@ -198,8 +193,6 @@ func (h *AssistantHandler) AskStream() http.HandlerFunc {
 			return
 		}
 
-		// SSE: отключаем буферизацию nginx и продлеваем write deadline за пределы
-		// WriteTimeout сервера, иначе длинный поток оборвётся (§9.4).
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
@@ -211,8 +204,6 @@ func (h *AssistantHandler) AskStream() http.HandlerFunc {
 		_ = rc.Flush()
 
 		// Копируем поток чанками и флашим каждый, чтобы события доходили сразу.
-		// Разрыв с клиентом отменяет r.Context() → чтение resp.Body завершится
-		// ошибкой, и цикл закончится (фоновая работа агента тоже отменится).
 		buf := make([]byte, 4096)
 		for {
 			n, rerr := resp.Body.Read(buf)
@@ -223,10 +214,6 @@ func (h *AssistantHandler) AskStream() http.HandlerFunc {
 				_ = rc.Flush()
 			}
 			if rerr != nil {
-				// Нормальный конец потока — io.EOF (кадр done уже ушёл). Если же
-				// поток оборвался не по инициативе клиента (reqCtx-таймаут Go или
-				// падение связи с агентом), отдаём кадр error (§9.4), чтобы фронт
-				// отличил обрыв от нормального завершения.
 				if rerr != io.EOF && r.Context().Err() == nil {
 					code := "llm_unavailable"
 					if errors.Is(rerr, context.DeadlineExceeded) {

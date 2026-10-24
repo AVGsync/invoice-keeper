@@ -1,10 +1,4 @@
-"""OpenRouter chat-completions client (§7.1–7.3).
-
-httpx is used directly (not the OpenAI SDK) so ``provider``, ``models`` and
-``usage`` fields pass through transparently. The client performs *one* transient
-retry per call; model fallback and the rules fallback are orchestrated by the
-loop, which knows the deadline.
-"""
+"""OpenRouter chat-completions client."""
 
 from __future__ import annotations
 
@@ -23,12 +17,7 @@ log = logging.getLogger("nlq.agent.openrouter")
 
 
 class OpenRouterError(Exception):
-    """A call that should trigger model/rules fallback.
-
-    ``retryable`` means a single transient retry already happened (or should be
-    skipped for auth/credit errors). ``auth`` flags 401/402/403 so the loop logs
-    an alert and never retries (§7.3).
-    """
+    """A call that should trigger model/rules fallback."""
 
     def __init__(self, message: str, *, auth: bool = False) -> None:
         super().__init__(message)
@@ -40,7 +29,7 @@ _AUTH_STATUS = frozenset({401, 402, 403})
 
 
 def hash_user(user_id: str) -> str:
-    """Pseudonymous ``user`` field for OpenRouter: sha256(user_id)[:16] (§8.5)."""
+    """Pseudonymous ``user`` field for OpenRouter: sha256(user_id)[:16]."""
     return hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:16]
 
 
@@ -74,7 +63,7 @@ class OpenRouterClient:
         fallback_models: list[str] | None = None,
         user: str | None = None,
     ) -> LLMResponse:
-        """One logical completion. Raises OpenRouterError to signal fallback."""
+        """One logical completion."""
         body: dict[str, Any] = {
             "model": model,
             "messages": messages,
@@ -112,8 +101,6 @@ class OpenRouterClient:
         body: dict[str, Any],
         timeout: float,
     ) -> dict[str, Any]:
-        # Bound each phase so one slow attempt cannot consume the whole budget:
-        # connect/write/pool are capped low, read gets the step budget (section 7.3).
         per_attempt = httpx.Timeout(
             timeout,
             connect=min(2.0, timeout),
@@ -156,7 +143,7 @@ class OpenRouterClient:
         raise OpenRouterError("exhausted retries")  # pragma: no cover
 
     async def list_models(self, timeout: float = 5.0) -> dict[str, dict[str, Any]]:
-        """``GET /models`` → {id: model} for the self-check (§7.2)."""
+        """``GET /models`` → {id: model} for the self-check."""
         url = f"{self._settings.openrouter_base_url.rstrip('/')}/models"
         headers = {"Authorization": f"Bearer {self._settings.openrouter_api_key}"}
         resp = await self._client.get(url, headers=headers, timeout=timeout)
@@ -179,8 +166,6 @@ def _should_retry(resp: httpx.Response) -> bool:
 def _parse_response(data: dict[str, Any]) -> LLMResponse:
     choice = data["choices"][0]
     finish_reason = choice.get("finish_reason")
-    # A 200 that still failed: a choice-level error or finish_reason=="error"
-    # must trigger the backup, not be shown as an empty answer (section 7.3).
     if choice.get("error") or finish_reason == "error":
         raise OpenRouterError("choice-level error in a 200 response")
     message = choice.get("message") or {}
@@ -228,8 +213,6 @@ def _clean_history_message(message: dict[str, Any]) -> dict[str, Any]:
         out["content"] = message["content"]
     if message.get("tool_calls"):
         out["tool_calls"] = message["tool_calls"]
-    # Reasoning models (Gemini/Anthropic thinking) may reject a follow-up turn
-    # whose prior assistant message dropped these, so carry them as-is (section 7.1).
     for k in ("reasoning", "reasoning_details"):
         if message.get(k) is not None:
             out[k] = message[k]

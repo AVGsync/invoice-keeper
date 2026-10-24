@@ -1,7 +1,6 @@
 package audit
 
-// Коды действий журнала. Формат — `<группа>.<действие>` (CHECK в миграции).
-// Сервисы ссылаются на эти константы, чтобы исключить опечатки.
+// Коды действий журнала.
 const (
 	ActionAuthLogin   = "auth.login"
 	ActionAuthLogout  = "auth.logout"
@@ -32,6 +31,9 @@ const (
 	ActionOccurrenceCancel         = "occurrence.cancel"
 	ActionOccurrenceUpdate         = "occurrence.update"
 
+	ActionReceiptAttach = "receipt.attach"
+	ActionReceiptDelete = "receipt.delete"
+
 	ActionNotificationSettingsCreate = "notification_settings.create"
 	ActionNotificationSettingsUpdate = "notification_settings.update"
 	ActionNotificationSettingsDelete = "notification_settings.delete"
@@ -50,6 +52,7 @@ const (
 	EntityPersona               = "persona"
 	EntityRecurringPayment      = "recurring_payment"
 	EntityOccurrence            = "occurrence"
+	EntityReceipt               = "receipt"
 	EntityNotificationSettings  = "notification_settings"
 	EntityAssistantTurn         = "assistant_turn"
 	EntityAssistantConversation = "assistant_conversation"
@@ -62,8 +65,7 @@ type ActionInfo struct {
 	EntityType string `json:"entity_type"`
 }
 
-// Catalogue — список всех действий журнала с русскими метками. Порядок — как в
-// контракте; наружу отдаётся GET /audit-log/actions.
+// Catalogue — список всех действий журнала с русскими метками.
 var Catalogue = []ActionInfo{
 	{ActionAuthLogin, "Вход", EntityUser},
 	{ActionAuthLogout, "Выход", EntityUser},
@@ -94,6 +96,9 @@ var Catalogue = []ActionInfo{
 	{ActionOccurrenceCancel, "Снята оплата", EntityOccurrence},
 	{ActionOccurrenceUpdate, "Изменён период", EntityOccurrence},
 
+	{ActionReceiptAttach, "Прикреплён чек", EntityReceipt},
+	{ActionReceiptDelete, "Удалён чек", EntityReceipt},
+
 	{ActionNotificationSettingsCreate, "Настройки уведомлений созданы", EntityNotificationSettings},
 	{ActionNotificationSettingsUpdate, "Настройки уведомлений изменены", EntityNotificationSettings},
 	{ActionNotificationSettingsDelete, "Настройки уведомлений удалены", EntityNotificationSettings},
@@ -113,8 +118,7 @@ var labelByAction = func() map[string]string {
 	return m
 }()
 
-// Label возвращает русскую метку действия или само действие, если его нет в
-// каталоге (чтобы незнакомый код всё равно показывался в UI).
+// Label возвращает русскую метку действия или само действие, если его нет в каталоге (чтобы незнакомый код всё равно показывался в UI).
 func Label(action string) string {
 	if l, ok := labelByAction[action]; ok {
 		return l

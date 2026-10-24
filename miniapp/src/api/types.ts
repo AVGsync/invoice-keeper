@@ -1,4 +1,4 @@
-// Типы ответов API. Формы сверены с backend/docs/swagger.yaml.
+// Типы ответов API.
 
 export type Currency = 'RUB' | 'USD' | 'EUR'
 export type Role = 'admin' | 'user'
@@ -29,7 +29,29 @@ export interface User {
   login: string
   role: Role
   persona: PersonaRef | null
+  telegram_linked?: boolean
+  telegram_username?: string
+  telegram_linked_at?: string
   created_at: string
+}
+
+export interface Receipt {
+  id: string
+  payment_id: string
+  kind: 'file' | 'link'
+  title: string
+  url?: string
+  file_name?: string
+  content_type?: string
+  size_bytes?: number
+  uploaded_by_name?: string
+  created_at: string
+}
+
+export interface ReceiptAccess {
+  kind: 'file' | 'link'
+  url: string
+  expires_at?: string
 }
 
 export interface UserListResponse {
@@ -217,7 +239,6 @@ export type AssistantBlock =
   | TableBlock
   | { type: string; [k: string]: unknown }
 
-// История диалога ассистента (память, трек D).
 export interface AssistantHistoryItem {
   id: string
   answer_id: string

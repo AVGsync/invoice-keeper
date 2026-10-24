@@ -7,9 +7,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/clock"
 )
 
-// Доменные ошибки Telegram-бота. Префикс ErrTelegram* выбран, чтобы не
-// столкнуться по именам с типами модуля платежей B в том же пакете model
-// (docs/TELEGRAM_BOT.md §8).
+// Доменные ошибки Telegram-бота.
 var (
 	// ErrTelegramNotLinked — у пользователя нет привязки Telegram.
 	ErrTelegramNotLinked = errors.New("telegram account is not linked")
@@ -59,9 +57,7 @@ type TelegramChat struct {
 	LastError     *string
 }
 
-// ReminderOccurrence — снимок периода платежа модуля B, который читает движок
-// напоминаний (docs/TELEGRAM_BOT.md §2.2). Тип принадлежит боту (пакет model,
-// префикс Reminder*), данные B читаются только через порт reminder.OccurrenceSource.
+// ReminderOccurrence — снимок периода платежа, который читает движок напоминаний.
 type ReminderOccurrence struct {
 	ID                 string
 	RecurringPaymentID string
@@ -76,13 +72,13 @@ type ReminderOccurrence struct {
 	AssigneeName       string
 }
 
-// Константы outbox-напоминаний (telegram_notifications, §5.1).
+// Константы outbox-напоминаний.
 const (
 	// Виды напоминаний.
 	NotificationKindDueSoon = "due_soon"
 	NotificationKindOverdue = "overdue"
 
-	// Логический адресат. Личку по решению пользователя №1 не делаем — только команда.
+	// Логический адресат.
 	NotificationRecipientTeam = "team"
 
 	// Состояния строки outbox.
@@ -92,14 +88,14 @@ const (
 	NotificationStateDead      = "dead"
 	NotificationStateCancelled = "cancelled"
 
-	// Что сейчас показано в отправленном сообщении (для правок, §5.6).
+	// Что сейчас показано в отправленном сообщении.
 	ShownStatusOpen  = "open"
 	ShownStatusPaid  = "paid"
 	ShownStatusEnded = "ended"
 )
 
 // TelegramNotification — строка outbox напоминаний. История at-least-once
-// доставки; FK на таблицы B нет (§5.1).
+// доставки; внешних ключей на платежи нет.
 type TelegramNotification struct {
 	ID            string
 	OccurrenceID  string

@@ -13,18 +13,14 @@ import (
 	"time"
 )
 
-// Client — клиент Bot API поверх net/http. Базовый URL берётся из конфига
-// (TELEGRAM_API_URL), чтобы тесты и локальный запуск могли подменить его на
-// httptest-сервер. Таймаут по умолчанию 5 с (§5.4); длинный poll передаёт свой
-// контекст с большим дедлайном, httpClient.Timeout выставлен с запасом.
+// Client — клиент Bot API поверх net/http.
 type Client struct {
 	token   string
 	baseURL string
 	http    *http.Client
 }
 
-// NewClient собирает клиент. baseURL без завершающего слэша (например
-// https://api.telegram.org). Пустой baseURL заменяется официальным.
+// NewClient собирает клиент.
 func NewClient(token, baseURL string) *Client {
 	if baseURL == "" {
 		baseURL = "https://api.telegram.org"
@@ -32,9 +28,7 @@ func NewClient(token, baseURL string) *Client {
 	return &Client{
 		token:   token,
 		baseURL: strings.TrimRight(baseURL, "/"),
-		// Timeout — backstop больше самого долгого long poll (25 с). Реальный
-		// срок на обычные вызовы задаёт контекст (5 с у отправки).
-		http: &http.Client{Timeout: 60 * time.Second},
+		http:    &http.Client{Timeout: 60 * time.Second},
 	}
 }
 
@@ -50,8 +44,7 @@ type apiResponse struct {
 	} `json:"parameters"`
 }
 
-// call выполняет метод Bot API с JSON-телом и разбирает конверт. При ok=false
-// возвращает *APIError. out может быть nil, если результат не нужен.
+// call выполняет метод Bot API с JSON-телом и разбирает конверт.
 func (c *Client) call(ctx context.Context, method string, payload any, out any) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -68,8 +61,6 @@ func (c *Client) call(ctx context.Context, method string, payload any, out any) 
 	resp, err := c.http.Do(req)
 	if err != nil {
 		// *url.Error.Error() включает полный URL запроса, а в нём путь /bot<TOKEN>/.
-		// Разворачиваем до внутренней ошибки, чтобы токен бота не утёк ни в логи
-		// (slog в поллере и движке), ни в telegram_notifications.last_error.
 		var ue *neturl.Error
 		if errors.As(err, &ue) {
 			err = ue.Err
@@ -137,8 +128,7 @@ type SendChatActionParams struct {
 	Action string `json:"action"`
 }
 
-// SendChatAction показывает действие бота в чате (например, "typing"). Статус
-// гаснет сам через ~5 с, поэтому при долгом ожидании его повторяют.
+// SendChatAction показывает действие бота в чате (например, "typing").
 func (c *Client) SendChatAction(ctx context.Context, p SendChatActionParams) error {
 	return c.call(ctx, "sendChatAction", p, nil)
 }
@@ -190,8 +180,7 @@ type GetUpdatesParams struct {
 	AllowedUpdates []string `json:"allowed_updates,omitempty"`
 }
 
-// GetUpdates забирает апдейты long polling. Контекст должен давать дедлайн
-// больше Timeout.
+// GetUpdates забирает апдейты long polling.
 func (c *Client) GetUpdates(ctx context.Context, p GetUpdatesParams) ([]Update, error) {
 	var updates []Update
 	err := c.call(ctx, "getUpdates", p, &updates)
@@ -205,7 +194,7 @@ type SetWebhookParams struct {
 	AllowedUpdates []string `json:"allowed_updates,omitempty"`
 }
 
-// SetWebhook регистрирует webhook. deleteWebhook бот не вызывает намеренно (§6.1).
+// SetWebhook регистрирует webhook.
 func (c *Client) SetWebhook(ctx context.Context, p SetWebhookParams) error {
 	return c.call(ctx, "setWebhook", p, nil)
 }

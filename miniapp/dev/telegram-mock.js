@@ -1,8 +1,4 @@
 /* eslint-disable */
-// Фейковый Telegram.WebApp для dev и e2e. Чистый JS IIFE.
-// Не делает ничего, если настоящий initData уже присутствует.
-// Конфиг берётся из window.__TG_MOCK_CONFIG__. В прод-бандл не попадает
-// (проверяется dev/check-dist.mjs по строке __TG_MOCK).
 ;(function () {
   if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) return
 
@@ -98,7 +94,6 @@
     }
   }
 
-  // Фейковый chrome Telegram.
   var backBtnEl, mainBtnEl
   function buildChrome() {
     if (document.querySelector('[data-testid=tg-back-button]')) return
@@ -122,8 +117,6 @@
     document.body.style.paddingTop = '44px'
     document.body.style.paddingBottom = '56px'
 
-    // Применяем состояние, которое могло быть выставлено до создания DOM
-    // (модульный скрипт Vue выполняется раньше DOMContentLoaded).
     if (backHandler) backBtnEl.onclick = backHandler
     backBtnEl.style.display = BackButton.isVisible ? 'block' : 'none'
     if (mainHandler) mainBtnEl.onclick = mainHandler

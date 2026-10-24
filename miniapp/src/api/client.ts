@@ -66,12 +66,13 @@ export async function request<T>(
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    // Канал клиента для серверного аудита (трек C ставит по нему channel=miniapp).
     'X-Client': 'miniapp',
     ...opts.headers,
   }
   let body: BodyInit | undefined
-  if (opts.body !== undefined) {
+  if (opts.body instanceof FormData) {
+    body = opts.body
+  } else if (opts.body !== undefined) {
     headers['Content-Type'] = 'application/json'
     body = JSON.stringify(opts.body)
   }
@@ -85,7 +86,6 @@ export async function request<T>(
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') throw e
     if (e instanceof Error && e.name === 'AbortError') throw e
-    // TypeError от fetch → сетевая ошибка.
     throw new ApiError(0, 'network error', { network: true })
   }
 
@@ -114,10 +114,5 @@ export async function request<T>(
   return JSON.parse(text) as T
 }
 
-// Для тестов.
-export function _resetSkewCapture(): void {
-  skewSet = false
-  setSkew(0)
-}
 
 export { getSkew }

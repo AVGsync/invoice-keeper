@@ -5,9 +5,6 @@ import (
 	"testing"
 )
 
-// TestExtractTokenBearerWinsOverCookie фиксирует правило §3.3: непустой
-// Authorization: Bearer важнее куки, иначе старая cookie из WebView перебьёт
-// токен Mini App.
 func TestExtractTokenBearerWinsOverCookie(t *testing.T) {
 	const cookieName = "AccessToken"
 

@@ -6,14 +6,9 @@ import (
 	"strings"
 )
 
-// maxCaptureBytes — предел копии ответа агента для разбора памяти. Больше —
-// память этого хода не сохраняется (ответ наружу при этом не меняется).
+// maxCaptureBytes — предел копии ответа агента для разбора памяти.
 const maxCaptureBytes = 1 << 20 // 1 МБ
 
-// captureBody заворачивает тело ответа агента: поток проходит к клиенту
-// насквозь, а параллельно копится конверт (JSON) или ловится SSE-кадр done.
-// На Close (его вызывает release()) ровно один раз вызывается onEnvelope с сырым
-// конвертом, если он дочитан целиком и уложился в лимит (SPEC §D.4).
 type captureBody struct {
 	src        io.ReadCloser
 	stream     bool
@@ -29,7 +24,7 @@ type captureBody struct {
 	sse sseCapture
 }
 
-// newCaptureBody оборачивает src. stream=true для /v1/ask/stream.
+// newCaptureBody оборачивает src.
 func newCaptureBody(src io.ReadCloser, stream bool, onEnvelope func(raw []byte)) *captureBody {
 	return &captureBody{src: src, stream: stream, onEnvelope: onEnvelope}
 }
@@ -86,9 +81,6 @@ func (c *captureBody) emit() {
 	}
 }
 
-// sseCapture — построчный разбор SSE-потока: держит текущее событие и data,
-// запоминает data последнего кадра event: done (строки event:/data:, событие на
-// пустой строке). data ограничена maxCaptureBytes.
 type sseCapture struct {
 	line     bytes.Buffer
 	curEvent string
@@ -113,7 +105,6 @@ func (s *sseCapture) lineDone() {
 
 	switch {
 	case line == "":
-		// Граница события.
 		if s.curEvent == "done" && !s.overflow {
 			s.done = append([]byte(nil), s.curData.Bytes()...)
 		}

@@ -22,8 +22,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Ошибки ассистента. Хендлер и бот маппят их в HTTP-коды/короткие сообщения
-// (docs/NL_QUERIES.md §4.3, §9.1). Пользовательский текст и SQL в них не попадают.
+// Ошибки ассистента.
 var (
 	ErrAssistantDisabled    = errors.New("assistant disabled")
 	ErrAssistantRateLimited = errors.New("assistant rate limited")
@@ -55,9 +54,7 @@ const (
 	questionMaxRunes   = 500
 )
 
-// AssistantUserReader читает пользователя, чтобы перечитать актуальную роль из
-// БД (в app-JWT роль может устареть до TTL_ACCESS_TOKEN). Реализует
-// postgres.UserRepository (метод GetUserByID).
+// AssistantUserReader читает пользователя, чтобы перечитать актуальную роль из БД (в app-JWT роль может устареть до TTL_ACCESS_TOKEN).
 type AssistantUserReader interface {
 	GetUserByID(id string, ctx context.Context) (model.User, error)
 }
@@ -73,8 +70,7 @@ type AssistantConfig struct {
 	ActorKey      ed25519.PrivateKey
 }
 
-// AssistantService — публичная точка входа ассистента. Один экземпляр на
-// процесс: держит лимиты, семафор и кэш здоровья агента (docs/NL_QUERIES.md §2.2).
+// AssistantService — публичная точка входа ассистента.
 type AssistantService struct {
 	users      AssistantUserReader
 	cfg        AssistantConfig
@@ -84,7 +80,7 @@ type AssistantService struct {
 	limiter *userLimiter
 	sem     chan struct{}
 
-	// history — память диалога (SPEC §D). nil, пока не подключена SetHistory.
+	// history — память диалога.
 	history *AssistantHistoryService
 	// audit — журнал действий; по умолчанию Nop.
 	audit audit.Recorder
@@ -95,14 +91,13 @@ type AssistantService struct {
 	healthOK   bool
 }
 
-// agentHealth — разобранный ответ агента GET /healthz (§9.2).
+// agentHealth — разобранный ответ агента GET /healthz.
 type agentHealth struct {
 	Status string `json:"status"`
 	Mode   string `json:"mode"`
 }
 
-// NewAssistantService собирает сервис. Семафор и лимитер создаются всегда, но
-// при Enabled=false любой вызов Ask возвращает ErrAssistantDisabled.
+// NewAssistantService собирает сервис.
 func NewAssistantService(users AssistantUserReader, cfg AssistantConfig, clk clock.Clock) *AssistantService {
 	maxConc := cfg.MaxConcurrent
 	if maxConc <= 0 {
@@ -119,8 +114,7 @@ func NewAssistantService(users AssistantUserReader, cfg AssistantConfig, clk clo
 	}
 }
 
-// SetHistory подключает память диалога. Вызывается из apiserver при включённой
-// фиче (ручки истории работают и без неё — через отдельный сервис).
+// SetHistory подключает память диалога.
 func (s *AssistantService) SetHistory(h *AssistantHistoryService) { s.history = h }
 
 // SetAuditRecorder подключает журнал действий (события assistant.ask).
@@ -133,11 +127,10 @@ func (s *AssistantService) SetAuditRecorder(r audit.Recorder) {
 // Enabled сообщает, включена ли фича.
 func (s *AssistantService) Enabled() bool { return s.cfg.Enabled }
 
-// Timeout — общий бюджет одного вопроса. Хендлер по нему продлевает write
-// deadline при стриминге SSE.
+// Timeout — общий бюджет одного вопроса.
 func (s *AssistantService) Timeout() time.Duration { return s.cfg.Timeout }
 
-// Examples — подсказки для UI (§9.1).
+// Examples — подсказки для UI.
 func (s *AssistantService) Examples() []string {
 	return []string{
 		"Что просрочено?",
@@ -146,14 +139,7 @@ func (s *AssistantService) Examples() []string {
 	}
 }
 
-// ValidateQuestion приводит и проверяет вопрос: trim, 1–500 рун, без
-// управляющих символов (§9.1). Возвращает очищенный вопрос или ErrAssistantBadQuestion.
-//
-// Правила зеркалят nlq/src/nlq/agent/service.py validate_question, чтобы Go
-// отклонял локально ровно то же, что иначе вернул бы агент (и не тратил на это
-// лимит пользователя): длину считаем по ВСЕМ рунам (включая \n и \t), а из
-// запрещённых отвергаем любую руну категории Unicode C (Cc/Cf/Co/Cs — в т.ч.
-// ZWJ U+200D, BOM U+FEFF, soft hyphen), кроме \n и \t.
+// ValidateQuestion приводит и проверяет вопрос: trim, 1–500 рун, без управляющих символов.
 func ValidateQuestion(q string) (string, error) {
 	q = strings.TrimSpace(q)
 	if q == "" {
@@ -176,7 +162,6 @@ func ValidateQuestion(q string) (string, error) {
 }
 
 // ValidateChannel проверяет канал для HTTP: web (по умолчанию) или miniapp.
-// Канал bot по HTTP запрещён (§9.1).
 func ValidateChannel(ch string) (string, error) {
 	switch ch {
 	case "", channelWeb:
@@ -188,14 +173,12 @@ func ValidateChannel(ch string) (string, error) {
 	}
 }
 
-// Ask — непотоковый вопрос (путь бота, порт NLAnswerer, §4.4). Разговор
-// выбирается по каналу (bot → tg:dm). Сохраняется для совместимости порта.
+// Ask — непотоковый вопрос.
 func (s *AssistantService) Ask(ctx context.Context, userID, channel, question string) (model.AssistantAnswer, error) {
 	return s.askOnce(ctx, userID, channel, conversationForChannel(channel), question)
 }
 
-// AskIn — непотоковый вопрос с явным разговором (бот в личке/группе). channel
-// всегда "bot".
+// AskIn — непотоковый вопрос с явным разговором (бот в личке/группе).
 func (s *AssistantService) AskIn(ctx context.Context, userID, conversation, question string) (model.AssistantAnswer, error) {
 	return s.askOnce(ctx, userID, channelBot, conversation, question)
 }
@@ -213,8 +196,6 @@ func (s *AssistantService) askOnce(ctx context.Context, userID, channel, convers
 		return model.AssistantAnswer{}, ErrAssistantUnavailable
 	}
 	if resp.StatusCode != http.StatusOK {
-		// Логируем статус (без тела): неверная пара actor-ключей, перекос часов
-		// сверх leeway или not_ready иначе видны лишь как общий 503.
 		slog.Warn("assistant: agent answered non-200", "status", resp.StatusCode)
 		return model.AssistantAnswer{}, mapUpstreamStatus(resp.StatusCode)
 	}
@@ -222,7 +203,6 @@ func (s *AssistantService) askOnce(ctx context.Context, userID, channel, convers
 }
 
 // ResetConversation очищает один разговор пользователя (бот /new, /reset).
-// channel всегда "bot" для бота. Возвращает число удалённых ходов.
 func (s *AssistantService) ResetConversation(ctx context.Context, userID, channel, conversation string) (int, error) {
 	if s.history == nil {
 		return 0, nil
@@ -230,16 +210,11 @@ func (s *AssistantService) ResetConversation(ctx context.Context, userID, channe
 	return s.history.Clear(ctx, userID, channel, conversation, false)
 }
 
-// Proxy выполняет вопрос и отдаёт сырой ответ агента вызывающему (HTTP-хендлеру):
-// он проксирует конверт байт-в-байт (для точной схемы блоков и meta) или
-// стримит SSE. release закрывает тело и освобождает семафор — вызвать после
-// чтения/копирования тела. При ошибке лимитов/подготовки release == nil.
-// Разговор для HTTP равен каналу (web|miniapp).
 func (s *AssistantService) Proxy(ctx context.Context, userID, channel, question, requestID, path string) (*http.Response, func(), error) {
 	return s.dispatch(ctx, userID, channel, channel, question, requestID, path)
 }
 
-// conversationForChannel выбирает область диалога по каналу (SPEC §D.1).
+// conversationForChannel выбирает область диалога по каналу.
 func conversationForChannel(channel string) string {
 	if channel == channelBot {
 		return "tg:dm"
@@ -247,17 +222,14 @@ func conversationForChannel(channel string) string {
 	return channel
 }
 
-// agentRequest — тело запроса к агенту (§D.4). Поле history необязательно.
+// agentRequest — тело запроса к агенту.
 type agentRequest struct {
 	Question string        `json:"question"`
 	Channel  string        `json:"channel"`
 	History  []HistoryTurn `json:"history,omitempty"`
 }
 
-// dispatch — общий путь: фича включена, лимиты, семафор, роль из БД, actor-JWT,
-// память в промпт, HTTP к агенту. Возвращает «живой» *http.Response и release.
-// При 200 и включённой памяти тело заворачивается в captureBody: на Close из него
-// извлекается конверт, пишется ход истории и аудит assistant.ask.
+// dispatch — общий путь: фича включена, лимиты, семафор, роль из БД, actor-JWT, память в промпт, HTTP к агенту.
 func (s *AssistantService) dispatch(ctx context.Context, userID, channel, conversation, question, requestID, path string) (*http.Response, func(), error) {
 	if !s.cfg.Enabled {
 		return nil, nil, ErrAssistantDisabled
@@ -282,7 +254,6 @@ func (s *AssistantService) dispatch(ctx context.Context, userID, channel, conver
 		}
 	}
 
-	// Роль перечитывается из БД: в app-JWT она могла устареть (§8.2).
 	user, err := s.users.GetUserByID(userID, ctx)
 	if err != nil {
 		releaseSem()
@@ -303,7 +274,7 @@ func (s *AssistantService) dispatch(ctx context.Context, userID, channel, conver
 		return nil, nil, ErrAssistantUnavailable
 	}
 
-	// История в промпт (SPEC §D.4). Ошибка загрузки не валит вопрос.
+	// История в промпт.
 	var history []HistoryTurn
 	if s.history != nil && s.history.Enabled() {
 		if h, _, herr := s.history.ContextFor(ctx, user.ID, conversation); herr != nil {
@@ -363,9 +334,7 @@ func (s *AssistantService) dispatch(ctx context.Context, userID, channel, conver
 	return resp, release, nil
 }
 
-// onEnvelope разбирает захваченный конверт, пишет ход истории и аудит
-// assistant.ask. Выполняется на Close тела (после возврата хендлера), поэтому
-// контекст делается нетменяемым (WithoutCancel) с коротким таймаутом.
+// onEnvelope разбирает захваченный конверт, пишет ход истории и аудит assistant.ask.
 func (s *AssistantService) onEnvelope(base context.Context, userID, channel, conversation, question string, raw []byte) {
 	env, memory, ok := parseCaptureEnvelope(raw)
 	if !ok {
@@ -402,8 +371,7 @@ func (s *AssistantService) onEnvelope(base context.Context, userID, channel, con
 	})
 }
 
-// auditAskFailure пишет аудит отказа ассистента до ответа агента (§D.4). Пишется
-// best-effort синхронно на нетменяемом контексте.
+// auditAskFailure пишет аудит отказа ассистента до ответа агента.
 func (s *AssistantService) auditAskFailure(ctx context.Context, channel, userID, role, code string) {
 	octx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 	defer cancel()
@@ -417,8 +385,6 @@ func (s *AssistantService) auditAskFailure(ctx context.Context, channel, userID,
 	})
 }
 
-// auditContext дополняет метаданные журнала каналом/актором, если их нет в
-// контексте (для бота и фоновых путей; у HTTP их уже проставил middleware).
 func auditContext(ctx context.Context, channel, userID, role string) context.Context {
 	m, _ := audit.MetaFrom(ctx)
 	if m.Channel == "" {
@@ -442,8 +408,7 @@ type captureEnvelope struct {
 	Text      string
 }
 
-// parseCaptureEnvelope разбирает захваченный конверт. memory берётся только если
-// это JSON-объект ≤8 КБ (иначе nil → {} в БД). ok=false, если конверт не разобрать.
+// parseCaptureEnvelope разбирает захваченный конверт.
 func parseCaptureEnvelope(raw []byte) (captureEnvelope, []byte, bool) {
 	var e struct {
 		AnswerID  string          `json:"answer_id"`
@@ -488,9 +453,7 @@ func truncateRunes(s string, n int) string {
 	return s
 }
 
-// mintActor подписывает короткоживущий actor-JWT (EdDSA, §8.2). Формат обязан
-// совпадать с nlq/src/nlq/common/actor.py (aud=nlq, iss=invoice-keeper-backend,
-// role перечитана из БД, exp=iat+60s).
+// mintActor подписывает короткоживущий actor-JWT.
 func (s *AssistantService) mintActor(sub, role, channel, requestID string) (string, error) {
 	now := s.clock.Now()
 	claims := jwt.MapClaims{
@@ -509,8 +472,7 @@ func (s *AssistantService) mintActor(sub, role, channel, requestID string) (stri
 	return jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims).SignedString(s.cfg.ActorKey)
 }
 
-// Status возвращает состояние ассистента для GET /status. healthy —
-// закэшированный на 10 с результат GET /healthz агента (§9.1).
+// Status возвращает состояние ассистента для GET /status.
 func (s *AssistantService) Status(ctx context.Context) (healthy bool, mode string) {
 	if !s.cfg.Enabled {
 		return false, ""
@@ -581,18 +543,15 @@ func parseEnvelope(body []byte) (model.AssistantAnswer, error) {
 	}, nil
 }
 
-// mapUpstreamStatus маппит не-200 ответ агента в ошибку сервиса (§4.3).
+// mapUpstreamStatus маппит не-200 ответ агента в ошибку сервиса.
 func mapUpstreamStatus(code int) error {
 	switch code {
 	case http.StatusBadRequest:
 		return ErrAssistantBadQuestion
 	default:
-		// 401 (неверный ключ — наша ошибка конфигурации), 503 (not_ready), 5xx.
 		return ErrAssistantUnavailable
 	}
 }
-
-// --- in-memory лимитер на пользователя ---
 
 type limWindow struct {
 	count   int
@@ -618,8 +577,7 @@ func newUserLimiter(ratePerMin, dailyLimit int, clk clock.Clock) *userLimiter {
 	}
 }
 
-// allow проверяет минутный и суточный лимиты. Инкремент происходит только если
-// оба окна под лимитом (иначе отказ не «съедает» бюджет другого окна).
+// allow проверяет минутный и суточный лимиты.
 func (l *userLimiter) allow(userID string) (bool, time.Duration) {
 	now := l.clock.Now()
 	l.mu.Lock()

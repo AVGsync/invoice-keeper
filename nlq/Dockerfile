@@ -1,5 +1,4 @@
-# Single image for all three commands: nlq.mcp_server, nlq.agent, nlq.dbinit.
-# Pick the command via `command:` in compose (ENTRYPOINT is `python -m`).
+# Один образ для nlq.mcp_server, nlq.agent и nlq.dbinit; команда задаётся в compose.
 FROM python:3.14-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
@@ -12,7 +11,6 @@ COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# Install dependencies first (cacheable), then the project.
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
@@ -21,7 +19,7 @@ RUN uv sync --frozen --no-dev
 
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Non-root, read-only-friendly (write only to tmpfs /tmp in compose).
+# Без root; запись только в tmpfs /tmp.
 RUN useradd --system --uid 10001 --no-create-home nlq
 USER nlq
 

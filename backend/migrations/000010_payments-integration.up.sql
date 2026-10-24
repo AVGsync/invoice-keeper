@@ -1,5 +1,4 @@
--- Интеграция модуля платежей с ботом и NL-ассистентом: якорь графика, мягкая
--- остановка, дата оплаты без зоны, защита от дублей периодов, сохранение истории.
+-- Платежи для бота и ассистента: якорь графика, мягкая остановка, дата оплаты без зоны, защита от дублей периодов.
 ALTER TABLE recurrent_payments
     ADD COLUMN IF NOT EXISTS start_date DATE,
     ADD COLUMN IF NOT EXISTS stopped_at TIMESTAMPTZ;
@@ -21,7 +20,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_payments_recurrent_due
 CREATE INDEX IF NOT EXISTS idx_payments_due_date ON payments (due_date);
 ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_user_id_fkey,
     ADD CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT;
--- Ответственный за шаблон тоже защищён: удаление пользователя с назначенным
--- шаблоном (но ещё без периодов) должно давать 409, а не молча осиротить шаблон.
+-- Удаление пользователя с назначенным шаблоном даёт 409, а не оставляет шаблон без ответственного.
 ALTER TABLE user_recurrent_payments DROP CONSTRAINT IF EXISTS user_recurrent_payments_user_id_fkey,
     ADD CONSTRAINT user_recurrent_payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT;

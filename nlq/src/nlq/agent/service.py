@@ -1,9 +1,4 @@
-"""Long-lived agent state and per-request helpers.
-
-Holds the actor public key, the LLM client for the configured mode, and the
-cached model health. Builds a per-request :class:`loop.LoopConfig` and validates
-the question. The FastAPI app (``app.py``) is a thin shell over this.
-"""
+"""Long-lived agent state and per-request helpers."""
 
 from __future__ import annotations
 
@@ -37,8 +32,6 @@ class AgentService:
         self.public_key: Ed25519PublicKey = load_public_key(self.settings.nlq_actor_public_key)
         self.llm: LLMClient | None = self._build_llm()
         self.model_health: dict[str, str] = {}
-        # Real MCP health, refreshed by a background probe (section 9.1): starts
-        # "unknown" and never silently reports "ok" without a successful probe.
         self.mcp_status: str = "unknown"
         self._mcp_task: asyncio.Task[None] | None = None
 
@@ -97,7 +90,6 @@ class AgentService:
             self.mcp_status = await self._probe_mcp_once()
             await asyncio.sleep(MCP_PROBE_INTERVAL_SECONDS)
 
-    # --- per-request helpers ---
 
     def today(self) -> date:
         return compute_today(self.settings.app_timezone, self.settings.today_override)

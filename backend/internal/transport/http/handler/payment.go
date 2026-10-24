@@ -146,7 +146,6 @@ func (h *PaymentHandler) CreateRecurringPayment() http.HandlerFunc {
 
 		// Генерация первых периодов — best effort: ошибка не отменяет создание.
 		if err := h.scheduler.EnsureFor(r.Context(), id); err != nil {
-			// Залогировано в планировщике; ответ всё равно 201.
 			_ = err
 		}
 
@@ -296,8 +295,6 @@ func (h *PaymentHandler) GetPaymentsSummary() http.HandlerFunc {
 
 		from := r.URL.Query().Get("from")
 		to := r.URL.Query().Get("to")
-		// Валидируем формат границ, иначе неверная дата молча даёт неверную сводку
-		// (сравнение строк YYYY-MM-DD корректно только при валидном формате).
 		if from != "" {
 			if _, err := clock.ParseDate(from); err != nil {
 				http.Error(w, "from must be YYYY-MM-DD", http.StatusBadRequest)
@@ -334,8 +331,6 @@ func (h *PaymentHandler) GetPaymentsSummary() http.HandlerFunc {
 				s.OutstandingTotal += p.Amount
 				s.OverdueTotal += p.Amount
 			case model.ShownStatusEnded:
-				// Неоплаченный хвост остановленного/удалённого шаблона: не долг и
-				// не просрочка (см. EffectiveStatus и NL is_ended). Не суммируем.
 			default: // pending
 				s.OutstandingTotal += p.Amount
 			}
@@ -486,8 +481,7 @@ func (h *PaymentHandler) handleConfirm(
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleEdit правит сумму/валюту/описание неоплаченного периода. Только админ;
-// due_date менять нельзя.
+// handleEdit правит сумму/валюту/описание неоплаченного периода.
 func (h *PaymentHandler) handleEdit(
 	w http.ResponseWriter,
 	r *http.Request,

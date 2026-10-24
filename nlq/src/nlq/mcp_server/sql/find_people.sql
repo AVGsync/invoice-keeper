@@ -1,8 +1,4 @@
--- Only public.users and public.personas columns the role may read (section 6.2):
--- no login, no password_hash. active_payments is a code-chosen fragment: the
--- count subquery when B's tables exist, or the literal 0 when they do not, so
--- find_people keeps working while payment tools return source_unavailable
--- (section 5.9). Written without braces so str.format never touches the comment.
+-- Только колонки users и personas, доступные роли: без login и password_hash.
 -- Params: $1 query tsquery, $2 query ilike (escaped), $3 limit.
 SELECT u.id::text AS user_id, u.full_name, u.role, p.name AS persona,
        {active_payments} AS active_payments

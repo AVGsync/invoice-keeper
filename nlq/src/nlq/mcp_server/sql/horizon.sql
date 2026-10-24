@@ -1,10 +1,4 @@
--- Horizon of created periods, per active recurrent payment (section 5.4,
--- decision #4). coverage_until is the EARLIEST last-period across active
--- payments, so a single payment generated far ahead cannot mask others whose
--- periods were not created yet. any_without_periods flags active payments that
--- have no periods at all. The backend scheduler generates periods up to
--- today + 31 days, so a window reaching past that is reported incomplete.
--- Knows B columns, so it lives next to occurrences_base.sql.
+-- Горизонт созданных периодов: coverage_until — самый ранний последний период среди активных платежей.
 SELECT min(mx)             AS coverage_until,
        bool_or(mx IS NULL) AS any_without_periods
 FROM (

@@ -9,15 +9,13 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/infrastructure/telegram"
 )
 
-// longPollTimeout — таймаут long polling getUpdates (§6.1).
+// longPollTimeout — таймаут long polling getUpdates.
 const longPollTimeout = 25
 
 // allowedUpdates — апдейты, которые бот просит у Telegram.
 var allowedUpdates = []string{"message", "callback_query", "my_chat_member"}
 
-// Poller читает апдейты long polling в одной горутине. Offset инициализируется
-// из max(update_id) в БД и далее держится в памяти; дедуп по update_id в
-// HandleUpdate защищает от повторной обработки (§5.3, §6.1).
+// Poller читает апдейты long polling в одной горутине.
 type Poller struct {
 	svc    *Service
 	client BotAPI
@@ -60,7 +58,7 @@ func (p *Poller) Run(ctx context.Context) {
 			}
 			var apiErr *telegram.APIError
 			if errors.As(err, &apiErr) && apiErr.Code == 409 {
-				// 409: у токена стоит webhook. Это прод-токен — не наш режим.
+				// 409: у токена стоит webhook.
 				slog.Error("telegram poller: conflict 409 — токен уже используется в режиме webhook; для polling нужен отдельный dev-бот", "error", err)
 			} else {
 				slog.Error("telegram poller: get updates", "error", err)

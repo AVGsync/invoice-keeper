@@ -1,10 +1,4 @@
-"""Server-side "today" and period resolution.
-
-"Today" is computed in ``APP_TIMEZONE`` — never ``CURRENT_DATE``: the Postgres
-container runs in UTC and between 00:00 and 03:00 MSK that would roll the day
-back (§5.1 p.4). Periods are an enum expanded to inclusive date bounds by the
-server, never by the model.
-"""
+"""Server-side "today" and period resolution."""
 
 from __future__ import annotations
 
@@ -41,13 +35,11 @@ PERIODS: Final = frozenset(
     }
 )
 
-# Accepted date window around today: today ± 2 years (§5.1 p.2).
 _MAX_DELTA_DAYS: Final = 366 * 2
 
 
 def today(tz: str, override: str | None = None) -> date:
-    """Current date in ``tz``. ``override`` (NLQ_TODAY) is honoured by the caller
-    only when APP_ENV != production; this function just parses it."""
+    """Current date in ``tz``."""
     if override:
         try:
             return date.fromisoformat(override)
@@ -79,10 +71,7 @@ def resolve_period(
     date_from: str | None = None,
     date_to: str | None = None,
 ) -> tuple[date, date] | None:
-    """Expand a period enum into inclusive (from, to) bounds.
-
-    Returns None when no period is given (no date restriction).
-    """
+    """Expand a period enum into inclusive (from, to) bounds."""
     if period is None:
         if date_from is not None or date_to is not None:
             raise BadArgs("date_from/date_to are only allowed with period=custom")
@@ -115,7 +104,6 @@ def resolve_period(
     if period == "this_year":
         return date(today_.year, 1, 1), date(today_.year, 12, 31)
 
-    # custom
     if date_from is None or date_to is None:
         raise BadArgs("period=custom requires both date_from and date_to")
     d_from = parse_date(date_from, field="date_from")

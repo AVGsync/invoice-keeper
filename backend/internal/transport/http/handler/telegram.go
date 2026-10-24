@@ -17,7 +17,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/middleware"
 )
 
-// TelegramUseCase — операции бота, нужные REST-слою. Реализует *telegrambot.Service.
+// TelegramUseCase — операции бота, нужные REST-слою.
 type TelegramUseCase interface {
 	CreateLinkCode(ctx context.Context, userID string) (deepLink string, expiresIn int, err error)
 	GetLinkStatus(ctx context.Context, userID string) (telegrambot.LinkStatus, error)
@@ -35,7 +35,7 @@ type TelegramHandler struct {
 	webhookSecret string
 }
 
-// NewTelegramHandler собирает хендлер. webhookSecret проверяется на вебхуке.
+// NewTelegramHandler собирает хендлер.
 func NewTelegramHandler(useCase TelegramUseCase, webhookSecret string) *TelegramHandler {
 	return &TelegramHandler{useCase: useCase, webhookSecret: webhookSecret}
 }
@@ -180,8 +180,7 @@ func (h *TelegramHandler) GetTeamChat() http.HandlerFunc {
 		}
 		isActive := chat.IsActive
 		boundAt := chat.BoundAt
-		// bound=true только пока чат активен. Неактивный чат отдаём с last_error,
-		// чтобы админ видел причину остановки напоминаний (§5.4).
+		// bound=true только пока чат активен.
 		api.WriteJSON(w, http.StatusOK, response.TelegramTeamChatResponse{
 			Bound:     chat.IsActive,
 			Title:     chat.Title,
@@ -234,8 +233,6 @@ func writeMiniAppResult(w http.ResponseWriter, res telegrambot.MiniAppResult) {
 	})
 }
 
-// writeInitDataError маппит ошибки проверки initData в коды §7 (общее для обоих
-// Mini App-потоков). Возвращает false, если ошибка не связана с initData.
 func writeInitDataError(w http.ResponseWriter, r *http.Request, err error) bool {
 	switch {
 	case errors.Is(err, telegram.ErrInitDataInvalid):
@@ -371,7 +368,7 @@ func (h *TelegramHandler) Webhook() http.HandlerFunc {
 
 		var upd telegram.Update
 		if err := json.NewDecoder(r.Body).Decode(&upd); err != nil {
-			// Телеграм ждёт 2xx, иначе повторит. Битый апдейт просто логируем.
+			// Телеграм ждёт 2xx, иначе повторит.
 			slog.Debug("telegram webhook: decode update", "error", err)
 			w.WriteHeader(http.StatusOK)
 			return

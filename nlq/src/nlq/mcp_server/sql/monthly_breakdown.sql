@@ -1,8 +1,4 @@
--- monthly_breakdown: суммы по месяцам и валютам (динамика расходов) (§D.7).
--- base = occurrences_base.sql; status_sql выбирается кодом. Окно [$2,$3] всегда
--- задано кодом (границы по месяцам). Суммы строго по валютам, не смешиваются.
--- Пользовательский текст в SQL не попадает. Плейсхолдеры в комментариях без
--- фигурных скобок, чтобы str.format не подставил сюда фрагмент.
+-- Суммы по месяцам и валютам; валюты не смешиваются.
 -- Params: $1 today, $2 date_from, $3 date_to, $4 currency, $5 title tsquery,
 --         $6 title ilike (escaped), $7 assignee_id (model), $8 assignee_id (own).
 WITH base AS (

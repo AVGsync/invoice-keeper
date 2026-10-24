@@ -1,4 +1,4 @@
-"""Entry point: ``python -m nlq.agent`` → uvicorn on :8090 (§3.1)."""
+"""Entry point: ``python -m nlq.agent`` → uvicorn on :8090."""
 
 from __future__ import annotations
 

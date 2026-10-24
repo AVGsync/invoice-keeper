@@ -1,11 +1,4 @@
-"""Fail-closed self-checks run before serving, and a periodic schema recheck (§5.9).
-
-Security checks 1-5 verify the role really is a least-privilege reader; any
-failure means the process must not serve (the caller exits non-zero). Check 6
-(payment-schema probe) is soft: the process starts, but ``/healthz`` reports
-``degraded`` and payment tools answer ``source_unavailable`` until B's tables
-appear. It re-runs every 60 s so a merge needs no restart.
-"""
+"""Fail-closed self-checks run before serving, and a periodic schema recheck."""
 
 from __future__ import annotations
 
@@ -71,7 +64,6 @@ def _rendered_templates(category_available: bool) -> list[str]:
         )
     for active in (ACTIVE_PAYMENTS_SUBQUERY, "0"):
         out.append(load_sql("find_people.sql").format(active_payments=active))
-    # §D.7: новые инструменты. get_payment_details не имеет плейсхолдеров.
     out.append(load_sql("get_payment_details.sql"))
     for status in STATUS_SQL.values():
         out.append(
@@ -122,7 +114,7 @@ async def run_security_checks(db: Database) -> None:
         await _expect_denied(conn, "SELECT login FROM users LIMIT 0", "users.login")
         await _expect_denied(conn, "SELECT 1 FROM refresh_tokens LIMIT 0", "refresh_tokens")
         await _expect_denied(conn, "SELECT 1 FROM telegram_links LIMIT 0", "telegram_links")
-        # Email addresses live here (decision #13); the reader must never read them.
+        # Email addresses live here; the reader must never read them.
         await _expect_denied(
             conn, "SELECT 1 FROM user_notification_settings LIMIT 0", "user_notification_settings"
         )
@@ -141,12 +133,7 @@ async def run_security_checks(db: Database) -> None:
 
 
 async def probe_schema(db: Database) -> SchemaStatus:
-    """Prepare *every* rendered tool template and classify the result.
-
-    A syntax error or indeterminate-parameter error in any status/sort/group_by
-    combination means an adapter is broken: /healthz goes degraded and payment
-    tools fail closed, instead of reporting healthy while every call errors.
-    """
+    """Prepare *every* rendered tool template and classify the result."""
     async with db.pool.acquire() as conn:
         try:
             category_available = bool(await conn.fetchval(_CATEGORY_PROBE))

@@ -9,8 +9,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// Алиасы на единые sentinel-ошибки модели — чтобы код B, ссылающийся на
-// postgres.ErrPaymentNotFound, продолжал собираться.
+// Алиасы на единые sentinel-ошибки модели — чтобы код B, ссылающийся на postgres.ErrPaymentNotFound, продолжал собираться.
 var (
 	ErrPaymentNotFound    = model.ErrPaymentNotFound
 	ErrPaymentAlreadyPaid = model.ErrPaymentAlreadyPaid
@@ -30,8 +29,7 @@ type rowScanner interface {
 	Scan(dest ...any) error
 }
 
-// scanPayment читает период. due_date/paid_date приходят как ::text (DATE без
-// зоны), ответственный и флаг ended — через LEFT JOIN (§G3).
+// scanPayment читает период.
 func scanPayment(row rowScanner) (model.Payment, error) {
 	var (
 		payment      model.Payment
@@ -91,7 +89,7 @@ const paymentSelect = `
 	LEFT JOIN users u ON u.id = p.user_id
 `
 
-// CreatePayment создаёт одиночный период. due_date — строка "YYYY-MM-DD".
+// CreatePayment создаёт одиночный период.
 func (r *PaymentRepository) CreatePayment(
 	payment model.Payment,
 	ctx context.Context,
@@ -130,8 +128,7 @@ func (r *PaymentRepository) CreatePayment(
 	return id, nil
 }
 
-// InsertGenerated вставляет сгенерированные периоды, пропуская дубли по
-// (recurrent_payment_id, due_date). Возвращает количество реально вставленных.
+// InsertGenerated вставляет сгенерированные периоды, пропуская дубли по (recurrent_payment_id, due_date).
 func (r *PaymentRepository) InsertGenerated(
 	rows []model.Payment,
 	ctx context.Context,
@@ -146,10 +143,6 @@ func (r *PaymentRepository) InsertGenerated(
 	}
 	defer tx.Rollback()
 
-	// WHERE EXISTS защищает от гонки «остановка шаблона против генератора»:
-	// если шаблон успели остановить (stopped_at), заново вставлять его будущие
-	// периоды нельзя — иначе они всплывут в вебе как pending и в outstanding_total
-	// (ON CONFLICT только убирает дубли, но пустую вставку не отменяет).
 	const query = `
 		INSERT INTO payments (
 			user_id, recurrent_payment_id, amount, currency, description, due_date, status
@@ -249,7 +242,7 @@ func (r *PaymentRepository) queryPayments(
 	return payments, nil
 }
 
-// UpdatePayment меняет сумму, валюту и описание. due_date неизменяема (D10).
+// UpdatePayment меняет сумму, валюту и описание.
 func (r *PaymentRepository) UpdatePayment(
 	payment model.Payment,
 	ctx context.Context,
@@ -288,8 +281,6 @@ func (r *PaymentRepository) UpdatePayment(
 	return nil
 }
 
-// UpdateFutureUnpaid переносит новые сумму/валюту/описание/ответственного на
-// неоплаченные будущие периоды шаблона (due_date >= today), не трогая историю.
 func (r *PaymentRepository) UpdateFutureUnpaid(
 	rpID string,
 	today string,
@@ -314,8 +305,7 @@ func (r *PaymentRepository) UpdateFutureUnpaid(
 	return nil
 }
 
-// MarkPaymentAsPaid отмечает оплату на дату paidDate ("YYYY-MM-DD"). Если строк
-// 0: период существует → ErrPaymentAlreadyPaid, иначе ErrPaymentNotFound.
+// MarkPaymentAsPaid отмечает оплату на дату paidDate ("YYYY-MM-DD").
 func (r *PaymentRepository) MarkPaymentAsPaid(
 	id string,
 	paidDate string,
@@ -423,8 +413,7 @@ func (r *PaymentRepository) notFoundOrAlreadyPaid(id string, ctx context.Context
 	return model.ErrPaymentNotFound
 }
 
-// SweepOverdue массово переводит pending → overdue для периодов с истёкшим
-// сроком. Возвращает число затронутых строк. today — "YYYY-MM-DD".
+// SweepOverdue массово переводит pending → overdue для периодов с истёкшим сроком.
 func (r *PaymentRepository) SweepOverdue(
 	today string,
 	ctx context.Context,

@@ -60,7 +60,6 @@ const earlyItems = computed(() =>
 )
 
 const visibleItems = computed(() => {
-  // При фильтре по регулярному платежу показываем все его периоды, включая прошлые.
   if (showPast.value || recFilter.value) return afterScope.value
   return afterScope.value.filter(
     (i) => i.status === 'overdue' || i.due_date >= curWeekStart.value,

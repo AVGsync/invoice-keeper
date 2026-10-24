@@ -8,9 +8,6 @@ import (
 	"strings"
 )
 
-// Разбор параметров ручек истории ассистента (трек D, SPEC §D.5). Тексты ошибок —
-// дословно; возвращаются как api.WriteError(..., 400, "bad_request", <текст>).
-
 // conversationRe повторяет CHECK таблицы assistant_turns: область диалога.
 var conversationRe = regexp.MustCompile(`^(web|miniapp|tg:dm|tg:-?[0-9]{1,20})$`)
 
@@ -48,8 +45,7 @@ func ParseAssistantHistoryDelete(q url.Values) (AssistantHistoryQuery, error) {
 	return parseHistoryChannelConversation(q, true)
 }
 
-// parseHistoryChannelConversation разбирает channel и conversation. allowAll
-// добавляет значение all (только для DELETE).
+// parseHistoryChannelConversation разбирает channel и conversation.
 func parseHistoryChannelConversation(q url.Values, allowAll bool) (AssistantHistoryQuery, error) {
 	var out AssistantHistoryQuery
 
@@ -77,7 +73,6 @@ func parseHistoryChannelConversation(q url.Values, allowAll bool) (AssistantHist
 	conv := strings.TrimSpace(q.Get("conversation"))
 	switch ch {
 	case "web", "miniapp":
-		// conversation отсутствует или равен каналу.
 		if conv != "" && conv != ch {
 			return out, errors.New("conversation is invalid")
 		}

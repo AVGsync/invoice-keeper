@@ -1,5 +1,4 @@
--- Персона — должность или зона ответственности пользователя (Бухгалтер, DevOps).
--- На права не влияет: права задаёт только users.role. Список ведёт администратор.
+-- Персона — должность пользователя (Бухгалтер, DevOps); на права не влияет, права задаёт users.role.
 CREATE TABLE IF NOT EXISTS personas (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        TEXT        NOT NULL,

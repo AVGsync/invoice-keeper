@@ -10,20 +10,9 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// Учётка администратора из переменных окружения.
-//
-// Логин и пароль администратора берутся из .env (в миграциях и репозитории
-// паролей нет), и при каждом старте приложение приводит учётку к тому, что
-// там записано.
-//
-// .env — единственный источник правды: поменять пароль администратора через
-// панель нельзя (PATCH /users/{id} меняет только ФИО и логин), поэтому новый пароль
-// администратора задаётся правкой ADMIN_PASSWORD и перезапуском backend.
-
 const adminRole = "admin"
 
-// adminFullName — ФИО по умолчанию, только для вновь созданной учётки. У уже
-// существующей оно не трогается: его могли поменять через панель.
+// adminFullName — ФИО по умолчанию, только для вновь созданной учётки.
 const adminFullName = "Администратор"
 
 type AdminAccountRepository interface {
@@ -50,13 +39,6 @@ func NewAdminAccount(repository AdminAccountRepository, hasher AdminAccountHashe
 	return &AdminAccount{repository: repository, hasher: hasher}, nil
 }
 
-// Ensure создаёт администратора с логином и паролем из окружения, а если он
-// уже есть — проверяет, что пароль совпадает с ADMIN_PASSWORD, и переписывает
-// хэш, когда нет.
-//
-// Пустой пароль означает, что переменная в .env не задана: на уже работающей
-// установке это не повод падать — там есть администратор со своим паролем.
-// А вот на пустой базе войти было бы некому, поэтому там это ошибка.
 func (a *AdminAccount) Ensure(login, password string, ctx context.Context) error {
 	if password == "" {
 		return a.requireExistingAdmin(ctx)
@@ -72,8 +54,6 @@ func (a *AdminAccount) Ensure(login, password string, ctx context.Context) error
 	}
 
 	if user.Role != adminRole {
-		// Логин занят обычным пользователем: молча повысить его до администратора нельзя,
-		// а переписывать ему пароль — тем более.
 		return fmt.Errorf("admin account: login %q belongs to role %q", login, user.Role)
 	}
 	if a.hasher.CheckPassword(password, user.PasswordHash) {

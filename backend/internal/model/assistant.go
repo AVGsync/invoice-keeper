@@ -1,10 +1,6 @@
 package model
 
-// AssistantAnswer — разобранный конверт ответа агента (docs/NL_QUERIES.md §7.9).
-// Используется потребителями внутри процесса (Telegram-бот через порт
-// NLAnswerer): текст и блоки уже проверены агентом (grounding), боту остаётся
-// только компактно их отрендерить. HTTP-ручка, наоборот, проксирует сырой
-// конверт байт-в-байт, чтобы фронт получил точную схему блоков и meta.
+// AssistantAnswer — разобранный конверт ответа агента для бота (через порт NLAnswerer).
 type AssistantAnswer struct {
 	// AnswerID совпадает с X-Request-Id.
 	AnswerID string

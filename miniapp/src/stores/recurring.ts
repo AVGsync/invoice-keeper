@@ -37,15 +37,12 @@ export const recurring = {
 
   async create(req: CreateRecurringRequest): Promise<{ id: string }> {
     const res = await createRecurring(req)
-    // Бэкенд сразу создаёт периоды (scheduler.EnsureFor) — перечитываем список,
-    // чтобы новые периоды появились в Сегодня/Платежах/Календаре.
     await Promise.all([this.load(), occurrences.load({ force: true })])
     return res
   },
 
   async stop(id: string): Promise<void> {
     await stopRecurring(id)
-    // Периоды остановленного шаблона становятся ended — перечитываем принудительно.
     await Promise.all([this.load(), occurrences.load({ force: true })])
   },
 }

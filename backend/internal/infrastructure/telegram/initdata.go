@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// Ошибки проверки initData Mini App (docs/TELEGRAM_BOT.md §3.3).
+// Ошибки проверки initData Mini App.
 var (
 	// ErrInitDataInvalid — подпись не совпала или данные не разобрались.
 	ErrInitDataInvalid = errors.New("init data is invalid")
@@ -40,20 +40,7 @@ type initDataUser struct {
 	AllowsWriteToPM bool   `json:"allows_write_to_pm"`
 }
 
-// ValidateInitData проверяет подпись initData по алгоритму Telegram и возраст
-// auth_date. now передаётся явно (в тестах — фиксированный).
-//
-// Алгоритм (§3.3):
-//  1. url.ParseQuery(raw), вынуть hash;
-//  2. data_check_string: ВСЕ остальные пары key=value, отсортированные по ключу
-//     и склеенные через \n. Исключается только hash. Поле signature (Bot API
-//     8.0+) входит в проверку по hash как обычная пара — его исключает лишь
-//     отдельная Ed25519-проверка третьей стороны, которую мы не используем
-//     (core.telegram.org/bots/webapps). Клиенты 8.0+ всегда шлют signature,
-//     поэтому его исключение приводило к несовпадению HMAC и 401 на каждом входе;
-//  3. secret = HMAC_SHA256(key="WebAppData", msg=botToken);
-//  4. hex(HMAC_SHA256(key=secret, msg=data_check_string)) == hash;
-//  5. now - auth_date <= maxAge.
+// ValidateInitData проверяет подпись initData по алгоритму Telegram и возраст auth_date.
 func ValidateInitData(raw, botToken string, maxAge time.Duration, now time.Time) (InitData, error) {
 	values, err := url.ParseQuery(raw)
 	if err != nil {
@@ -65,8 +52,6 @@ func ValidateInitData(raw, botToken string, maxAge time.Duration, now time.Time)
 		return InitData{}, ErrInitDataInvalid
 	}
 
-	// Собираем все пары, кроме hash. signature (Bot API 8.0+) — обычная пара и
-	// входит в data_check_string при проверке по hash.
 	pairs := make([]string, 0, len(values))
 	for key, vs := range values {
 		if key == "hash" {
@@ -83,7 +68,6 @@ func ValidateInitData(raw, botToken string, maxAge time.Duration, now time.Time)
 		return InitData{}, ErrInitDataInvalid
 	}
 
-	// auth_date обязателен и проверяется на возраст.
 	authDateUnix, err := strconv.ParseInt(values.Get("auth_date"), 10, 64)
 	if err != nil {
 		return InitData{}, ErrInitDataInvalid

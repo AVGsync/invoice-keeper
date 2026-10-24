@@ -1,7 +1,4 @@
--- base is occurrences_base.sql; status_sql chosen by code. Totals strictly per
--- currency, never mixed. No user-supplied text ever reaches SQL (section 5.1
--- p.7). Placeholders are written without braces in comments so str.format never
--- substitutes a multi-line fragment into this comment.
+-- Суммы строго по валютам, не смешиваются; status_sql выбирает код.
 -- Params: $1 today, $2 date_from, $3 date_to, $4 currency, $5 title tsquery,
 --         $6 title ilike (escaped), $7 assignee_id (model), $8 assignee_id (own),
 --         $9 category.

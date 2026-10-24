@@ -1,7 +1,6 @@
 import type { MiniUser, PaymentResponse } from '../api/types'
 
-// Та же логика, что checkActor на бэкенде: отметить оплату может
-// ответственный за период или администратор.
+// Та же логика, что checkActor на бэкенде: отметить оплату может ответственный за период или администратор.
 export function canMarkPaid(
   user: Pick<MiniUser, 'id' | 'role'> | null,
   occ: Pick<PaymentResponse, 'user_id'>,

@@ -53,8 +53,7 @@ func (m *mockUseCase) Proxy(_ context.Context, userID, channel, _, _, path strin
 	return resp, func() { _ = resp.Body.Close() }, nil
 }
 
-// withClaims кладёт клеймы, как это делает защищённая группа. Request-id пуст —
-// хендлер корректно работает без него (api.RequestID вернёт "").
+// withClaims кладёт клеймы, как это делает защищённая группа.
 func withClaims(r *http.Request) *http.Request {
 	ctx := context.WithValue(r.Context(), middleware.ClaimsKey, &model.Claims{UserID: "u1", Role: "user"})
 	return r.WithContext(ctx)

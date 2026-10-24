@@ -5,8 +5,7 @@ import (
 	"sync"
 )
 
-// FakeClient — подмена клиента Bot API для тестов. Пишет все вызовы в срезы и
-// возвращает заранее заданные ответы/ошибки. Потокобезопасен.
+// FakeClient — подмена клиента Bot API для тестов.
 type FakeClient struct {
 	mu sync.Mutex
 
@@ -23,9 +22,7 @@ type FakeClient struct {
 	NextMessageID int64
 	// Ошибки на конкретные методы (nil — успех).
 	SendErr error
-	// sendErrQueue — ошибки по одной на вызов SendMessage (nil => успех). Имеет
-	// приоритет над SendErr и позволяет проверять ветки handleSendError и повтор
-	// после migrate. Заполняется QueueSendErr.
+	// sendErrQueue — ошибки по одной на вызов SendMessage (nil => успех).
 	sendErrQueue []error
 	EditErr      error
 	MarkupErr    error
@@ -64,8 +61,7 @@ func (f *FakeClient) SendMessage(ctx context.Context, p SendMessageParams) (Mess
 	return Message{MessageID: f.NextMessageID, Chat: Chat{ID: p.ChatID}, Text: p.Text}, nil
 }
 
-// QueueSendErr задаёт последовательность ответов SendMessage: по одному на вызов
-// (nil => успех). Опустошается по мере вызовов, затем работает обычная логика.
+// QueueSendErr задаёт последовательность ответов SendMessage: по одному на вызов (nil => успех).
 func (f *FakeClient) QueueSendErr(errs ...error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

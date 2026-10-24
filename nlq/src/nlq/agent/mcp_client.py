@@ -1,10 +1,4 @@
-"""MCP client used by the agent to reach nlq-mcp over Streamable HTTP (§7.5).
-
-A fresh client is opened per request and the user's signed actor-JWT is
-forwarded on every call, so a MCP restart never wedges the agent and identity
-is re-verified server-side on each request. Tools return a JSON envelope string;
-here it is parsed back into a dict for the loop and renderer.
-"""
+"""MCP client used by the agent to reach nlq-mcp over Streamable HTTP."""
 
 from __future__ import annotations
 
@@ -28,9 +22,6 @@ class McpSession:
 
     def __init__(self, url: str, token: str) -> None:
         transport = StreamableHttpTransport(url, headers={"Authorization": f"Bearer {token}"})
-        # init_timeout bounds the MCP handshake so a hung server cannot wedge the
-        # request (fastmcp defaults it to None = forever); timeout bounds each call
-        # on top of the executor's own asyncio.wait_for (section 7.5).
         self._client = Client(transport, timeout=10.0, init_timeout=2.0)
 
     async def __aenter__(self) -> McpSession:
@@ -49,11 +40,7 @@ class McpSession:
         await self._client.__aexit__(exc_type, exc, tb)
 
     async def call(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        """Call a tool and return the parsed envelope dict.
-
-        A transport failure raises McpError; a tool-level error still arrives as
-        a well-formed ``{"ok": false, ...}`` envelope.
-        """
+        """Call a tool and return the parsed envelope dict."""
         try:
             result = await self._client.call_tool(name, arguments)
         except Exception as exc:  # normalise transport failures

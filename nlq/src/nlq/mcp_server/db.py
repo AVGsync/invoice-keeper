@@ -1,10 +1,4 @@
-"""asyncpg access for the MCP server.
-
-A small pool (1-4) under the ``nlq_reader`` role. Every query runs inside a
-READ ONLY, repeatable-read transaction (defence in depth on top of the role's
-grants). Postgres error text is mapped to a stable code and never surfaced to
-the model or the user — only logged (§5.1 p.8).
-"""
+"""asyncpg access for the MCP server."""
 
 from __future__ import annotations
 
@@ -37,7 +31,6 @@ class Database:
     async def connect(self) -> None:
         server_settings: dict[str, str] = {}
         if self._dev_schema:
-            # Unqualified names resolve to the dev fixtures first, then public.
             server_settings["search_path"] = f"{self._dev_schema}, public"
         self._pool = await asyncpg.create_pool(
             self._dsn,

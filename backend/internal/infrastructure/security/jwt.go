@@ -32,7 +32,6 @@ func (j *JWTManager) GenerateAccess(userID string, role string) (string, error) 
 		Type:   "access",
 
 		RegisteredClaims: jwt.RegisteredClaims{
-			// См. комментарий в GenerateRefresh.
 			ID:        uuid.NewString(),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.ttlAccess)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -56,12 +55,7 @@ func (j *JWTManager) GenerateRefresh(userID string, role string) (string, error)
 		Type:   "refresh",
 
 		RegisteredClaims: jwt.RegisteredClaims{
-			// jti делает каждый токен уникальным. Без него iat/exp с точностью
-			// до секунды были единственным, что отличало токены одного
-			// пользователя: вход и refresh в ту же секунду (панель проверяет
-			// сессию сразу при загрузке страницы) выдавали побайтно тот же refresh-токен, его хеш уже лежал в
-			// refresh_tokens, и вставка падала на UNIQUE (token_hash) — 500
-			// «failed to add new refresh token» вместо новой пары токенов.
+			// jti делает каждый токен уникальным.
 			ID:        uuid.NewString(),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.ttlRefresh)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

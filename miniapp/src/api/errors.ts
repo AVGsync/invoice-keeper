@@ -1,6 +1,4 @@
-// Единый тип ошибки API. Сервер отдаёт два формата: JSON-конверт
-// {"error":{"code","message","request_id"}} и plain text (http.Error).
-// parseError разбирает оба.
+// Единый тип ошибки API.
 
 export class ApiError extends Error {
   status: number

@@ -1,13 +1,4 @@
-"""Idempotent creation of the read-only ``nlq_reader`` role and its grants.
-
-    python -m nlq.dbinit            # role + grants (+ dev fixtures when local)
-    python -m nlq.dbinit --drop-dev # drop the dev fixtures schema
-
-Runs under the Postgres superuser after ``migrate``. Never touches
-``backend/migrations`` and creates no objects that depend on B's tables (§6).
-The password and CONNECT grant use ``format(%L)``/``format(%I)`` for safe
-quoting; the dev-schema name is validated as an identifier.
-"""
+"""Idempotent creation of the read-only ``nlq_reader`` role and its grants."""
 
 from __future__ import annotations
 
@@ -51,7 +42,6 @@ async def _apply_role_and_grants(conn: asyncpg.Connection, db_password: str) -> 
         db_password,
     )
 
-    # CONNECT on the current database (name via format %I).
     await _exec_format(
         conn,
         "SELECT format('GRANT CONNECT ON DATABASE %I TO nlq_reader', current_database())",
@@ -62,7 +52,6 @@ async def _apply_dev_schema(conn: asyncpg.Connection, schema: str) -> None:
     if not _IDENT_RE.match(schema):
         raise ValueError(f"invalid NLQ_DEV_SCHEMA identifier: {schema!r}")
     await _exec_format(conn, "SELECT format('CREATE SCHEMA IF NOT EXISTS %I', $1::text)", schema)
-    # Create fixtures inside the dev schema (unqualified names in the file).
     await conn.execute(f'SET search_path TO "{schema}", public')
     await conn.execute(_read("dev_b_tables.sql"))
     await conn.execute("RESET search_path")

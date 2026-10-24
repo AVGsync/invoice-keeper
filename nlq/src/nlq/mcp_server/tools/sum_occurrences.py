@@ -1,14 +1,4 @@
-"""sum_occurrences: totals strictly per currency, never mixed (section 5.4).
-
-Two bases (decision #2):
-  * ``period_sum`` — sum of occurrence amounts whose due_date falls in ``period``.
-    The per-currency totals come from a dedicated GROUP BY currency query with no
-    LIMIT, so they are never truncated; the optional per-assignee breakdown is a
-    separate LIMITed query that reports ``groups_truncated``.
-  * ``run_rate`` — normalized average monthly load over active payments, with the
-    interval inferred from occurrence spacing (monthly x1 ... annual /12). Ignores
-    period and status.
-"""
+"""sum_occurrences: totals strictly per currency, never mixed."""
 
 from __future__ import annotations
 

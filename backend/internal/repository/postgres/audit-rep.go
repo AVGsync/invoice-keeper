@@ -11,15 +11,12 @@ import (
 	"github.com/lib/pq"
 )
 
-// AuditRepository пишет и читает журнал действий (таблица audit_log, миграция
-// 000012). Пользовательский текст (q) в SQL не попадает — только через позиционные
-// параметры whereBuilder'а (переиспользуется из трека B).
+// AuditRepository пишет и читает журнал действий (таблица audit_log, миграция 000012).
 type AuditRepository struct {
 	database *DB
 }
 
-// Insert пишет одну строку журнала. jsonb-колонки приводятся из текста ($::jsonb),
-// ip — из текста ($::inet). nil-указатели ложатся как NULL.
+// Insert пишет одну строку журнала.
 func (r *AuditRepository) Insert(ctx context.Context, row audit.Row) error {
 	const q = `
 		INSERT INTO audit_log
@@ -69,8 +66,7 @@ const auditFrom = `
 	FROM audit_log al
 	LEFT JOIN users u ON u.id = al.actor_id`
 
-// List возвращает страницу журнала и общее число строк по фильтру (без учёта
-// limit/offset).
+// List возвращает страницу журнала и общее число строк по фильтру (без учёта limit/offset).
 func (r *AuditRepository) List(ctx context.Context, f model.AuditFilter) ([]model.AuditEntry, int, error) {
 	w := r.buildAuditWhere(f)
 	whereSQL := w.sql()
@@ -108,8 +104,7 @@ func (r *AuditRepository) List(ctx context.Context, f model.AuditFilter) ([]mode
 	return out, total, nil
 }
 
-// buildAuditWhere собирает WHERE по фильтру. Направление сортировки берётся из
-// direction() (не из ввода).
+// buildAuditWhere собирает WHERE по фильтру.
 func (r *AuditRepository) buildAuditWhere(f model.AuditFilter) *whereBuilder {
 	w := &whereBuilder{}
 

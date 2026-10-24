@@ -8,15 +8,13 @@ import (
 	"time"
 )
 
-// recordTimeout — таймаут синхронной записи строки журнала (§C.1).
+// recordTimeout — таймаут синхронной записи строки журнала.
 const recordTimeout = 2 * time.Second
 
-// maxPayloadBytes — сериализованный payload больше этого заменяется на
-// {"truncated":true}, чтобы раздутый payload не попал в журнал.
+// maxPayloadBytes — сериализованный payload больше этого заменяется на {"truncated":true}, чтобы раздутый payload не попал в журнал.
 const maxPayloadBytes = 8 << 10 // 8 КБ
 
-// Logger — боевой рекордер: сливает Meta и Entry, редактирует payload/changes,
-// применяет лимиты и синхронно пишет строку. Ошибка записи только логируется.
+// Logger — боевой рекордер: сливает Meta и Entry, редактирует payload/changes, применяет лимиты и синхронно пишет строку.
 type Logger struct {
 	repo Repository
 }
@@ -26,9 +24,7 @@ func NewLogger(repo Repository) *Logger {
 	return &Logger{repo: repo}
 }
 
-// Record собирает и пишет строку журнала. Выполняется после успешной мутации,
-// в том же запросе; использует context.WithoutCancel, чтобы запись не отменилась
-// вместе с отменой запроса, и таймаут recordTimeout.
+// Record собирает и пишет строку журнала.
 func (l *Logger) Record(ctx context.Context, e Entry) {
 	if l == nil || l.repo == nil {
 		return

@@ -1,7 +1,6 @@
 import { createHmac, randomBytes } from 'node:crypto'
 
 // Подписывает dev-initData по алгоритму Telegram WebApp.
-// Используется только dev-плагином Vite и тестами — в прод-бандл не попадает.
 
 export interface DevUser {
   id: number

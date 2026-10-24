@@ -1,9 +1,4 @@
-"""compare_periods: сравнение двух периодов по каждой валюте (§D.7).
-
-Два прогона существующего ``sum_occurrences.sql`` (period_a — более ранний,
-period_b — более поздний). Суммы валют не смешиваются; ``delta = b − a``.
-Блок — ``table`` (``kind:"compare_periods"``).
-"""
+"""compare_periods: сравнение двух периодов по каждой валюте."""
 
 from __future__ import annotations
 

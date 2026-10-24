@@ -36,7 +36,5 @@ func (h *Hasher) CheckRefreshToken(token string, hashed string) bool {
 	sum := sha256.Sum256([]byte(token))
 	tokenHash := hex.EncodeToString(sum[:])
 
-	// HashRefreshToken хранит hex(sha256), поэтому сверяем строки напрямую,
-	// но в постоянное по времени, а не через bcrypt (это не bcrypt-хэш).
 	return subtle.ConstantTimeCompare([]byte(tokenHash), []byte(hashed)) == 1
 }

@@ -10,9 +10,7 @@ import (
 // paymentsSchedulerTick — период фоновой генерации периодов и пересчёта overdue.
 const paymentsSchedulerTick = 5 * time.Minute
 
-// startPaymentsScheduler запускает фоновый генератор периодов: сразу при старте
-// и далее каждые 5 минут. Работает независимо от Telegram-бота: периоды нужны и
-// для веб-интерфейса, и для сводок, а не только для напоминаний.
+// startPaymentsScheduler запускает фоновый генератор периодов: сразу при старте и далее каждые 5 минут.
 func (s *APIServer) startPaymentsScheduler(ctx context.Context, wg *sync.WaitGroup) {
 	if s.scheduler == nil {
 		return

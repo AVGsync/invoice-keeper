@@ -14,10 +14,10 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// assistantMaxBody — лимит тела вопроса (§9.1): вопрос ≤ 500 символов, 4 КБ с запасом.
+// assistantMaxBody — лимит тела вопроса: вопрос ≤ 500 символов, 4 КБ с запасом.
 const assistantMaxBody = 4096
 
-// memoryConfig собирает конфигурацию памяти диалога (SPEC §D.3) из env.
+// memoryConfig собирает конфигурацию памяти диалога из env.
 func (s *APIServer) memoryConfig() service.MemoryConfig {
 	return service.MemoryConfig{
 		Enabled:  s.config.NLQMemoryEnabled,
@@ -38,12 +38,8 @@ func (s *APIServer) memoryInfo() response.AssistantMemoryInfo {
 	}
 }
 
-// buildAssistant собирает сервис ассистента и сервис истории. Сервис истории
-// создаётся всегда (ручки истории работают и при NLQ_ENABLED=false — нужна только
-// БД). Сам ассистент — только при включённой фиче (иначе nil, ask → 503).
-// Вызывается после создания s.audit (трек C) в начале configureRouter.
+// buildAssistant собирает сервис ассистента и сервис истории.
 func (s *APIServer) buildAssistant() *service.AssistantService {
-	// Сервис истории — первым, до раннего возврата при выключенной фиче.
 	s.assistantHistory = service.NewAssistantHistoryService(
 		s.db.AssistantHistory(), s.memoryConfig(), clock.New(s.config.Location()))
 	s.assistantHistory.SetAuditRecorder(s.audit)
@@ -69,10 +65,7 @@ func (s *APIServer) buildAssistant() *service.AssistantService {
 	return svc
 }
 
-// mountAssistant монтирует ручки ассистента в защищённой группе (Auth,
-// LimitByUser, IsUserOrAdmin уже применены). Ручки истории монтируются всегда
-// (работают и при NLQ_ENABLED=false); ask/status — через заглушку при выключенной
-// фиче.
+// mountAssistant монтирует ручки ассистента в защищённой группе (Auth, LimitByUser, IsUserOrAdmin уже применены).
 func (s *APIServer) mountAssistant(r chi.Router, mw *middleware.Middleware) {
 	h := handler.NewAssistantHandler(assistantUseCaseOrDisabled(s.assistant), s.memoryInfo())
 	hh := handler.NewAssistantHistoryHandler(s.assistantHistory, s.memoryInfo())
@@ -86,8 +79,6 @@ func (s *APIServer) mountAssistant(r chi.Router, mw *middleware.Middleware) {
 	})
 }
 
-// assistantUseCaseOrDisabled возвращает рабочий сервис или безопасную заглушку
-// «выключено», чтобы GET /status отвечал enabled:false, а ask — 503.
 func assistantUseCaseOrDisabled(svc *service.AssistantService) handler.AssistantUseCase {
 	if svc != nil {
 		return svc
@@ -95,8 +86,7 @@ func assistantUseCaseOrDisabled(svc *service.AssistantService) handler.Assistant
 	return disabledAssistant{}
 }
 
-// disabledAssistant — заглушка при NLQ_ENABLED=false: status отвечает
-// enabled:false, ask — 503 assistant_disabled.
+// disabledAssistant — заглушка при NLQ_ENABLED=false: status отвечает enabled:false, ask — 503 assistant_disabled.
 type disabledAssistant struct{}
 
 func (disabledAssistant) Enabled() bool { return false }

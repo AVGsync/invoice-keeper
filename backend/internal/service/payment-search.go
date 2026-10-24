@@ -8,10 +8,6 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// Серверный поиск платежей (трек B, пункт 4). Сервис только прокидывает фильтр в
-// репозиторий, подставляя «сегодня» из общих часов, чтобы статусы overdue/pending
-// и ближайший срок next_due совпадали с остальной системой.
-
 // PaymentSearcher — поиск периодов в репозитории.
 type PaymentSearcher interface {
 	SearchPayments(ctx context.Context, f model.OccurrenceFilter, today string) ([]model.Payment, int, error)

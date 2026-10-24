@@ -1,11 +1,4 @@
-"""Generate an Ed25519 keypair for actor-JWT signing.
-
-    python -m nlq.keygen
-
-Prints the base64 of the 32-byte seed (private) and the 32-byte public key, in
-.env form. Go loads the seed via ed25519.NewKeyFromSeed; Python verifies with
-the public key.
-"""
+"""Generate an Ed25519 keypair for actor-JWT signing."""
 
 from __future__ import annotations
 

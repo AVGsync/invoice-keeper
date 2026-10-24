@@ -39,24 +39,22 @@ type Config struct {
 
 	AllowedOrigins []string `envconfig:"ALLOWED_ORIGINS" default:"http://localhost:3000,http://localhost:8080"`
 
-	// Учётка администратора. Логин и пароль берутся из .env.
-	// Пустой ADMIN_PASSWORD допустим только на базе, где администратор уже
-	// есть (см. service.AdminAccount).
+	// Учётка администратора.
 	AdminLogin    string `envconfig:"ADMIN_LOGIN" default:"admin"`
 	AdminPassword string `envconfig:"ADMIN_PASSWORD" default:""`
-	// Единая зона приложения. На ней считаются «сегодня» и окно напоминаний
-	// (см. internal/clock, docs/TELEGRAM_BOT.md §5.2). Системный TZ не используем.
+	// Единая зона приложения.
 	AppTimezone string `envconfig:"APP_TIMEZONE" default:"Europe/Moscow"`
 
-	// Настройки Telegram-бота и напоминаний вынесены в отдельный файл и
-	// встроены анонимно: envconfig читает их поля без префикса родителя.
+	// Настройки Telegram-бота и напоминаний вынесены в отдельный файл и встроены анонимно: envconfig читает их поля без префикса родителя.
 	TelegramConfig
 
-	// Настройки NL-ассистента (docs/NL_QUERIES.md), также встроены анонимно.
+	// Настройки NL-ассистента, также встроены анонимно.
 	AssistantConfig
 
-	// location — разобранная AppTimezone. Заполняется в Validate, падаем на старте
-	// при неверной зоне.
+	// Хранилище чеков, встроено анонимно.
+	ReceiptsConfig
+
+	// location — разобранная AppTimezone.
 	location *time.Location
 }
 
@@ -76,8 +74,7 @@ func (c *Config) Validate() error {
 	if c.AdminPassword != "" && len(c.AdminPassword) < 8 {
 		return fmt.Errorf("ADMIN_PASSWORD must be at least 8 characters")
 	}
-	// Зону грузим здесь, чтобы процесс упал на старте при неверном APP_TIMEZONE,
-	// а не при первом обращении к clock. tzdata вшита в бинарник.
+	// Зону грузим здесь, чтобы процесс упал на старте при неверном APP_TIMEZONE, а не при первом обращении к clock.
 	loc, err := time.LoadLocation(c.AppTimezone)
 	if err != nil {
 		return fmt.Errorf("APP_TIMEZONE %q is invalid: %w", c.AppTimezone, err)
@@ -89,10 +86,13 @@ func (c *Config) Validate() error {
 	if err := c.validateAssistant(); err != nil {
 		return err
 	}
+	if err := c.validateReceipts(); err != nil {
+		return err
+	}
 	return nil
 }
 
-// Location возвращает разобранную зону приложения. Корректна после Validate.
+// Location возвращает разобранную зону приложения.
 func (c *Config) Location() *time.Location {
 	if c.location == nil {
 		return time.UTC
@@ -112,8 +112,6 @@ func (c *Config) DatabaseURL() string {
 }
 
 func NewConfig() (*Config, error) {
-	// Containers and production inject variables directly and intentionally do
-	// not contain a .env file. Warn only when neither source is available.
 	if err := loadEnv(); err != nil && os.Getenv("APP_ENV") == "" {
 		fmt.Fprintf(os.Stderr, "warn: .env not found: %v\n", err)
 	}
@@ -123,9 +121,6 @@ func NewConfig() (*Config, error) {
 		return nil, fmt.Errorf("config: process env: %w", err)
 	}
 
-	// envconfig режет список по запятой без TrimSpace, поэтому запись вида
-	// "https://a.tld, https://b.tld" давала origin с ведущим пробелом: он не
-	// совпадал ни с одним заголовком Origin, и CORS молча отклонял все домены, кроме первого в списке.
 	origins := make([]string, 0, len(cfg.AllowedOrigins))
 	for _, origin := range cfg.AllowedOrigins {
 		if trimmed := strings.TrimSpace(origin); trimmed != "" {

@@ -43,6 +43,9 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       BIND_ADDR: "8080"
+      RECEIPTS_DIR: /data/receipts
+    volumes:
+      - receipts-local-data:/data/receipts
     ports:
       - "${LOCAL_API_PORT:-8080}:8080"
     depends_on:
@@ -69,15 +72,8 @@ services:
       - "${LOCAL_PGADMIN_PORT:-5050}:80"
     networks: [app-local]
 
-  # ---- NL-ассистент (docs/NL_QUERIES.md §10.3) ----
-  # Локально образ собирается из ./nlq (а не тянется из GHCR). Сервисы
-  # поднимаются обычным `up` вместе с остальным стеком. Ключи ассистента:
-  #   # 1) сгенерировать пару ключей и положить в .env (один раз):
-  #   docker compose -f docker-compose.local.yaml run --rm --no-deps nlq-agent nlq.keygen
-  #   # 2) поднять всё, включая ассистента:
-  #   docker compose -f docker-compose.local.yaml up
-  # Сеть app-local (без internal: true): так работает проброс портов 8090/8900
-  # для MCP Inspector и обращения Go, запущенного на хосте.
+  # NL-ассистент: образ собирается из ./nlq. Ключи actor-JWT генерирует
+  # `docker compose -f docker-compose.local.yaml run --rm --no-deps nlq-agent nlq.keygen`.
   nlq-db-init:
     build: ./nlq
     image: invoice-keeper-nlq:local
@@ -151,6 +147,7 @@ services:
 
 volumes:
   postgres-local-data:
+  receipts-local-data:
 
 networks:
   app-local:

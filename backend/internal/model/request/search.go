@@ -11,11 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Разбор параметров серверного поиска платежей (трек B). Тексты ошибок —
-// дословно из SPEC §B.2/§B.3; проверки идут в порядке строк таблицы, возвращается
-// первая ошибка. Пользовательский текст (q) в SQL не попадает — он уходит
-// позиционным параметром и экранируется в репозитории (like.go).
-
 const (
 	maxQueryRunes = 100
 	defaultLimit  = 50
@@ -23,9 +18,7 @@ const (
 	maxOffset     = 100000
 )
 
-// multiValues собирает мульти-значения: и через запятую (?k=a,b), и повтором
-// (?k=a&k=b). Пустые элементы отбрасываются, дубликаты схлопываются с
-// сохранением порядка первого появления.
+// multiValues собирает мульти-значения: и через запятую (?k=a,b), и повтором (?k=a&k=b).
 func multiValues(q url.Values, key string) []string {
 	seen := make(map[string]struct{})
 	out := []string{}
@@ -45,7 +38,7 @@ func multiValues(q url.Values, key string) []string {
 	return out
 }
 
-// ParsePage разбирает limit/offset с дефолтами 50/0. Переиспользуется треком C.
+// ParsePage разбирает limit/offset с дефолтами 50/0.
 func ParsePage(q url.Values) (limit, offset int, err error) {
 	limit = defaultLimit
 	offset = 0
@@ -67,8 +60,7 @@ func ParsePage(q url.Values) (limit, offset int, err error) {
 	return limit, offset, nil
 }
 
-// parseDateParam проверяет формат "YYYY-MM-DD". Пустая строка — не ошибка (нет
-// ограничения). onErr — точный текст 400 для конкретного параметра.
+// parseDateParam проверяет формат "YYYY-MM-DD".
 func parseDateParam(q url.Values, key, onErr string) (string, error) {
 	raw := strings.TrimSpace(q.Get(key))
 	if raw == "" {
@@ -80,8 +72,7 @@ func parseDateParam(q url.Values, key, onErr string) (string, error) {
 	return raw, nil
 }
 
-// parseISODate — строгий разбор "YYYY-MM-DD" без зависимости от clock (модель не
-// должна зависеть от clock). time.Parse со слоем "2006-01-02".
+// parseISODate — строгий разбор "YYYY-MM-DD" без зависимости от clock (модель не должна зависеть от clock).
 func parseISODate(s string) (bool, error) {
 	// Повторяем формат clock.ParseDate, но без импорта: достаточно формата.
 	if len(s) != 10 || s[4] != '-' || s[7] != '-' {
@@ -136,7 +127,7 @@ func parseCurrencies(q url.Values) ([]string, error) {
 	return out, nil
 }
 
-// parseUUIDs проверяет, что каждый элемент — UUID. onErr — текст 400.
+// parseUUIDs проверяет, что каждый элемент — UUID.
 func parseUUIDs(values []string, onErr string) ([]string, error) {
 	for _, v := range values {
 		if _, err := uuid.Parse(v); err != nil {
@@ -146,7 +137,7 @@ func parseUUIDs(values []string, onErr string) ([]string, error) {
 	return values, nil
 }
 
-// parseAmount разбирает неотрицательное int64; nil, если не задан. onErr — текст 400.
+// parseAmount разбирает неотрицательное int64; nil, если не задан.
 func parseAmount(q url.Values, key, onErr string) (*int64, error) {
 	raw := strings.TrimSpace(q.Get(key))
 	if raw == "" {
@@ -171,8 +162,7 @@ func parseOrder(q url.Values) (string, error) {
 	return raw, nil
 }
 
-// parseAssignees разбирает assignee=me и assignee_id (мульти UUID), запрещая их
-// совместное использование. actorID подставляется вместо me.
+// parseAssignees разбирает assignee=me и assignee_id (мульти UUID), запрещая их совместное использование.
 func parseAssignees(q url.Values, actorID string) ([]string, error) {
 	assignee := strings.TrimSpace(q.Get("assignee"))
 	ids := multiValues(q, "assignee_id")

@@ -67,8 +67,7 @@ func NewRecurrentPaymentService(
 // SetAuditRecorder подключает журнал действий.
 func (s *RecurrentPaymentService) SetAuditRecorder(r audit.Recorder) { s.audit = r }
 
-// dayOffsetFor вычисляет day_offset из даты: monthly → день месяца, weekly →
-// день недели (0 = воскресенье, как time.Weekday).
+// dayOffsetFor вычисляет day_offset из даты: monthly → день месяца, weekly → день недели (0 = воскресенье, как time.Weekday).
 func dayOffsetFor(frequency string, d clock.Date) int {
 	if frequency == "weekly" {
 		return int(time.Date(d.Y, d.M, d.D, 0, 0, 0, 0, time.UTC).Weekday())
@@ -211,7 +210,6 @@ func (s *RecurrentPaymentService) UpdateRecurrentPayment(
 		oldAssignee = *payment.AssigneeID
 	}
 
-	// Поля графика неизменяемы (D9).
 	if req.Frequency != nil && *req.Frequency != payment.Frequency {
 		return fmt.Errorf("%w: schedule is immutable (frequency)", ErrInvalidRecurrentPayment)
 	}
@@ -274,7 +272,6 @@ func (s *RecurrentPaymentService) UpdateRecurrentPayment(
 		payment.AssigneeID = &assigneeID
 	}
 
-	// Переносим правки на неоплаченные будущие периоды.
 	userID := ""
 	if payment.AssigneeID != nil {
 		userID = *payment.AssigneeID
@@ -312,7 +309,6 @@ func (s *RecurrentPaymentService) Stop(
 	id string,
 	ctx context.Context,
 ) error {
-	// Снимок описания и признака «уже остановлен» читаем до остановки.
 	description := ""
 	alreadyStopped := false
 	if before, err := s.repository.GetRecurrentPaymentByID(id, ctx); err == nil {

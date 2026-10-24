@@ -8,9 +8,6 @@ export interface CurrencyMonthTotals {
   overdue: number
 }
 
-// Суммы по месяцу, по правилам /payments/summary:
-// paid → paid; overdue → outstanding + overdue; pending → outstanding;
-// ended без оплаты → никуда.
 export function monthTotals(
   items: readonly PaymentResponse[],
   ym: string,

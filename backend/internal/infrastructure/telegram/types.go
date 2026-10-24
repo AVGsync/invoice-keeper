@@ -1,9 +1,7 @@
-// Package telegram — минимальный клиент Bot API на net/http без внешних
-// зависимостей (docs/TELEGRAM_BOT.md §8). Содержит типы апдейтов, типизированные
-// ошибки, клиент и его подмену для тестов.
+// Package telegram — минимальный клиент Bot API на net/http без внешних зависимостей.
 package telegram
 
-// Update — входящий апдейт Telegram. Разбираются только нужные боту поля.
+// Update — входящий апдейт Telegram.
 type Update struct {
 	UpdateID      int64              `json:"update_id"`
 	Message       *Message           `json:"message,omitempty"`
@@ -11,8 +9,7 @@ type Update struct {
 	MyChatMember  *ChatMemberUpdated `json:"my_chat_member,omitempty"`
 }
 
-// Message — сообщение. MigrateToChatID/MigrateFromChatID приходят в сервисном
-// сообщении при превращении группы в супергруппу.
+// Message — сообщение.
 type Message struct {
 	MessageID       int64  `json:"message_id"`
 	From            *User  `json:"from,omitempty"`
@@ -54,9 +51,6 @@ type ChatMemberUpdated struct {
 	OldChatMember ChatMember `json:"old_chat_member"`
 }
 
-// ChatMember — членство в чате; боту важен статус (member/administrator/left/kicked)
-// и, при status="restricted", флаг is_member: ограниченный бот может оставаться
-// в чате.
 type ChatMember struct {
 	Status   string `json:"status"`
 	User     User   `json:"user"`
@@ -68,8 +62,7 @@ type InlineKeyboardMarkup struct {
 	InlineKeyboard [][]InlineKeyboardButton `json:"inline_keyboard"`
 }
 
-// InlineKeyboardButton — кнопка. Либо CallbackData, либо WebApp (web_app-кнопки
-// запрещены в группах, см. §5.5).
+// InlineKeyboardButton — кнопка.
 type InlineKeyboardButton struct {
 	Text         string      `json:"text"`
 	CallbackData string      `json:"callback_data,omitempty"`
@@ -92,9 +85,7 @@ const (
 	StatusRestricted = "restricted"
 )
 
-// IsPresent сообщает, что при таком статусе бот состоит в чате. Для
-// "restricted" бот может оставаться членом (is_member=true): в этом случае не
-// деактивируем командный чат из-за ограничения прав.
+// IsPresent сообщает, что при таком статусе бот состоит в чате.
 func (m ChatMember) IsPresent() bool {
 	switch m.Status {
 	case StatusMember, StatusAdmin, StatusCreator:

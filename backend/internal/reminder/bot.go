@@ -13,9 +13,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// BotService — операции бота поверх движка: кнопка «Оплачено» и read-only
-// команды /today, /week, /overdue. Отдаётся в telegrambot.Service. Авторизацию
-// по from.id делает вызывающий; сюда приходит уже разрешённый actorUserID (§6.3).
+// BotService — операции бота поверх движка: кнопка «Оплачено» и read-only команды /today, /week, /overdue.
 type BotService struct {
 	src    OccurrenceSource
 	payer  Payer
@@ -31,9 +29,7 @@ func NewBotService(src OccurrenceSource, payer Payer, notif NotificationStore, s
 	return &BotService{src: src, payer: payer, notif: notif, sender: sender, clk: clk, cfg: cfg}
 }
 
-// MarkPaidCallback обрабатывает нажатие «Оплачено». occHex — id периода из
-// callback_data (p:<uuid hex>). Возвращает текст для answerCallbackQuery и флаг
-// alert. При успехе правит все отправленные сообщения периода в «Оплачено».
+// MarkPaidCallback обрабатывает нажатие «Оплачено».
 func (b *BotService) MarkPaidCallback(ctx context.Context, occHex, actorUserID, actorName string) (text string, alert bool) {
 	occID := hexToUUID(occHex)
 	if occID == "" {
@@ -60,8 +56,7 @@ func (b *BotService) MarkPaidCallback(ctx context.Context, occHex, actorUserID, 
 	}
 }
 
-// editOccurrencePaid правит все открытые/отправленные сообщения периода в
-// «Оплачено» и убирает кнопки.
+// editOccurrencePaid правит все открытые/отправленные сообщения периода в «Оплачено» и убирает кнопки.
 func (b *BotService) editOccurrencePaid(ctx context.Context, occID, actorName string) {
 	occs, err := b.src.GetByIDs(ctx, []string{occID})
 	if err != nil || len(occs) == 0 {
@@ -96,8 +91,7 @@ func (b *BotService) editOccurrencePaid(ctx context.Context, occID, actorName st
 	}
 }
 
-// ResetTeamQueue сбрасывает отложенные (failed) командные строки на немедленную
-// отправку — например, после нового /bind (§5.4).
+// ResetTeamQueue сбрасывает отложенные (failed) командные строки на немедленную отправку — например, после нового /bind.
 func (b *BotService) ResetTeamQueue(ctx context.Context) {
 	if err := b.notif.ResetFailedByRecipient(ctx, model.NotificationRecipientTeam, b.clk.Now()); err != nil {
 		slog.Error("reminder bot: reset team queue", "error", err)

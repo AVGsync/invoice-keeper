@@ -1,10 +1,4 @@
-"""Mint a short-lived actor-JWT for LOCAL testing (MCP Inspector, curl).
-
-    python -m nlq.devtoken --role admin
-
-Refused when APP_ENV=production. In production the Go backend is the only
-signer. ``sign_actor`` is also used by the test suite.
-"""
+"""Mint a short-lived actor-JWT for LOCAL testing (MCP Inspector, curl)."""
 
 from __future__ import annotations
 

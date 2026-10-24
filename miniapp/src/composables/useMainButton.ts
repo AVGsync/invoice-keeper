@@ -13,7 +13,6 @@ export interface MainButtonOptions {
 }
 
 // Реактивный владелец кнопки: последний смонтированный экран владеет ею.
-// Реактивность нужна, чтобы watchEffect применил параметры после onMounted.
 const activeOwner = shallowRef<symbol | null>(null)
 let currentHandler: (() => void) | null = null
 

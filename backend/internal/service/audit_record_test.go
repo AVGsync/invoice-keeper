@@ -11,8 +11,6 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model/request"
 )
 
-// ---- User ----
-
 type fakeUserRepo struct {
 	byLogin    model.User
 	byLoginErr error
@@ -163,8 +161,6 @@ func (r *recSpy) one(t *testing.T) audit.Entry {
 
 func strptr(s string) *string { return &s }
 
-// ---- Persona ----
-
 type fakePersonaRepo struct {
 	persona model.Persona
 }
@@ -224,8 +220,6 @@ func TestAuditPersonaDelete(t *testing.T) {
 		t.Errorf("unexpected: %+v", e)
 	}
 }
-
-// ---- Payment ----
 
 type fakePaymentRepo struct {
 	payment model.Payment
@@ -316,8 +310,6 @@ func TestAuditOccurrenceUpdate(t *testing.T) {
 		t.Errorf("amount change wrong: %+v", e.Changes)
 	}
 }
-
-// ---- Notifications ----
 
 type fakeNotifRepo struct {
 	settings model.UserNotificationSettings

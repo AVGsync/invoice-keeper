@@ -11,12 +11,6 @@ import (
 )
 
 // clientIP возвращает реальный IP клиента.
-//
-// За nginx настоящий адрес приходит в заголовке X-Real-IP: nginx выставляет его
-// как `proxy_set_header X-Real-IP $remote_addr`, то есть перезаписывает целиком —
-// подделать его клиентом нельзя. X-Forwarded-For здесь НЕ используем: клиент может
-// дослать свой XFF, а nginx лишь допишет к нему свой адрес.
-// Без прокси (локальный запуск) падаем на RemoteAddr.
 func clientIP(r *http.Request) string {
 	if ip := r.Header.Get("X-Real-IP"); ip != "" {
 		return ip
@@ -33,7 +27,6 @@ func keyByClientIP(r *http.Request) (string, error) {
 }
 
 // keyByUser ключует лимит по userID из клеймов (проставляет Auth-middleware).
-// Для запросов без клеймов падаем на IP.
 func keyByUser(r *http.Request) (string, error) {
 	if c, ok := ClaimsFromContext(r.Context()); ok {
 		return c.UserID, nil
@@ -41,9 +34,7 @@ func keyByUser(r *http.Request) (string, error) {
 	return clientIP(r), nil
 }
 
-// rateLimit — общий конструктор in-memory лимитера (token bucket) с ответом 429
-// в едином со всем API формате. Хранилище — в памяти процесса; этого достаточно,
-// пока сервис работает в один инстанс.
+// rateLimit — общий конструктор in-memory лимитера (token bucket) с ответом 429 в едином со всем API формате.
 func (m *Middleware) rateLimit(requests int, window time.Duration, keyFunc httprate.KeyFunc) func(http.Handler) http.Handler {
 	return httprate.LimitBy(
 		requests, window, keyFunc,
@@ -54,22 +45,17 @@ func (m *Middleware) rateLimit(requests int, window time.Duration, keyFunc httpr
 	)
 }
 
-// LimitByIP ограничивает по реальному IP клиента. Применяется к неаутентифицированным
-// эндпоинтам (логин, обновление токенов) для защиты от брутфорса и спама.
+// LimitByIP ограничивает по реальному IP клиента.
 func (m *Middleware) LimitByIP(requests int, window time.Duration) func(http.Handler) http.Handler {
 	return m.rateLimit(requests, window, keyByClientIP)
 }
 
 // LimitByUser ограничивает по пользователю из клеймов, а для гостевого запроса — по IP.
-// Ключ по userID точнее ключа по IP: каждый авторизованный пользователь получает
-// независимый бюджет и не делит его с теми, кто оказался за тем же адресом.
 func (m *Middleware) LimitByUser(requests int, window time.Duration) func(http.Handler) http.Handler {
 	return m.rateLimit(requests, window, keyByUser)
 }
 
-// LimitByIPJSON — вариант LimitByIP с ответом 429 в едином JSON-формате (§7).
-// Для публичных Telegram-эндпоинтов Mini App (auth/link), которые отдают ошибки
-// JSON-envelope'ом, как остальной API.
+// LimitByIPJSON — вариант LimitByIP с ответом 429 в едином JSON-формате.
 func (m *Middleware) LimitByIPJSON(requests int, window time.Duration) func(http.Handler) http.Handler {
 	return httprate.LimitBy(
 		requests,

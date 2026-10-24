@@ -34,7 +34,6 @@ func TestParseDate(t *testing.T) {
 	if _, err := ParseDate("24.10.2026"); err == nil {
 		t.Error("ParseDate: expected error on bad format")
 	}
-	// Round-trip: строка -> дата -> строка.
 	if got := d.String(); got != "2026-10-24" {
 		t.Errorf("round-trip = %q, want %q", got, "2026-10-24")
 	}
@@ -71,8 +70,7 @@ func TestCompare(t *testing.T) {
 	}
 }
 
-// TestTodayTimezoneBoundary проверяет, что «сегодня» зависит от зоны: в момент,
-// когда в UTC ещё 23:30 24-го, в Москве (UTC+3) уже 02:30 25-го.
+// TestTodayTimezoneBoundary проверяет, что «сегодня» зависит от зоны: в момент, когда в UTC ещё 23:30 24-го, в Москве (UTC+3) уже 02:30 25-го.
 func TestTodayTimezoneBoundary(t *testing.T) {
 	msk, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
@@ -101,7 +99,6 @@ func TestRealClockLocation(t *testing.T) {
 	if c.Location() != msk {
 		t.Errorf("New(msk).Location() mismatch")
 	}
-	// Now в нужной зоне.
 	if c.Now().Location() != msk {
 		t.Errorf("Now().Location() mismatch")
 	}

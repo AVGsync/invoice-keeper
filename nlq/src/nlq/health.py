@@ -1,8 +1,4 @@
-"""Docker healthcheck: ``python -m nlq.health agent|mcp``.
-
-Exit 0 when the local /healthz responds 200 (``degraded`` still counts as a
-running container), else exit 1.
-"""
+"""Docker healthcheck: ``python -m nlq.health agent|mcp``."""
 
 from __future__ import annotations
 

@@ -1,9 +1,4 @@
-"""workload: нагрузка по ответственным или должностям (§D.7).
-
-Для каждого человека (или должности) — число платежей и суммы по каждой валюте
-отдельно, плюс просроченные. Группа выбирается кодом (не из текста). Блок —
-``table`` (``kind:"workload"``).
-"""
+"""workload: нагрузка по ответственным или должностям."""
 
 from __future__ import annotations
 
@@ -22,7 +17,6 @@ from ..policy import Visibility
 from ..state import AppState
 from ._common import render_occurrences_base
 
-# Код выбирает выражение группировки — пользовательский текст сюда не попадает.
 _GROUP_NAME = {
     "assignee": "COALESCE(f.u_name, '—')",
     "persona": "COALESCE(f.p_name, 'Без должности')",

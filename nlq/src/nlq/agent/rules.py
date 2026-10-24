@@ -1,10 +1,4 @@
-"""Deterministic offline router (§7.8): regex -> the *same* MCP tools.
-
-Used as ``NLQ_LLM=rules`` (demo without internet) and as the automatic fallback
-when the LLM is unavailable. It emits the same ToolCall objects the loop would
-get from the model, so execution, rendering and grounding are identical; the
-envelope just carries ``mode:"rules"``.
-"""
+"""Deterministic offline router: regex -> the *same* MCP tools."""
 
 from __future__ import annotations
 
@@ -65,8 +59,7 @@ def _detect_period(q: str) -> str | None:
 
 
 def _refine(q: str, history: list[Turn]) -> list[ToolCall] | None:
-    """Уточнение («а в долларах?», «а в прошлом месяце?»): повторить последний
-    инструмент прошлого хода с переопределёнными параметрами (SPEC §D.6)."""
+    """Уточнение («а в долларах?», «а в прошлом месяце?»): повторить последний инструмент прошлого хода с переопределёнными параметрами."""
     last = None
     for turn in reversed(history):
         tools = turn.memory.get("tools") if turn.memory else None
@@ -110,7 +103,6 @@ def route(question: str, history: list[Turn] | None = None) -> list[ToolCall]:
     history = history or []
     q = question.lower().replace("ё", "е").strip()
 
-    # Уточнение к прошлому ответу: «а в долларах?», «а в прошлом месяце?».
     if (q.startswith("а ") or q.startswith("и ")) and history:
         refined = _refine(q, history)
         if refined is not None:
@@ -168,7 +160,7 @@ def route(question: str, history: list[Turn] | None = None) -> list[ToolCall]:
         elif "следующ" in q and "месяц" in q:
             args["period"] = "next_month"
         elif "в месяц" in q or "ежемесяч" in q:
-            # "в месяц" without a named month -> average monthly load (decision #2).
+            # "в месяц" without a named month -> average monthly load.
             args["basis"] = "run_rate"
         else:
             args["period"] = "this_month"

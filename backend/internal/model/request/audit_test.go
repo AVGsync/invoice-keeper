@@ -93,7 +93,6 @@ func TestParseAuditFilterValid(t *testing.T) {
 	if f.From == nil || f.To == nil {
 		t.Fatalf("from/to must be set")
 	}
-	// to = следующий день (эксклюзивная верхняя граница).
 	if f.To.Day() != 1 || f.To.Month() != time.November {
 		t.Errorf("to not next-day exclusive: %v", f.To)
 	}

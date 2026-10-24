@@ -1,7 +1,6 @@
 package request
 
-// AssistantAskRequest — тело POST /api/v1/assistant/ask и /ask/stream
-// (docs/NL_QUERIES.md §9.1). Вопрос валидируется на сервере: trim, 1–500 рун,
+// AssistantAskRequest — тело POST /api/v1/assistant/ask и /ask/stream. Вопрос валидируется на сервере: trim, 1–500 рун,
 // без управляющих символов. Канал bot по HTTP запрещён (его ставит только бот).
 type AssistantAskRequest struct {
 	// Вопрос на естественном языке, 1–500 символов.

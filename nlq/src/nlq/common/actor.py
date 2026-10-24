@@ -1,9 +1,4 @@
-"""Actor identity carried by a signed EdDSA (Ed25519) JWT.
-
-The Go backend is the only signer. The agent and the MCP server only *verify*:
-they hold the public key, never the private key, so a compromised agent cannot
-mint an admin token (§8.2). Identity never comes from tool arguments.
-"""
+"""Actor identity carried by a signed EdDSA (Ed25519) JWT."""
 
 from __future__ import annotations
 

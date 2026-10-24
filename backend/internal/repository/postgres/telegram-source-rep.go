@@ -10,21 +10,7 @@ import (
 	"github.com/lib/pq"
 )
 
-// TelegramSourceRepository — SQL-чтение периодов модуля платежей B. Реализует
-// reminder.OccurrenceSource. Это ЕДИНСТВЕННОЕ место, где бот читает таблицы B,
-// без VIEW и FK (docs/TELEGRAM_BOT.md §2.3). Фабрика объявлена здесь, db.go не
-// трогаем.
-//
-// Реальная схема B (миграции 000006/000008 + 000010):
-//
-//	payments(id uuid, user_id uuid, recurrent_payment_id uuid NULL, amount bigint
-//	         минимальные единицы, currency, description, due_date date,
-//	         paid_date date NULL, status)
-//	recurrent_payments(id uuid, description, stopped_at timestamptz NULL)
-//	users(id uuid, full_name)
-//
-// Заголовок берётся из payments.description c откатом на recurrent_payments.description;
-// amount переводится в мажорные единицы (amount/100) десятичной строкой без float.
+// TelegramSourceRepository — SQL-чтение периодов модуля платежей B.
 type TelegramSourceRepository struct {
 	database *DB
 }
@@ -34,9 +20,7 @@ func (d *DB) TelegramSource() *TelegramSourceRepository {
 	return &TelegramSourceRepository{database: d}
 }
 
-// Общая проекция. due_date как ::text — чтобы DATE не сдвигалась зоной (§5.2);
-// amount как numeric/100::text — десятичная строка без float. ended = платёж
-// удалён (recurrent_payment_id IS NULL) или остановлен (stopped_at IS NOT NULL).
+// Общая проекция.
 const telegramSourceSelect = `
 	SELECT p.id::text,
 	       COALESCE(p.recurrent_payment_id::text, ''),

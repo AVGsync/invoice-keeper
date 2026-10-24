@@ -9,11 +9,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// Оплата/снятие оплаты периода. Единая политика прав для HTTP и Telegram (D10):
-// отметить может ответственный (payments.user_id) или администратор. «Завершён»
-// здесь не проверяется — историю остановленного платежа можно править из веба.
-
-// checkActor возвращает период и проверяет права. Порядок: не найден → нет прав.
+// checkActor возвращает период и проверяет права.
 func (s *PaymentService) checkActor(
 	ctx context.Context,
 	id string,
@@ -29,8 +25,7 @@ func (s *PaymentService) checkActor(
 	return payment, nil
 }
 
-// MarkOccurrencePaid отмечает период оплаченным на дату paidDate. Порядок
-// ошибок: NotFound → Forbidden → AlreadyPaid.
+// MarkOccurrencePaid отмечает период оплаченным на дату paidDate.
 func (s *PaymentService) MarkOccurrencePaid(
 	ctx context.Context,
 	id string,
@@ -48,7 +43,6 @@ func (s *PaymentService) MarkOccurrencePaid(
 		return err
 	}
 
-	// paid_late = оплачено позже срока. Срок парсим; при ошибке считаем вовремя.
 	paidLate := false
 	if due, derr := clock.ParseDate(payment.DueDate); derr == nil {
 		paidLate = paidDate.After(due)
@@ -100,7 +94,7 @@ func (s *PaymentService) ChangeOccurrencePaidDate(
 	return nil
 }
 
-// MarkOccurrenceUnpaid снимает оплату и очищает дату. Идемпотентна.
+// MarkOccurrenceUnpaid снимает оплату и очищает дату.
 func (s *PaymentService) MarkOccurrenceUnpaid(
 	ctx context.Context,
 	id string,
@@ -120,7 +114,6 @@ func (s *PaymentService) MarkOccurrenceUnpaid(
 		EntityID:   id,
 	}
 	if payment.PaidDate != nil {
-		// Был оплачен — фиксируем снятие оплаты (paid_date → null).
 		entry.Changes = audit.Diff().Add("paid_date", *payment.PaidDate, nil).Map()
 	} else {
 		// Не был оплачен — операция ничего не изменила.
@@ -130,11 +123,7 @@ func (s *PaymentService) MarkOccurrenceUnpaid(
 	return nil
 }
 
-// EffectiveStatus вычисляет статус периода из paid_date, due_date и «сегодня»
-// (D6). paidLate = оплачено после срока. Для неоплаченного периода остановленного
-// или удалённого шаблона (Ended) возвращается статус "ended": просрочкой он не
-// считается, чтобы веб, сводка, NL (is_ended) и /overdue бота давали один ответ
-// (NL_QUERIES.md §6.4 п.5). История оплат остаётся: оплаченный период — "paid".
+// EffectiveStatus вычисляет статус периода из paid_date, due_date и «сегодня» (D6).
 func EffectiveStatus(p model.Payment, today clock.Date) (status string, paidLate bool) {
 	if p.PaidDate != nil {
 		paid, errP := clock.ParseDate(*p.PaidDate)

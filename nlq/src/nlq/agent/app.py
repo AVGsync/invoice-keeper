@@ -1,9 +1,4 @@
-"""FastAPI app for nlq-agent: POST /v1/ask, POST /v1/ask/stream (SSE), /healthz.
-
-The agent is internal: it is reached only by the Go backend, which has already
-authenticated the user and signed a 60-second actor-JWT. Every request is
-verified again here (defence in depth, §8.1) before the loop runs.
-"""
+"""FastAPI app for nlq-agent: POST /v1/ask, POST /v1/ask/stream (SSE), /healthz."""
 
 from __future__ import annotations
 
@@ -65,7 +60,7 @@ def create_app(service: AgentService | None = None) -> FastAPI:
     async def _prepare(
         request: Request, authorization: str | None
     ) -> tuple[Actor, str, str, str, list[Turn]] | JSONResponse:
-        """Verify actor + validate body. Returns (actor, question, token, rid, history)."""
+        """Verify actor + validate body."""
         actor_or_err = _authenticate(authorization)
         if isinstance(actor_or_err, JSONResponse):
             return actor_or_err
@@ -152,11 +147,7 @@ async def _sse(
     svc: AgentService, actor: Actor, question: str, token: str, rid: str,
     history: list[Turn] | None = None,
 ) -> AsyncIterator[str]:
-    """Stream step events as tools run, then the blocks, text and final envelope.
-
-    Text is emitted only after grounding (§9.4), so it arrives in the ``done``
-    frame together with the vetted blocks; ``step`` frames stream live.
-    """
+    """Stream step events as tools run, then the blocks, text and final envelope."""
     queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
 
     async def on_step(event: str, data: dict[str, Any]) -> None:
@@ -187,9 +178,6 @@ async def _sse(
         log.exception("stream failed")
         yield _sse_event("error", {"code": "llm_unavailable", "detail": type(exc).__name__})
     finally:
-        # On a client disconnect (GeneratorExit/CancelledError) or any error, stop
-        # the background work so it does not keep spending LLM/MCP budget, and do
-        # not leak the pending queue.get future.
         if drain is not None and not drain.done():
             drain.cancel()
         if not task.done():

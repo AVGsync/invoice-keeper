@@ -8,6 +8,8 @@ export function humanError(e: unknown): string {
   if (e.network || e.status === 0) return 'Нет соединения с сервером'
   if (e.status === 403) return 'Недостаточно прав для этого действия'
   if (e.status === 404) return 'Не найдено'
+  if (e.status === 413) return 'Файл слишком большой'
+  if (e.status === 415) return 'Этот формат не поддерживается: нужен PDF, фото, txt, csv, docx, xlsx'
   if (e.status === 429) {
     return e.retryAfter
       ? `Слишком много запросов, подождите ${e.retryAfter} с`
@@ -15,7 +17,6 @@ export function humanError(e: unknown): string {
   }
   if (e.status >= 500) return 'Сервер недоступен, попробуйте позже'
 
-  // 400 / 409 — ветвление по тексту сообщения.
   if (e.status === 400 || e.status === 409) {
     const msg = (e.message || '').toLowerCase()
     if (msg.includes('paid date is in the future')) return 'Дата оплаты не может быть в будущем'
@@ -25,6 +26,8 @@ export function humanError(e: unknown): string {
     if (msg.includes('persona not found')) return 'Персона не найдена'
     if (msg.includes('day_offset does not match')) return 'Неверная дата графика'
     if (msg.includes('description must be at most 255')) return 'Название не длиннее 255 символов'
+    if (msg.includes('too many receipts')) return 'К платежу уже прикреплено максимум чеков'
+    if (msg.includes('url')) return 'Некорректная ссылка: нужен адрес http или https'
     if (msg.includes('amount')) return 'Сумма должна быть больше нуля'
     if (msg.includes('login must be')) return 'Логин: 3–32 символа, латиница, цифры, . _ -'
     if (msg.includes('password must be')) return 'Пароль: от 8 символов'

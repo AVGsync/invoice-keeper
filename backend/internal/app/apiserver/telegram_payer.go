@@ -17,8 +17,6 @@ type paymentsService interface {
 	MarkOccurrencePaid(ctx context.Context, id string, paidDate clock.Date, actor service.PaymentActor) error
 }
 
-// paymentsPayer — Payer для REMINDER_SOURCE=db: проверка «завершён» по источнику
-// бота, права и запись — через сервис B (одна политика с PATCH /payment-occurrences).
 type paymentsPayer struct {
 	payments paymentsService
 	source   reminder.OccurrenceSource

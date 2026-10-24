@@ -1,10 +1,4 @@
-"""Text cleaning and the grounding check (§7.7 p.2-3, §8.4).
-
-The model only writes short prose; every *number* in it must come from tool
-data, the question, or the server's "today". Any stray number means the text is
-discarded and rebuilt from the blocks by ``render``. URLs, markdown and control
-characters are stripped so no client ever renders model output as rich text.
-"""
+"""Text cleaning and the grounding check."""
 
 from __future__ import annotations
 
@@ -15,7 +9,6 @@ from typing import Any
 
 MAX_TEXT_LEN = 1200
 
-# Markdown images/links first, then bare URLs, then HTML tags, then markup chars.
 _MD_IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 _MD_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 _URL = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
@@ -23,10 +16,7 @@ _HTML_TAG = re.compile(r"</?[a-zA-Z][^>]*>")
 _MARKUP_CHARS = re.compile(r"[*_#`~]")
 _BIDI_ZW = re.compile(r"[​-‏‪-‮⁦-⁩﻿]")
 
-# A dotted date DD.MM.YYYY / DD.MM.YY / DD.MM, checked component-wise (not as a
-# single number) so "20.11.2026" is not mistaken for the number 20.11.
 _DATE = re.compile(r"\b(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?\b")
-# A run of digits with optional thousands spaces (incl. NBSP) and a decimal part.
 _NUMBER = re.compile(r"\d[\d\s  ]*(?:[.,]\d+)?")
 
 
@@ -39,7 +29,6 @@ def clean_text(text: str | None) -> str:
     out = _HTML_TAG.sub(" ", out)
     out = _MARKUP_CHARS.sub("", out)
     out = _BIDI_ZW.sub("", out)
-    # Drop C0/C1 controls except newline; collapse runs of spaces.
     out = "".join(ch if ch >= " " or ch == "\n" else " " for ch in out)
     out = re.sub(r"[ \t]+", " ", out)
     out = re.sub(r"\n{3,}", "\n\n", out).strip()
@@ -76,12 +65,7 @@ def _extract_numbers(text: str) -> list[str]:
 
 
 def _extract_dates_and_rest(text: str) -> tuple[list[str], str]:
-    """Pull dotted-date components out of the text; return (components, rest).
-
-    Each DD.MM[.YYYY] contributes its day, month and year as separate normalised
-    numbers, and is removed from the text so the generic number scan does not see
-    "20.11" as a decimal.
-    """
+    """Pull dotted-date components out of the text; return (components, rest)."""
     components: list[str] = []
 
     def _replace(m: re.Match[str]) -> str:
@@ -116,10 +100,7 @@ def _add_date_components(allowed: set[str], iso: str) -> None:
         allowed.add(str(part))
 
 
-# Numbers in the text may only come from these numeric keys (section 7.7 p.3 /
-# section 8.4). Free-text/id keys (title, assignee_name, persona, message,
-# *_id, occurrence_id, payment_id, user_id) are deliberately NOT here, so a
-# number injected into an editable payment title can never ground a claim.
+# Numbers in the text may only come from these numeric keys.
 _NUMERIC_KEYS = frozenset(
     {
         "amount",
@@ -132,7 +113,6 @@ _NUMERIC_KEYS = frozenset(
         "cnt",
         "days_overdue",
         "active_payments",
-        # Новые инструменты (SPEC §D.6): память, сравнение периодов, нагрузка.
         "numbers",
         "a_total",
         "b_total",
@@ -152,17 +132,11 @@ _NUMERIC_KEYS = frozenset(
 _DATE_KEYS = frozenset(
     {"due_date", "next_due", "coverage_until", "today", "from", "to", "start_date", "last_paid_date"}
 )
-# Значение "YYYY-MM" (monthly_breakdown) добавляет год и месяц.
 _MONTH_KEYS = frozenset({"month"})
 
 
 def _harvest(allowed: set[str], value: Any, key: str | None = None) -> None:
-    """Walk a tool payload and collect numbers/dates from whitelisted keys only.
-
-    Containers (dicts, lists) are always traversed regardless of their key (so
-    ``by_currency`` keyed by a currency code is still reached), but a scalar
-    leaf contributes a number only when it sits under a whitelisted key.
-    """
+    """Walk a tool payload and collect numbers/dates from whitelisted keys only."""
     if isinstance(value, dict):
         for k, v in value.items():
             _harvest(allowed, v, k)
@@ -172,7 +146,6 @@ def _harvest(allowed: set[str], value: Any, key: str | None = None) -> None:
     elif key in _DATE_KEYS and isinstance(value, str):
         _add_date_components(allowed, value)
     elif key in _MONTH_KEYS and isinstance(value, str):
-        # "2026-10" → добавить 2026 и 10 (день отсутствует).
         m = re.match(r"^(\d{4})-(\d{1,2})$", value)
         if m:
             allowed.add(str(int(m.group(1))))
@@ -181,7 +154,6 @@ def _harvest(allowed: set[str], value: Any, key: str | None = None) -> None:
         if isinstance(value, (int, float)):
             _add(allowed, value)
         elif isinstance(value, str):
-            # Amount-like strings ("218.00") and display ("218,00 $") get numbers.
             for match in _NUMBER.finditer(value):
                 _add(allowed, match.group(0))
 

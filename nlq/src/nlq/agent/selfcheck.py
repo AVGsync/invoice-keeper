@@ -1,9 +1,4 @@
-"""Agent startup / health self-check (§7.2).
-
-Confirms each configured model advertises ``tools`` and ``tool_choice`` on
-OpenRouter. A missing capability makes ``/healthz`` degraded with a reason; it
-does not crash the agent (rules fallback still answers).
-"""
+"""Agent startup / health self-check."""
 
 from __future__ import annotations
 

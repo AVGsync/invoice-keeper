@@ -1,8 +1,4 @@
-// Тема Mini App: светлая и тёмная. Источник — colorScheme Telegram (событие
-// themeChanged), а вне Telegram — системная настройка prefers-color-scheme.
-// Модуль держит реактивный `theme`, применяет его к документу и хрому Telegram,
-// и отдаёт цвета MainButton для текущей темы. Чистые функции (resolveTheme,
-// mainButtonColors) вынесены отдельно и покрыты тестами.
+// Тема Mini App: светлая и тёмная.
 import { ref } from 'vue'
 import { getWebApp, supports, type TgWebApp } from './webapp'
 
@@ -21,7 +17,6 @@ export function resolveTheme(tg: { colorScheme?: string } | null, prefersLight: 
 }
 
 // Цвета MainButton для темы и состояния (активна/загрузка vs неактивна).
-// В тёмной теме залитая кнопка белая, в светлой — чёрная; прогресс считаем активным.
 export function mainButtonColors(
   t: Theme,
   s: { enabled: boolean; loading: boolean },
@@ -46,17 +41,15 @@ function syncChrome(tg: TgWebApp, t: Theme): void {
   try {
     if (supports('6.9')) tg.setHeaderColor(c)
   } catch {
-    /* старые клиенты поддерживают только keyword — пропускаем */
+    // старые клиенты поддерживают только keyword — пропускаем
   }
   try {
     if (supports('6.1')) tg.setBackgroundColor(c)
   } catch {
-    /* noop */
   }
   try {
     if (supports('7.10') && typeof tg.setBottomBarColor === 'function') tg.setBottomBarColor(c)
   } catch {
-    /* noop */
   }
 }
 
@@ -100,7 +93,6 @@ export function applyTheme(): void {
         render()
       })
     } catch {
-      /* noop */
     }
   } else {
     try {
@@ -112,7 +104,6 @@ export function applyTheme(): void {
       if (mq.addEventListener) mq.addEventListener('change', onChange)
       else if (mq.addListener) mq.addListener(onChange)
     } catch {
-      /* noop */
     }
   }
 }

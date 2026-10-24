@@ -1,9 +1,4 @@
-"""FastMCP server: the 4 curated read-only tools + /healthz (§5, §9.3).
-
-Tool signatures mirror the pydantic models in ``common.tool_specs`` so FastMCP
-publishes ``additionalProperties:false`` schemas; the bodies re-validate through
-the same models (cross-field rules) and always return a JSON envelope string.
-"""
+"""FastMCP server: the 4 curated read-only tools + /healthz."""
 
 from __future__ import annotations
 
@@ -37,8 +32,7 @@ log = logging.getLogger("nlq.mcp.server")
 
 @asynccontextmanager
 async def _lifespan(_server: FastMCP) -> AsyncIterator[None]:
-    """Connect the pool, run fail-closed security checks, probe the schema,
-    then keep the schema status fresh every 60 s (§5.9)."""
+    """Connect the pool, run fail-closed security checks, probe the schema, then keep the schema status fresh every 60 s."""
     state = get_state()
     await state.db.connect()
     await run_security_checks(state.db)  # raises -> startup aborts (fail-closed)
@@ -98,7 +92,7 @@ async def sum_occurrences(
     group_by: Literal["currency", "currency_assignee"] = "currency",
     basis: Literal["period_sum", "run_rate"] = "period_sum",
 ) -> str:
-    """Суммы периодов отдельно по каждой валюте. Курсы не применяются."""
+    """Суммы периодов отдельно по каждой валюте."""
     args = validate_args(
         "sum_occurrences",
         {
@@ -168,7 +162,7 @@ async def monthly_breakdown(
     assignee_id: str | None = None,
     title_query: str | None = None,
 ) -> str:
-    """Суммы по месяцам и валютам: динамика расходов. Валюты не смешиваются."""
+    """Суммы по месяцам и валютам: динамика расходов."""
     args = validate_args(
         "monthly_breakdown",
         {

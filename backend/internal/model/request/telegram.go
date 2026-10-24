@@ -5,14 +5,14 @@ import (
 	"strings"
 )
 
-// MiniAppAuthRequest — тело входа в Mini App по уже существующей привязке (§3.3).
+// MiniAppAuthRequest — тело входа в Mini App по уже существующей привязке.
 type MiniAppAuthRequest struct {
 	// Сырая строка initData из Telegram.WebApp (query-формат). Не логируется.
 	InitData string `json:"init_data" example:"query_id=...&user=%7B...%7D&auth_date=...&hash=..."`
 }
 
 // MiniAppLinkRequest — тело привязки Telegram к аккаунту по логину и паролю из
-// Mini App (одноразовый ввод пароля, §3.3).
+// Mini App (пароль вводится один раз).
 type MiniAppLinkRequest struct {
 	// Сырая строка initData из Telegram.WebApp. Не логируется.
 	InitData string `json:"init_data" example:"query_id=...&user=%7B...%7D&auth_date=...&hash=..."`

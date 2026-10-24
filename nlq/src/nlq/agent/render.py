@@ -1,9 +1,4 @@
-"""Build the answer blocks, notes and follow-ups from tool results (§7.7, §7.9).
-
-The model only writes prose; everything structured (tables, totals, the safe
-fallback text) is assembled here from the tool envelopes, so a compromised model
-cannot fabricate a number or a row.
-"""
+"""Build the answer blocks, notes and follow-ups from tool results."""
 
 from __future__ import annotations
 
@@ -267,8 +262,7 @@ _BUILDERS = {
 
 
 def build_blocks(results: list[ToolResult]) -> list[dict[str, Any]]:
-    """Last successful result per tool, max 3 blocks; drop a people lookup that
-    was only used to feed a later assignee filter (§7.7 p.1)."""
+    """Last successful result per tool, max 3 blocks; drop a people lookup that was only used to feed a later assignee filter."""
     last_ok: dict[str, ToolResult] = {}
     last_index: dict[str, int] = {}
     for i, res in enumerate(results):
@@ -313,7 +307,6 @@ def build_notes(
                 notes.append(f"Периоды после {until} ещё не созданы; будущие суммы могут быть неполными.")
             else:
                 notes.append("Будущие периоды ещё не созданы; суммы могут быть неполными.")
-        # Decision #2: always say what was computed for a sum.
         if res.name == "sum_occurrences":
             if p.get("basis") == "run_rate":
                 notes.append(
@@ -329,7 +322,6 @@ def build_notes(
                     )
                 else:
                     notes.append("Посчитаны все найденные начисления (период не задан).")
-        # Decision #3: categories exist but B's column may be absent.
         if p.get("category_unavailable"):
             notes.append("Категории платежей пока нет в системе — фильтр по категории не применялся.")
     if has_currency_filter:
@@ -342,7 +334,6 @@ def build_notes(
         notes.append("Показаны все подходящие платежи; уточните категорию, если нужна конкретная.")
     if scope == "own":
         notes.append("Показаны только ваши платежи.")
-    # De-duplicate, keep order.
     seen: set[str] = set()
     unique: list[str] = []
     for n in notes:
@@ -400,8 +391,7 @@ def build_followups(results: list[ToolResult]) -> list[str]:
 
 
 def template_text(blocks: list[dict[str, Any]]) -> str:
-    """Deterministic plain-text summary, used when the model text is missing or
-    fails grounding (§4.3, §7.7 p.3)."""
+    """Deterministic plain-text summary, used when the model text is missing or fails grounding."""
     if not blocks:
         return "Не удалось получить данные. Попробуйте переформулировать вопрос."
     parts: list[str] = []
@@ -436,9 +426,6 @@ def _template_for_block(block: dict[str, Any]) -> str:
         by = block.get("by_currency", {})
         if not by:
             return "Платежей за период не найдено."
-        # Падеж «в рублях/долларах/евро» читается верно во всех трёх шаблонах
-        # ниже («нагрузка в долларах …», «суммы … в долларах …»), тогда как без
-        # предлога получалось «нагрузка — долларах».
         chunks = [f"в {_CURRENCY_WORD.get(cur, cur)}: {v.get('display', '')}" for cur, v in by.items()]
         body = "; ".join(chunks)
         if block.get("basis") == "run_rate":

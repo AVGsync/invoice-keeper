@@ -8,9 +8,6 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/transport/http/api"
 )
 
-// DetectChannel определяет канал запроса (C.1): заголовок X-Client (miniapp|web)
-// важнее всего; иначе Bearer-токен ⇒ miniapp (Bearer в продукте использует только
-// Mini App); иначе (кука) ⇒ web.
 func DetectChannel(r *http.Request) string {
 	switch strings.ToLower(strings.TrimSpace(r.Header.Get("X-Client"))) {
 	case "miniapp":
@@ -25,8 +22,7 @@ func DetectChannel(r *http.Request) string {
 	return audit.ChannelWeb
 }
 
-// AuditContext кладёт в контекст метаданные запроса для журнала действий (канал
-// по DetectChannel). Ставится после Auth, чтобы увидеть клеймы.
+// AuditContext кладёт в контекст метаданные запроса для журнала действий (канал по DetectChannel).
 func (m *Middleware) AuditContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := audit.WithMeta(r.Context(), m.auditMeta(r, DetectChannel(r)))
@@ -34,8 +30,7 @@ func (m *Middleware) AuditContext(next http.Handler) http.Handler {
 	})
 }
 
-// AuditContextFor кладёт метаданные с фиксированным каналом (для Mini App-ручек,
-// где канал всегда miniapp независимо от заголовков).
+// AuditContextFor кладёт метаданные с фиксированным каналом (для Mini App-ручек, где канал всегда miniapp независимо от заголовков).
 func (m *Middleware) AuditContextFor(channel string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +40,7 @@ func (m *Middleware) AuditContextFor(channel string) func(http.Handler) http.Han
 	}
 }
 
-// auditMeta собирает Meta из запроса: актор из клеймов (если есть), IP, UA,
-// request_id.
+// auditMeta собирает Meta из запроса: актор из клеймов (если есть), IP, UA, request_id.
 func (m *Middleware) auditMeta(r *http.Request, channel string) audit.Meta {
 	meta := audit.Meta{
 		Channel:   channel,

@@ -55,8 +55,7 @@ func (rw *responseWriter) Unwrap() http.ResponseWriter {
 	return rw.ResponseWriter
 }
 
-// Hijack пробрасывает http.Hijacker сквозь обёртку трассировки, чтобы
-// соединения, которым нужен перехват (апгрейд протокола), не ломались.
+// Hijack пробрасывает http.Hijacker сквозь обёртку трассировки, чтобы соединения, которым нужен перехват (апгрейд протокола), не ломались.
 func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	hijacker, ok := rw.ResponseWriter.(http.Hijacker)
 	if !ok {
@@ -110,9 +109,6 @@ func (m *Middleware) Trace(next http.Handler) http.Handler {
 	})
 }
 
-// MaxBytes возвращает middleware, ограничивающий размер тела запроса значением limit
-// (в байтах), чтобы клиент не смог прислать сколь угодно большое тело и исчерпать память.
-// Разные маршруты могут использовать разные лимиты.
 func (m *Middleware) MaxBytes(limit int64) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -123,8 +119,6 @@ func (m *Middleware) MaxBytes(limit int64) func(http.Handler) http.Handler {
 }
 
 // extractToken: сначала непустой Authorization: Bearer <token>, затем кука.
-// Явный Bearer важнее куки, иначе старая cookie из WebView перебивает токен
-// Mini App (docs/TELEGRAM_BOT.md §3.3).
 func extractToken(r *http.Request, cookieName string) (string, bool) {
 	const prefix = "Bearer "
 	h := r.Header.Get("Authorization")
@@ -163,7 +157,6 @@ func (m *Middleware) Auth(next http.Handler) http.Handler {
 }
 
 // AuthJSON — вариант Auth с JSON-ошибками (api.WriteError) вместо plain text.
-// Логика аутентификации та же.
 func (m *Middleware) AuthJSON(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := extractToken(r, "AccessToken")
@@ -184,7 +177,6 @@ func (m *Middleware) AuthJSON(next http.Handler) http.Handler {
 }
 
 // OptionalAuth добавляет клеймы в контекст, если запрос содержит валидный access-токен.
-// Без токена или с невалидным токеном запрос продолжает обрабатываться как гостевой.
 func (m *Middleware) OptionalAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Authorization")
@@ -220,8 +212,7 @@ func (m *Middleware) IsAdmin(next http.Handler) http.Handler {
 	})
 }
 
-// IsAdminJSON — вариант IsAdmin с JSON-ошибкой (api.WriteError). Для Telegram-
-// эндпоинтов, которые отдают ошибки в едином JSON-формате (§7).
+// IsAdminJSON — вариант IsAdmin с JSON-ошибкой (api.WriteError).
 func (m *Middleware) IsAdminJSON(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromContext(r.Context())

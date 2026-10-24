@@ -1,10 +1,4 @@
-"""find_people: users and personas (§5.6).
-
-Works even when B's payment tables are absent: ``active_payments`` becomes 0
-via a code-chosen fragment. The names directory stays available under ``own``
-scope (needed for "who is responsible for..."), but counts for *other* people
-are not reported there.
-"""
+"""find_people: users and personas."""
 
 from __future__ import annotations
 
@@ -18,8 +12,6 @@ from ..fragments import escape_like
 from ..policy import Visibility
 from ..state import AppState
 
-# Active recurrent payments assigned to a user, via the many-to-many link table
-# (decision #2/#15). selfcheck imports this so there is a single source of truth.
 ACTIVE_PAYMENTS_SUBQUERY = (
     "(SELECT count(*) FROM user_recurrent_payments ur "
     "JOIN recurrent_payments rp ON rp.id = ur.recurrent_payment_id "
@@ -48,7 +40,7 @@ async def execute(
     for r in rows:
         user_id = r["user_id"]
         active = int(r["active_payments"])
-        # Under own scope, do not report counts for other people (§5.6).
+        # Under own scope, do not report counts for other people.
         if visibility.scope == "own" and user_id != str(actor.sub):
             active = None  # type: ignore[assignment]
         shaped.append(

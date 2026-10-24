@@ -1,7 +1,7 @@
 package response
 
 // AssistantMemoryInfo — сводка о памяти диалога (из конфига). Отдаётся в
-// GET /assistant/history и аддитивно в GET /assistant/status (SPEC §D.5).
+// GET /assistant/history и в GET /assistant/status.
 type AssistantMemoryInfo struct {
 	// Включена ли память (NLQ_MEMORY_ENABLED).
 	Enabled bool `json:"enabled" example:"true"`
@@ -35,7 +35,7 @@ type AssistantHistoryItem struct {
 	InContext bool `json:"in_context" example:"true"`
 }
 
-// AssistantHistoryResponse — ответ GET /assistant/history (SPEC §D.5). items —
+// AssistantHistoryResponse — ответ GET /assistant/history. items —
 // последние limit ходов по возрастанию времени; total — всего ходов в разговоре.
 type AssistantHistoryResponse struct {
 	// Канал: web | miniapp | bot.

@@ -1,5 +1,4 @@
-// Работа только со строками YYYY-MM-DD. Никакого new Date('YYYY-MM-DD')
-// в зоне браузера. Вся арифметика через Date.UTC / getUTC*.
+// Работа только со строками YYYY-MM-DD.
 
 export const APP_TZ = import.meta.env.VITE_APP_TIMEZONE || 'Europe/Moscow'
 

@@ -1,9 +1,4 @@
-"""The Russian system prompt (§7.4), built per request from server-side facts.
-
-Role, date and visibility come from the verified actor and the server clock —
-never from the question — and the prompt tells the model to ignore any attempt
-in the question to override them (§8.4).
-"""
+"""The Russian system prompt, built per request from server-side facts."""
 
 from __future__ import annotations
 

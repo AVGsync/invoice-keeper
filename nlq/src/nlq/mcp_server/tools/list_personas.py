@@ -1,10 +1,4 @@
-"""list_personas: должности и сколько на каждой сотрудников/активных платежей
-(§D.7). Блок — ``table`` (``kind:"personas"``).
-
-Работает и без таблиц B: ``active_payments`` становится 0 через код-фрагмент.
-Под ``own``-видимостью счётчики активных платежей по чужим должностям не
-раскрываются (``null``), как в find_people.
-"""
+"""list_personas: должности и сколько на каждой сотрудников/активных платежей."""
 
 from __future__ import annotations
 
@@ -18,8 +12,6 @@ from ..fragments import escape_like
 from ..policy import Visibility
 from ..state import AppState
 
-# Активные регулярные платежи сотрудников этой должности (decision #2/#15).
-# Коррелированный подсчёт по p.id; код выбирает его либо литерал 0.
 ACTIVE_PAYMENTS_SUBQUERY = (
     "(SELECT count(*) FROM user_recurrent_payments ur "
     "JOIN recurrent_payments rp ON rp.id = ur.recurrent_payment_id "
@@ -50,7 +42,6 @@ async def execute(
             {
                 "persona": sanitize(r["persona"]) if r["persona"] else None,
                 "users_count": int(r["users_count"]),
-                # Под own-видимостью чужие счётчики не раскрываем (§5.6).
                 "active_payments": None if own else int(r["active_payments"]),
             }
         )

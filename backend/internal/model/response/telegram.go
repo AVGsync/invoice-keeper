@@ -17,7 +17,7 @@ type MiniAppUser struct {
 }
 
 // MiniAppAuthResponse — ответ на вход в Mini App (auth и link): access-токен,
-// его TTL в секундах, профиль пользователя и доступность лички бота (§3.3, §7).
+// его TTL в секундах, профиль пользователя и доступность лички бота.
 type MiniAppAuthResponse struct {
 	// Access-токен (Bearer). Хранится в памяти JS, cookie не выставляются.
 	AccessToken string `json:"access_token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`

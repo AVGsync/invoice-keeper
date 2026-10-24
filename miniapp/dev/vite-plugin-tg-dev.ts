@@ -7,8 +7,6 @@ import { signInitData } from './initdata'
 const here = dirname(fileURLToPath(import.meta.url))
 
 // Dev-плагин: внедряет мок Telegram и свежеподписанный initData.
-// Работает только при apply:'serve'. Токен бота остаётся в процессе Node,
-// на страницу уходит только подписанная строка.
 export function tgDev(env: Record<string, string>): Plugin {
   return {
     name: 'tg-dev',

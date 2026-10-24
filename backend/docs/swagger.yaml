@@ -152,6 +152,19 @@ definitions:
         - user
         example: user
         type: string
+      telegram_linked:
+        description: Привязан ли Telegram-аккаунт (таблица telegram_links).
+        example: true
+        type: boolean
+      telegram_linked_at:
+        description: Когда привязан Telegram; не задано, если не привязан.
+        example: "2026-10-23T20:05:31Z"
+        type: string
+      telegram_username:
+        description: Username в Telegram без @; пусто, если не привязан или username
+          не задан.
+        example: olga_iv
+        type: string
     type: object
   model.UserNotificationSettings:
     properties:
@@ -172,6 +185,18 @@ definitions:
       updated_at:
         type: string
       user_id:
+        type: string
+    type: object
+  request.AddReceiptLinkRequest:
+    properties:
+      title:
+        description: Подпись, до 120 символов. Необязательно.
+        example: Чек за октябрь
+        type: string
+      url:
+        description: 'Адрес чека: http или https, до 2048 символов. Без схемы подставляется
+          https.'
+        example: https://check.example.com/r/123
         type: string
     type: object
   request.AssistantAskRequest:
@@ -559,9 +584,8 @@ definitions:
       memory:
         allOf:
         - $ref: '#/definitions/response.AssistantMemoryInfo'
-        description: |-
-          Сводка о памяти диалога (из конфига): включена ли, сколько ходов в контекст,
-          срок жизни контекста (SPEC §D.5).
+        description: 'Сводка о памяти диалога (из конфига): включена ли, сколько ходов
+          в контекст, срок жизни.'
       mode:
         description: 'Режим «мозга» агента: openrouter | rules | fake. Пусто, если
           агент недоступен.'
@@ -755,6 +779,84 @@ definitions:
         example: 1
         type: integer
     type: object
+  response.ReceiptAccessResponse:
+    properties:
+      expires_at:
+        description: Когда перестанет работать адрес файла; у ссылок не задано.
+        type: string
+      kind:
+        description: '`file` или `link`.'
+        enum:
+        - file
+        - link
+        type: string
+      url:
+        description: |-
+          Для `link` — сама ссылка. Для `file` — путь вида `/api/v1/receipt-files/{id}?exp=…&sig=…`,
+          открывается без авторизации до `expires_at`.
+        example: /api/v1/receipt-files/5f0a1e5e-8c9b-4a3e-9d3b-0b8f6f5a2c11?exp=1792866000&sig=abc
+        type: string
+    type: object
+  response.ReceiptListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.ReceiptResponse'
+        type: array
+      total:
+        example: 2
+        type: integer
+    type: object
+  response.ReceiptResponse:
+    properties:
+      content_type:
+        description: MIME-тип файла, определённый по содержимому.
+        example: application/pdf
+        type: string
+      created_at:
+        example: "2026-10-24T18:20:00Z"
+        type: string
+      file_name:
+        description: Имя файла (только для `kind=file`).
+        example: check.pdf
+        type: string
+      id:
+        description: Идентификатор чека.
+        example: 5f0a1e5e-8c9b-4a3e-9d3b-0b8f6f5a2c11
+        format: uuid
+        type: string
+      kind:
+        description: 'Тип: `file` — файл на сервере, `link` — внешняя ссылка.'
+        enum:
+        - file
+        - link
+        example: file
+        type: string
+      payment_id:
+        description: Период платежа, к которому прикреплён чек.
+        example: 9a191dfa-5e71-47aa-bcb2-ed5e9c071830
+        format: uuid
+        type: string
+      size_bytes:
+        description: Размер файла в байтах.
+        example: 48213
+        type: integer
+      title:
+        description: Подпись; пустая, если не задана.
+        example: Чек за октябрь
+        type: string
+      uploaded_by:
+        description: Кто прикрепил; пусто, если пользователь удалён.
+        format: uuid
+        type: string
+      uploaded_by_name:
+        example: Ольга Иванова
+        type: string
+      url:
+        description: Адрес ссылки (только для `kind=link`).
+        example: https://example.com/receipt/123
+        type: string
+    type: object
   response.RecurringPaymentItem:
     properties:
       amount:
@@ -900,7 +1002,7 @@ paths:
         («что просрочено?», «сколько платим в долларах в этом месяце?»). Go
         аутентифицирует пользователя, применяет лимиты, перечитывает роль из БД,
         подписывает короткоживущий actor-JWT и проксирует вопрос в nlq-agent.
-        Ответ — конверт §7.9: короткий текст плюс блоки с данными. Числа и даты
+        Ответ — конверт: короткий текст плюс блоки с данными. Числа и даты
         считает БД, текст проходит grounding-check.
       parameters:
       - description: Вопрос и канал (web|miniapp)
@@ -1847,6 +1949,144 @@ paths:
       summary: Изменить платеж
       tags:
       - Payments
+  /payment-occurrences/{id}/receipts:
+    get:
+      description: Файлы и ссылки, прикреплённые к периоду платежа. Доступно ответственному
+        за платёж и администратору.
+      parameters:
+      - description: UUID периода платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ReceiptListResponse'
+        "400":
+          description: Некорректный id
+          schema:
+            type: string
+        "403":
+          description: Недостаточно прав
+          schema:
+            type: string
+        "404":
+          description: Платёж не найден
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Чеки платежа
+      tags:
+      - Receipts
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        `multipart/form-data` с полем `file`. Подпись — query-параметр `title` или поле формы `title`, если оно идёт раньше файла.
+        Форматы определяются по содержимому: PDF, JPEG, PNG, GIF, WebP, HEIC, TXT, CSV, DOCX, XLSX, ODT, ODS.
+        Максимальный размер задаёт `RECEIPTS_MAX_MB` (по умолчанию 10 МБ), не больше 20 чеков на платёж.
+      parameters:
+      - description: UUID периода платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Подпись, до 120 символов
+        in: query
+        name: title
+        type: string
+      - description: Файл чека
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.ReceiptResponse'
+        "400":
+          description: Нет файла или пустой файл
+          schema:
+            type: string
+        "403":
+          description: Недостаточно прав
+          schema:
+            type: string
+        "404":
+          description: Платёж не найден
+          schema:
+            type: string
+        "409":
+          description: Достигнут лимит чеков
+          schema:
+            type: string
+        "413":
+          description: Файл слишком большой
+          schema:
+            type: string
+        "415":
+          description: Неподдерживаемый формат
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Загрузить файл чека
+      tags:
+      - Receipts
+  /payment-occurrences/{id}/receipts/link:
+    post:
+      consumes:
+      - application/json
+      description: Принимаются только http и https; без схемы подставляется https.
+        Логин и пароль в адресе запрещены.
+      parameters:
+      - description: UUID периода платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Ссылка и подпись
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AddReceiptLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.ReceiptResponse'
+        "400":
+          description: Некорректная ссылка
+          schema:
+            type: string
+        "403":
+          description: Недостаточно прав
+          schema:
+            type: string
+        "404":
+          description: Платёж не найден
+          schema:
+            type: string
+        "409":
+          description: Достигнут лимит чеков
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Прикрепить ссылку на чек
+      tags:
+      - Receipts
   /payment-occurrences/search:
     get:
       description: |-
@@ -2265,6 +2505,95 @@ paths:
       summary: Проверка доступности API-сервера
       tags:
       - Система
+  /receipt-files/{id}:
+    get:
+      description: Адрес выдаёт `GET /receipts/{id}/access`; без сессии, действует
+        5 минут. PDF и изображения открываются в браузере, остальное скачивается.
+      parameters:
+      - description: UUID чека
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Время окончания, unix
+        in: query
+        name: exp
+        required: true
+        type: integer
+      - description: Подпись
+        in: query
+        name: sig
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Файл
+          schema:
+            type: file
+        "404":
+          description: Адрес недействителен или файла нет
+          schema:
+            type: string
+      summary: Скачать файл чека по подписанному адресу
+      tags:
+      - Receipts
+  /receipts/{id}:
+    delete:
+      description: Удаляет ссылку или файл вместе с содержимым. Доступно ответственному
+        за платёж и администратору.
+      parameters:
+      - description: UUID чека
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Чек удалён
+        "403":
+          description: Недостаточно прав
+          schema:
+            type: string
+        "404":
+          description: Чек не найден
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Удалить чек
+      tags:
+      - Receipts
+  /receipts/{id}/access:
+    get:
+      description: |-
+        Для ссылки возвращает её саму. Для файла — путь `/api/v1/receipt-files/{id}?exp=…&sig=…`,
+        который открывается без авторизации (в браузере, в том числе внутри Telegram) в течение 5 минут.
+      parameters:
+      - description: UUID чека
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.ReceiptAccessResponse'
+        "403":
+          description: Недостаточно прав
+          schema:
+            type: string
+        "404":
+          description: Чек не найден
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Адрес для открытия чека
+      tags:
+      - Receipts
   /recurring-payments:
     get:
       description: Возвращает все шаблоны регулярных платежей команды (включая остановленные).

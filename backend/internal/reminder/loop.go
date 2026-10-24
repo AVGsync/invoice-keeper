@@ -12,16 +12,16 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// Значения по умолчанию движка (§5).
+// Значения по умолчанию движка.
 const (
-	defaultOverdueMaxDays = 3                     // §5.7: просрочку шлём только первые 3 дня
-	defaultPerChatGap     = 3 * time.Second       // не чаще 1 сообщения в 3 с в группу (§5.4)
+	defaultOverdueMaxDays = 3
+	defaultPerChatGap     = 3 * time.Second       // не чаще 1 сообщения в 3 с в группу
 	defaultGlobalGap      = 40 * time.Millisecond // ~25 сообщений в секунду суммарно
 	defaultSendTimeout    = 5 * time.Second
 	defaultSendLimit      = 50
 	defaultReconcileLimit = 200
 	defaultCleanupEvery   = time.Hour
-	maxSendAttempts       = 10 // после — состояние dead (§5.4)
+	maxSendAttempts       = 10 // после — состояние dead
 )
 
 // Config — параметры движка напоминаний.
@@ -29,12 +29,12 @@ type Config struct {
 	LeadDays         int           // за сколько дней до срока напоминаем (>=3)
 	Tick             time.Duration // период тика
 	OverdueMaxDays   int           // сколько дней после срока ещё шлём overdue (0 => default)
-	PerChatGap       time.Duration // пауза между сообщениями в один чат (0 => default; отрицательное отключает)
+	PerChatGap       time.Duration
 	GlobalGap        time.Duration // пауза между любыми сообщениями
 	SendTimeout      time.Duration // таймаут одиночного sendMessage
 	BotUsername      string        // username бота для Direct Link Mini App в кнопке «Открыть»
-	MiniAppShortName string        // short_name Mini App (BotFather /newapp); пусто => основное Mini App бота
-	Demo             bool          // режим заглушки (REMINDER_SOURCE=stub): помечаем сообщения [DEMO]
+	MiniAppShortName string
+	Demo             bool
 	SendLimit        int           // сколько строк outbox отправляем за тик
 	ReconcileLimit   int           // сколько отправленных сообщений проверяем за тик
 	CleanupEvery     time.Duration // как часто чистим outbox
@@ -70,8 +70,7 @@ func (c *Config) withDefaults() {
 	}
 }
 
-// Loop — цикл напоминаний (одна горутина, один инстанс, §5.3): enqueue -> send
-// -> reconcile -> cleanup. Первый тик сразу при старте, далее каждые Tick.
+// Loop — цикл напоминаний: enqueue -> send -> reconcile -> cleanup.
 type Loop struct {
 	src     OccurrenceSource
 	notif   NotificationStore
@@ -85,7 +84,7 @@ type Loop struct {
 	lastCleanup time.Time
 }
 
-// NewLoop собирает цикл. ensurer может быть nil.
+// NewLoop собирает цикл.
 func NewLoop(src OccurrenceSource, notif NotificationStore, chats TeamChatStore, sender BotSender, clk clock.Clock, ensurer OccurrenceEnsurer, cfg Config) *Loop {
 	cfg.withDefaults()
 	return &Loop{
@@ -94,7 +93,7 @@ func NewLoop(src OccurrenceSource, notif NotificationStore, chats TeamChatStore,
 	}
 }
 
-// Run крутит тики до отмены ctx. Первый тик — сразу.
+// Run крутит тики до отмены ctx.
 func (l *Loop) Run(ctx context.Context) {
 	slog.Info("reminder loop: started", "tick", l.cfg.Tick, "lead_days", l.cfg.LeadDays)
 	l.Tick(ctx)
@@ -111,7 +110,7 @@ func (l *Loop) Run(ctx context.Context) {
 	}
 }
 
-// Tick выполняет один проход. Экспортирован для детерминированных тестов.
+// Tick выполняет один проход.
 func (l *Loop) Tick(ctx context.Context) {
 	today := l.clk.Today()
 	if l.ensurer != nil {
@@ -125,8 +124,7 @@ func (l *Loop) Tick(ctx context.Context) {
 	l.maybeCleanup(ctx)
 }
 
-// enqueue ставит в outbox напоминания по периодам в окне. Личку не делаем —
-// только командный чат (решение №1), поэтому ставим, лишь когда он активен.
+// enqueue ставит в outbox напоминания по периодам в окне.
 func (l *Loop) enqueue(ctx context.Context, today clock.Date) {
 	if _, err := l.chats.GetActiveChat(ctx); err != nil {
 		if !errors.Is(err, model.ErrTelegramNoTeamChat) {
@@ -187,14 +185,12 @@ func (l *Loop) sendOne(ctx context.Context, row model.TelegramNotification) {
 	now := l.clk.Now()
 	today := l.clk.Today()
 
-	// Перечитываем период прямо перед отправкой (§5.4).
 	occs, err := l.src.GetByIDs(ctx, []string{row.OccurrenceID})
 	if err != nil {
 		slog.Error("reminder loop: reread occurrence", "error", err, "occurrence_id", row.OccurrenceID)
 		return
 	}
 	if len(occs) == 0 {
-		// Период исчез (жёсткое удаление) — отправлять нечего.
 		l.cancel(ctx, row.ID, now)
 		return
 	}
@@ -205,18 +201,13 @@ func (l *Loop) sendOne(ctx context.Context, row model.TelegramNotification) {
 		l.cancel(ctx, row.ID, now)
 		return
 	case !occ.DueDate.Equal(row.DueDate):
-		// Срок перенесён: это напоминание устарело, по новому сроку будет своё.
 		l.cancel(ctx, row.ID, now)
 		return
 	case row.Kind == model.NotificationKindDueSoon && today.After(occ.DueDate):
-		// Опоздали с due_soon: по §5.7 не досылаем, overdue поедет отдельной строкой.
 		l.cancel(ctx, row.ID, now)
 		return
 	case row.Kind == model.NotificationKindOverdue && dayDiff(occ.DueDate, today) > l.cfg.OverdueMaxDays:
-		// Слишком старая просрочка: overdue шлём только первые OverdueMaxDays дней
-		// после срока (§5.7). Ограничение действует и при отправке, а не только при
-		// постановке: иначе строка overdue, зависшая из-за «no team chat»/429, после
-		// долгого простоя и нового /bind ушла бы пачкой устаревших сообщений.
+		// Слишком старая просрочка: overdue шлём только первые OverdueMaxDays дней после срока.
 		l.cancel(ctx, row.ID, now)
 		return
 	}
@@ -268,7 +259,6 @@ func (l *Loop) sendMessage(ctx context.Context, chatID int64, text string, marku
 	})
 }
 
-// handleSendError раскладывает ошибку отправки по таблице §5.4.
 func (l *Loop) handleSendError(ctx context.Context, row model.TelegramNotification, chatID int64, sendErr error, now time.Time) {
 	var apiErr *telegram.APIError
 	if errors.As(sendErr, &apiErr) {
@@ -281,7 +271,6 @@ func (l *Loop) handleSendError(ctx context.Context, row model.TelegramNotificati
 			l.fail(ctx, row.ID, now.Add(d), false, "flood control 429", now)
 			l.limiter.penalize(chatID, now.Add(d))
 		case apiErr.IsChatNotFound() || apiErr.IsBotBlocked():
-			// Командный чат недоступен: деактивируем, ждём нового /bind (§5.4).
 			if err := l.chats.DeactivateChat(ctx, chatID, apiErr.Description); err != nil &&
 				!errors.Is(err, model.ErrTelegramNoTeamChat) {
 				slog.Error("reminder loop: deactivate chat", "error", err)
@@ -330,7 +319,7 @@ func (l *Loop) dead(ctx context.Context, id, lastErr string, now time.Time) {
 	}
 }
 
-// reconcile правит уже отправленные сообщения при смене статуса периода (§5.6).
+// reconcile правит уже отправленные сообщения при смене статуса периода.
 func (l *Loop) reconcile(ctx context.Context, today clock.Date) {
 	rows, err := l.notif.OpenForReconcile(ctx, today.AddDays(-7), l.cfg.ReconcileLimit)
 	if err != nil {
@@ -364,9 +353,6 @@ func (l *Loop) reconcile(ctx context.Context, today clock.Date) {
 	for _, row := range rows {
 		occ, ok := byID[row.OccurrenceID]
 		if !ok {
-			// Период исчез (остановка платежа удалила будущий неоплаченный период,
-			// D7). Правим сообщение в нейтральный текст и фиксируем ended, иначе
-			// строка вечно всплывает в OpenForReconcile (§5.6).
 			if row.ShownStatus != model.ShownStatusEnded {
 				l.editShown(ctx, row, deletedText(), emptyMarkup(), model.ShownStatusEnded, now)
 			}
@@ -378,7 +364,6 @@ func (l *Loop) reconcile(ctx context.Context, today clock.Date) {
 		case occ.Ended && row.ShownStatus != model.ShownStatusEnded:
 			l.editShown(ctx, row, endedText(occ), emptyMarkup(), model.ShownStatusEnded, now)
 		case !occ.Paid && !occ.Ended && row.ShownStatus == model.ShownStatusPaid:
-			// B снял отметку об оплате — возвращаем кнопку (§5.6).
 			l.editShown(ctx, row, l.renderText(occ, today, row.Kind), reminderKeyboard(occ.ID, l.cfg), model.ShownStatusOpen, now)
 		}
 	}
@@ -388,8 +373,7 @@ func (l *Loop) editShown(ctx context.Context, row model.TelegramNotification, te
 	if row.ChatID == nil || row.MessageID == nil {
 		return
 	}
-	// Правки тоже идут через лимитер: иначе пачка reconcile в один групповой чат
-	// легко упирается в 429 (§5.4, §5.6).
+	// Правки тоже идут через лимитер: иначе пачка reconcile в один групповой чат легко упирается в 429.
 	l.limiter.wait(ctx, *row.ChatID)
 	cctx, cancel := context.WithTimeout(ctx, l.cfg.SendTimeout)
 	_, err := l.sender.EditMessageText(cctx, telegram.EditMessageTextParams{
@@ -400,12 +384,8 @@ func (l *Loop) editShown(ctx context.Context, row model.TelegramNotification, te
 		var apiErr *telegram.APIError
 		switch {
 		case errors.As(err, &apiErr) && apiErr.IsMessageNotModified():
-			// нечего менять — всё равно фиксируем показанный статус
 		case errors.As(err, &apiErr) && apiErr.IsEditUnrecoverable():
-			// Сообщение больше не отредактировать (удалено админом, недоступно,
-			// чат потерян). Всё равно фиксируем целевой shown_status, иначе строка
-			// вечно всплывает в OpenForReconcile (сорт по updated_at) и забивает
-			// очередь, повторяя editMessageText тысячи раз в сутки (§5.6).
+			// Сообщение больше не отредактировать (удалено админом, недоступно, чат потерян).
 			slog.Warn("reminder loop: edit unrecoverable, fixing shown status anyway",
 				"id", row.ID, "desc", apiErr.Description)
 		default:
@@ -418,8 +398,7 @@ func (l *Loop) editShown(ctx context.Context, row model.TelegramNotification, te
 	}
 }
 
-// renderText собирает текст напоминания и в режиме демо-заглушки помечает его
-// префиксом [DEMO] (решение №7, риск §11).
+// renderText собирает текст напоминания и в режиме демо-заглушки помечает его префиксом [DEMO].
 func (l *Loop) renderText(occ model.ReminderOccurrence, today clock.Date, kind string) string {
 	text := reminderText(occ, today, kind)
 	if l.cfg.Demo {
@@ -434,11 +413,9 @@ func (l *Loop) maybeCleanup(ctx context.Context) {
 		return
 	}
 	l.lastCleanup = now
-	// Удаляем давно завершённые строки outbox (dead/cancelled старше 30 дней).
 	if err := l.notif.Cleanup(ctx, now.AddDate(0, 0, -30)); err != nil {
 		slog.Error("reminder loop: cleanup", "error", err)
 	}
-	// Чистим ядро бота: апдейты старше 7 дней и коды привязки старше суток (§5.3 шаг 5).
 	if err := l.chats.CleanupStale(ctx, now.AddDate(0, 0, -7), now.AddDate(0, 0, -1)); err != nil {
 		slog.Error("reminder loop: cleanup stale", "error", err)
 	}
@@ -449,8 +426,7 @@ func emptyMarkup() *telegram.InlineKeyboardMarkup {
 	return &telegram.InlineKeyboardMarkup{InlineKeyboard: [][]telegram.InlineKeyboardButton{}}
 }
 
-// rateLimiter — глобальная пауза между любыми сообщениями и пауза на чат (§5.4).
-// Нулевые/отрицательные интервалы отключают лимит (используется в тестах).
+// rateLimiter — глобальная пауза между любыми сообщениями и пауза на чат.
 type rateLimiter struct {
 	mu         sync.Mutex
 	perChat    time.Duration

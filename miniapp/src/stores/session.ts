@@ -67,11 +67,8 @@ async function applyAuth(resp: {
   session.dmAvailable = resp.dm_available
   session.phase = 'ready'
 
-  // Роль уже известна — сразу закрываем админ-маршруты для обычного пользователя,
-  // чтобы админ-экран не успел смонтироваться и дёрнуть GET /users (403).
   enforceAdminAccess()
 
-  // Параллельно подтягиваем профиль, статус ассистента и платежи.
   await Promise.allSettled([
     getMe()
       .then((m) => {
@@ -88,8 +85,6 @@ async function applyAuth(resp: {
 }
 
 // Админ-маршрут недоступен обычному пользователю (роль известна сразу).
-// Ждём первую навигацию: guard мог пропустить её до готовности сессии,
-// и до isReady() currentRoute ещё указывает на стартовый '/'.
 function enforceAdminAccess(): void {
   if (!router) return
   const rt = router
@@ -99,8 +94,7 @@ function enforceAdminAccess(): void {
   })
 }
 
-// После авторизации проверяем доступ к текущему маршруту (прямой заход по ссылке
-// мог пройти guard ещё до готовности сессии). Статус ассистента нужен для /ask.
+// После авторизации проверяем доступ к текущему маршруту (прямой заход по ссылке мог пройти guard ещё до готовности сессии).
 async function enforceRouteAccess(): Promise<void> {
   if (!router) return
   await router.isReady()
@@ -269,7 +263,6 @@ function handleStartParam(): void {
     new URLSearchParams(location.search).get('tgWebAppStartParam')
   const parsed = parseStartParam(raw)
   if (parsed && router) {
-    // Back ведёт на Today.
     void router.replace('/').then(() => router?.push(`/occ/${parsed.occId}`))
   }
 }

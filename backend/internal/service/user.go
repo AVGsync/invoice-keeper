@@ -16,8 +16,7 @@ import (
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
-// Через API заводятся только обычные пользователи: администратор задаётся
-// в .env (см. AdminAccount) и через панель не управляется.
+// Через API заводятся только обычные пользователи: администратор задаётся в .env (см. AdminAccount) и через панель не управляется.
 const userRole = "user"
 
 type UserRepository interface {
@@ -51,8 +50,7 @@ type UserService struct {
 	jwtManager JWTManager
 	accessTTL  time.Duration
 	refreshTTL time.Duration
-	// audit — журнал действий; по умолчанию Nop (конструктор не меняется, тесты
-	// не ломаются). Боевой рекордер ставит apiserver через SetAuditRecorder.
+	// audit — журнал действий; по умолчанию Nop (конструктор не меняется, тесты не ломаются).
 	audit audit.Recorder
 }
 
@@ -67,8 +65,7 @@ func NewUserService(repository UserRepository, hasher Hasher, jwtManager JWTMana
 	}
 }
 
-// SetAuditRecorder подключает журнал действий. Вызывается из apiserver после
-// сборки сервиса.
+// SetAuditRecorder подключает журнал действий.
 func (s *UserService) SetAuditRecorder(r audit.Recorder) { s.audit = r }
 
 // truncateLogin обрезает логин до n рун — логин в payload журнала не раздуваем.
@@ -81,9 +78,6 @@ func truncateLogin(s string, n int) string {
 }
 
 // IssueAccessForUser выпускает только access-токен для пользователя userID.
-// Используется входом через Mini App (docs/TELEGRAM_BOT.md §3.3): refresh не
-// выдаётся, таблица refresh_tokens не растёт. Роль берётся из БД, поэтому админ
-// получает полные права и в Mini App [В-П 7]. Живёт в auth-домене, а не у B.
 func (s *UserService) IssueAccessForUser(ctx context.Context, userID string) (string, int, error) {
 	user, err := s.repository.GetUserByID(userID, ctx)
 	if err != nil {
@@ -158,8 +152,7 @@ func (s *UserService) AuthenticateUser(req request.LoginRequest, ctx context.Con
 	return tokenAccess, tokenRefresh, nil
 }
 
-// recordLoginFailure пишет неуспешный вход (actor неизвестен). reason всегда
-// invalid_credentials — «нет логина» и «неверный пароль» не различаем.
+// recordLoginFailure пишет неуспешный вход (actor неизвестен).
 func (s *UserService) recordLoginFailure(ctx context.Context, login string) {
 	s.audit.Record(ctx, audit.Entry{
 		Action:     audit.ActionAuthLogin,
@@ -226,8 +219,6 @@ func (s *UserService) GenerateAccessRefreshTokens(refreshToken model.RefreshToke
 		slog.Error("user service: generate access and refresh tokens: failed to hash refresh token", "error", err)
 		return "", "", fmt.Errorf("user service: generate access and refresh tokens: %w", err)
 	}
-	// Сначала сохраняем новый токен, затем отзываем старый: если отзыв упадёт,
-	// у пользователя останется рабочий новый токен, а не пустой набор.
 	err = s.repository.AddRefreshToken(
 		hashRefresh,
 		time.Now().Add(s.refreshTTL),
@@ -263,8 +254,7 @@ func (s *UserService) RevokeRefreshToken(ctx context.Context, token string) erro
 		return fmt.Errorf("user service: revoke refresh token: %w", err)
 	}
 
-	// Актора берём из самого refresh-токена (без БД): он уже отозван, но подпись
-	// ещё читается. Не распарсился — пишем выход без актора.
+	// Актора берём из самого refresh-токена (без БД): он уже отозван, но подпись ещё читается.
 	entry := audit.Entry{Action: audit.ActionAuthLogout, EntityType: audit.EntityUser}
 	if claims, verr := s.jwtManager.ValidateRefresh(token); verr == nil {
 		entry.ActorID = claims.UserID
@@ -288,7 +278,6 @@ func (s *UserService) CreateUser(user request.CreateUserRequest, ctx context.Con
 		PasswordHash: passwordHash,
 		Role:         userRole,
 	}
-	// Существование персоны проверяет внешний ключ в БД (→ model.ErrPersonaNotFound).
 	if user.PersonaID != nil {
 		newUser.Persona = &model.PersonaRef{ID: *user.PersonaID}
 	}
@@ -299,7 +288,6 @@ func (s *UserService) CreateUser(user request.CreateUserRequest, ctx context.Con
 		return fmt.Errorf("user service: create user: %w", err)
 	}
 
-	// id присваивает БД — читаем его обратно по логину (уникальному).
 	payload := map[string]any{"login": newUser.Login, "full_name": newUser.FullName}
 	if user.PersonaID != nil {
 		payload["persona_id"] = *user.PersonaID

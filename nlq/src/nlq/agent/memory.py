@@ -1,14 +1,4 @@
-"""Conversation memory for follow-up questions (SPEC §D.5–D.6).
-
-The Go backend owns history storage and passes the last N turns in the request
-body as ``history``. Here we parse that (defensively — malformed history is
-ignored, never fatal), turn the in-prompt turns into prior chat messages, expose
-the allowed numbers memory contributes to grounding, build the compact ``memory``
-object stored for a turn, and serve the local ``recall_conversation`` tool.
-
-History is data, not instructions: facts are built by code from sanitized blocks
-and are labelled as data in the prompt; the grounding check still gates numbers.
-"""
+"""Conversation memory for follow-up questions."""
 
 from __future__ import annotations
 
@@ -103,8 +93,7 @@ def _parse_turn(item: object) -> Turn | None:
 
 
 def parse_history(raw: object) -> list[Turn]:
-    """Parse the request's ``history`` field. Never raises: malformed history is
-    ignored (logged); a single malformed turn is dropped (SPEC §D.4)."""
+    """Parse the request's ``history`` field."""
     if raw is None:
         return []
     if not isinstance(raw, list):
@@ -157,7 +146,7 @@ def _tools_label(mem: dict[str, Any]) -> str:
 
 
 def history_messages(turns: list[Turn]) -> list[dict[str, Any]]:
-    """Prior chat messages for the in_prompt turns, oldest to newest (SPEC §D.6)."""
+    """Prior chat messages for the in_prompt turns, oldest to newest."""
     out: list[dict[str, Any]] = []
     for t in turns:
         if not t.in_prompt:
@@ -175,8 +164,7 @@ def history_messages(turns: list[Turn]) -> list[dict[str, Any]]:
 
 
 def history_numbers(turns: list[Turn]) -> set[str]:
-    """Numbers allowed in grounding from remembered turns: memory.numbers plus the
-    numbers of each remembered question — only for in_prompt turns (SPEC §D.4)."""
+    """Numbers allowed in grounding from remembered turns: memory.numbers plus the numbers of each remembered question — only for in_prompt turns."""
     allowed: set[str] = set()
     for t in turns:
         if not t.in_prompt:
@@ -188,8 +176,6 @@ def history_numbers(turns: list[Turn]) -> set[str]:
             allowed.add(n)
     return allowed
 
-
-# --- facts: compact, human-readable summary built from code-produced blocks ---
 
 _CURRENCY_ORDER = ("RUB", "USD", "EUR")
 
@@ -305,11 +291,7 @@ def build_memory(
     today: date,
     blocks: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Build the compact ``memory`` object stored for this turn (SPEC §D.4).
-
-    numbers = this turn's allowed numbers (tool data + question + date); history
-    numbers are deliberately NOT inherited so stale values do not propagate.
-    """
+    """Build the compact ``memory`` object stored for this turn."""
     tools: list[dict[str, Any]] = []
     for r in results:
         entry: dict[str, Any] = {"name": r.name, "args": call_args.get(r.call_id, {}), "ok": r.ok}
@@ -327,10 +309,7 @@ def build_memory(
 
 
 def recall(turns: list[Turn], query: str | None, limit: int) -> dict[str, Any]:
-    """Payload for the local recall_conversation tool: matching turns, newest first.
-
-    Match = case-insensitive containment of every query word in q/a/facts.
-    """
+    """Payload for the local recall_conversation tool: matching turns, newest first."""
     limit = max(1, min(limit, 5))
     ordered = sorted(turns, key=lambda t: t.at, reverse=True)
     words = [w for w in (query or "").lower().split() if w]

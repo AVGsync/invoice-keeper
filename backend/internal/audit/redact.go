@@ -13,9 +13,7 @@ const maxStringRunes = 256
 // maxUserAgentRunes — предел длины user-agent (как в CHECK таблицы).
 const maxUserAgentRunes = 512
 
-// sensitiveSubstrings — ключи, СОДЕРЖАЩИЕ любую из этих подстрок (без учёта
-// регистра), вырезаются целиком. Никогда не пишем пароли, хеши, токены, куки,
-// заголовок авторизации, коды привязки и initData.
+// sensitiveSubstrings — ключи, СОДЕРЖАЩИЕ любую из этих подстрок (без учёта регистра), вырезаются целиком.
 var sensitiveSubstrings = []string{
 	"password", "token", "secret", "authorization", "cookie",
 	"init_data", "initdata", "hash",
@@ -45,8 +43,7 @@ func isEmailKey(key string) bool {
 	return strings.ToLower(key) == "email"
 }
 
-// MaskEmail превращает "olga@example.com" в "o***@example.com". Без '@' или с
-// пустой локальной частью маскируется как "***".
+// MaskEmail превращает "olga@example.com" в "o***@example.com".
 func MaskEmail(s string) string {
 	s = strings.TrimSpace(s)
 	at := strings.LastIndexByte(s, '@')
@@ -67,8 +64,7 @@ func truncateRunes(s string, n int) string {
 	return string(r[:n])
 }
 
-// Redact рекурсивно очищает payload: вырезает чувствительные ключи, маскирует
-// email, обрезает строки. Возвращает новую карту; исходная не меняется.
+// Redact рекурсивно очищает payload: вырезает чувствительные ключи, маскирует email, обрезает строки.
 func Redact(m map[string]any) map[string]any {
 	if m == nil {
 		return nil
@@ -102,8 +98,6 @@ func redactValue(key string, v any) any {
 	case []any:
 		out := make([]any, len(t))
 		for i, nv := range t {
-			// У элементов массива нет ключа — чувствительность не применяется,
-			// но строки всё равно обрезаются, а вложенные карты чистятся.
 			out[i] = redactValue("", nv)
 		}
 		return out

@@ -39,7 +39,6 @@ func TestMyActivityOverridesActor(t *testing.T) {
 	svc := &fakeAuditSvc{total: 0}
 	h := auditTestHandler(svc)
 
-	// Клиент пытается подставить чужой actor_id — он должен быть проигнорирован.
 	r := httptest.NewRequest(http.MethodGet, "/me/activity?actor_id=99999999-9999-4999-8999-999999999999", nil)
 	r = withAuditClaims(r, "me-user-id", "user")
 	w := httptest.NewRecorder()

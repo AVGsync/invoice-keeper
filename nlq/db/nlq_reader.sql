@@ -1,14 +1,5 @@
--- Read-only role for the NLQ MCP server (§6.2). Executed by `python -m nlq.dbinit`
--- under the superuser after `migrate`, idempotently, on every `docker compose up`.
---
--- dbinit runs three things that are NOT in this file, because they need runtime
--- values and safe quoting via format():
---   * LOGIN PASSWORD  (format %L, from NLQ_DB_PASSWORD)
---   * GRANT CONNECT ON DATABASE <db>  (format %I, from POSTGRES_DB)
---   * dev schema + fixtures            (db/dev_b_tables.sql, local only)
---
--- Grants are column-level allow-lists. No VIEWs, no objects depending on B's
--- tables, no ALTER DEFAULT PRIVILEGES (§6.1).
+-- Роль nlq_reader только для чтения. Выполняется `python -m nlq.dbinit` после миграций, идемпотентно.
+-- Пароль, GRANT CONNECT и dev-схема задаются в dbinit. Гранты column-level, без VIEW и без ALTER DEFAULT PRIVILEGES.
 
 -- 1. Role (CREATE ROLE has no IF NOT EXISTS; the role is cluster-wide).
 DO $$
@@ -38,12 +29,8 @@ REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM nlq_reader;
 GRANT SELECT (id, full_name, role, persona_id) ON public.users    TO nlq_reader;
 GRANT SELECT (id, name)                        ON public.personas TO nlq_reader;
 
--- 5. B's payment tables (backend/migrations 000006..000010): column-level
---    allow-list, each guarded by to_regclass so it is a no-op until migrations
---    have run. Migrations run before nlq-db-init, so 000010's columns
---    (start_date, stopped_at, paid_date) already exist here. A dropped
---    column/table takes its grant with it, so nothing here blocks B's
---    migrations. "interval" is a reserved word -> must be quoted.
+-- 5. Payment tables: column-level allow-list, each guarded by to_regclass.
+--    "interval" is a reserved word and must be quoted.
 DO $$
 BEGIN
   IF to_regclass('public.recurrent_payments') IS NOT NULL THEN
@@ -63,4 +50,4 @@ BEGIN
 END $$;
 
 -- user_notification_settings (email), refresh_tokens, telegram_*, and any
--- future table: no grants, ever (§6.3). The email column is never readable.
+-- future table: no grants, ever.

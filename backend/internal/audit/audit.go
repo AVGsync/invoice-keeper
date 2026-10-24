@@ -1,11 +1,4 @@
 // Package audit ведёт журнал действий пользователей (веб, Mini App, бот, система).
-//
-// Запись best-effort и синхронная: выполняется ПОСЛЕ успешной мутации, в том же
-// запросе, с context.WithoutCancel и таймаутом (см. Logger.Record). Ошибка записи
-// только логируется и не откатывает основное действие — журнал действий это не
-// финансовый леджер, а репозитории не делят транзакцию. Метаданные запроса
-// (актор, канал, IP, UA, request_id) кладёт в контекст middleware/бот через
-// WithMeta, конкретное событие описывает Entry.
 package audit
 
 import (
@@ -26,8 +19,7 @@ const (
 	OutcomeFailure = "failure"
 )
 
-// Meta — метаданные запроса, общие для всех событий одного запроса. Кладётся в
-// контекст middleware (HTTP) или ботом (WithMeta), берётся Logger при записи.
+// Meta — метаданные запроса, общие для всех событий одного запроса.
 type Meta struct {
 	ActorID   string
 	ActorRole string
@@ -56,8 +48,7 @@ type Change struct {
 	To   any `json:"to"`
 }
 
-// Entry описывает одно событие журнала. Outcome "" трактуется как success.
-// ActorID/ActorRole переопределяют Meta (вход, бот), пустые — берутся из Meta.
+// Entry описывает одно событие журнала.
 type Entry struct {
 	Action     string
 	Outcome    string
@@ -69,14 +60,12 @@ type Entry struct {
 	Payload    map[string]any
 }
 
-// Recorder — точка записи, которую получают сервисы. Record не возвращает ошибку:
-// журнал не должен ломать основное действие.
+// Recorder — точка записи, которую получают сервисы.
 type Recorder interface {
 	Record(ctx context.Context, e Entry)
 }
 
-// Nop — рекордер по умолчанию: ничего не пишет. Ставится во всех сервисах и
-// тестах, пока apiserver не подключит настоящий Logger.
+// Nop — рекордер по умолчанию: ничего не пишет.
 type Nop struct{}
 
 func (Nop) Record(context.Context, Entry) {}
@@ -86,8 +75,7 @@ type Repository interface {
 	Insert(ctx context.Context, row Row) error
 }
 
-// Row — строка таблицы audit_log. Указатели — для NULL-колонок; Changes/Payload —
-// уже сериализованный JSON (nil = NULL).
+// Row — строка таблицы audit_log.
 type Row struct {
 	ActorID    *string
 	ActorRole  *string

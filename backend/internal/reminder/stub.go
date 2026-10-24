@@ -8,23 +8,15 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// MemoryStore — in-memory заглушка источника периодов и оплаты (§2.4). Реализует
-// OccurrenceSource и Payer: источник и запись работают на одних данных, поэтому
-// MarkPaid сразу виден в DueBetween/GetByIDs. Так движок, бот и Mini App можно
-// писать и тестировать, пока таблиц модуля B нет. Те же sentinel-ошибки, что у
-// реального адаптера; правило №4 (отметить может ответственный или админ)
-// проверяется здесь. Потокобезопасна.
+// MemoryStore — in-memory заглушка источника периодов и оплаты.
 type MemoryStore struct {
 	mu   sync.Mutex
 	occs map[string]*model.ReminderOccurrence
-	// isAdmin сообщает, админ ли пользователь. В проде/демо подключается к
-	// users.role из БД (см. buildReminder), чтобы реальный привязанный админ мог
-	// нажать «Оплачено». В тестах — замыкание над статическим множеством id.
+	// isAdmin сообщает, админ ли пользователь.
 	isAdmin func(ctx context.Context, userID string) bool
 }
 
-// NewMemoryStore собирает заглушку. isAdmin проверяет роль admin пользователя;
-// nil означает «админов нет» (кнопку жмёт только сам ответственный).
+// NewMemoryStore собирает заглушку.
 func NewMemoryStore(occs []model.ReminderOccurrence, isAdmin func(ctx context.Context, userID string) bool) *MemoryStore {
 	m := &MemoryStore{
 		occs:    make(map[string]*model.ReminderOccurrence, len(occs)),
@@ -46,8 +38,7 @@ func StaticAdmins(ids ...string) func(ctx context.Context, userID string) bool {
 	return func(_ context.Context, userID string) bool { return set[userID] }
 }
 
-// DueBetween возвращает неоплаченные периоды активных платежей с due_date в
-// [from, to] включительно.
+// DueBetween возвращает неоплаченные периоды активных платежей с due_date в [from, to] включительно.
 func (m *MemoryStore) DueBetween(ctx context.Context, from, to clock.Date) ([]model.ReminderOccurrence, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -77,8 +68,7 @@ func (m *MemoryStore) GetByIDs(ctx context.Context, ids []string) ([]model.Remin
 	return out, nil
 }
 
-// MarkPaid отмечает период оплаченным от имени actorUserID. Порядок проверок:
-// не найден -> завершён -> нет прав -> уже оплачен (та же политика у B).
+// MarkPaid отмечает период оплаченным от имени actorUserID.
 func (m *MemoryStore) MarkPaid(ctx context.Context, occurrenceID string, paidDate clock.Date, actorUserID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -101,7 +91,6 @@ func (m *MemoryStore) MarkPaid(ctx context.Context, occurrenceID string, paidDat
 	return nil
 }
 
-// canPay — ответственный или админ (решение пользователя №4).
 func (m *MemoryStore) canPay(ctx context.Context, o *model.ReminderOccurrence, actorUserID string) bool {
 	if m.isAdmin != nil && m.isAdmin(ctx, actorUserID) {
 		return true
@@ -118,8 +107,7 @@ func (m *MemoryStore) SetEnded(occurrenceID string, ended bool) {
 	}
 }
 
-// Delete убирает период из источника (для тестов: имитирует удаление будущего
-// неоплаченного периода при остановке платежа, D7).
+// Delete убирает период из источника (для тестов: имитирует удаление будущего неоплаченного периода при остановке платежа, D7).
 func (m *MemoryStore) Delete(occurrenceID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -136,13 +124,6 @@ func (m *MemoryStore) SetUnpaid(occurrenceID string) {
 	}
 }
 
-// DemoFixtures — демонстрационные периоды относительно сегодняшней даты для
-// REMINDER_SOURCE=stub (§2.4): один со сроком через 2 дня (попадёт в окно),
-// один просрочен 6 дней назад (не шлём: старше 3 дней, §5.7), один оплачен,
-// один со сроком через 10 дней (вне окна) и один у завершённого платежа.
-// assigneeID — кого назначить ответственным по демо-платежам: вызывающий
-// подставляет реальный users.id (например, админа), чтобы «Оплачено» работало;
-// при пустом значении берётся заметный плейсхолдер.
 func DemoFixtures(today clock.Date, assigneeID string) []model.ReminderOccurrence {
 	assignee := assigneeID
 	if assignee == "" {

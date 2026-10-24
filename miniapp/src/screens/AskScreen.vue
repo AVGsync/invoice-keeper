@@ -69,7 +69,6 @@ function openOcc(id: string): void {
   router.push(`/occ/${id}`)
 }
 // payment_list — это регулярные платежи (шаблоны), а не периоды.
-// У админа ведём в список шаблонов с подсветкой, у пользователя — в периоды этого шаблона.
 function openPayment(id: string): void {
   if (isAdmin.value) router.push({ path: '/admin/recurring', query: { focus: id } })
   else router.push({ path: '/payments', query: { rec: id } })

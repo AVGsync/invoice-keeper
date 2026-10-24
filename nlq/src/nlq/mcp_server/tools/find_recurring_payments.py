@@ -1,4 +1,4 @@
-"""find_recurring_payments: payment templates (subscriptions, rent) (§5.5)."""
+"""find_recurring_payments: payment templates (subscriptions, rent)."""
 
 from __future__ import annotations
 

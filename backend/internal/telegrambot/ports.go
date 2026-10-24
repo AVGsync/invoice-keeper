@@ -1,6 +1,4 @@
-// Package telegrambot — домен бота: привязка аккаунтов, команды, callback-кнопки
-// и приём апдейтов (polling/webhook). Движок напоминаний и Mini App auth — в
-// отдельных пакетах/этапах (docs/TELEGRAM_BOT.md §8).
+// Package telegrambot — домен бота: привязка аккаунтов, команды, callback-кнопки и приём апдейтов (polling/webhook).
 package telegrambot
 
 import (
@@ -11,7 +9,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// Repository — хранилище ядра бота. Реализует postgres.TelegramRepository.
+// Repository — хранилище ядра бота.
 type Repository interface {
 	GetLinkByUserID(ctx context.Context, userID string) (model.TelegramLink, error)
 	GetLinkByTGUserID(ctx context.Context, tgUserID int64) (model.TelegramLink, error)
@@ -36,28 +34,23 @@ type Repository interface {
 	MaxUpdateID(ctx context.Context) (int64, error)
 }
 
-// UserReader читает пользователей для подтверждения привязки, проверки роли
-// admin в /bind и входа в Mini App по логину/паролю. Реализует
-// postgres.UserRepository (методы GetUserByID, GetUserByLogin).
+// UserReader читает пользователей для подтверждения привязки, проверки роли admin в /bind и входа в Mini App по логину/паролю.
 type UserReader interface {
 	GetUserByID(id string, ctx context.Context) (model.User, error)
 	GetUserByLogin(login string, ctx context.Context) (model.User, error)
 }
 
-// TokenIssuer выпускает access-токен для входа в Mini App (§3.3). Реализует
-// service.UserService (метод IssueAccessForUser). Живёт в auth-домене, не у B.
+// TokenIssuer выпускает access-токен для входа в Mini App.
 type TokenIssuer interface {
 	IssueAccessForUser(ctx context.Context, userID string) (token string, expiresIn int, err error)
 }
 
-// Hasher проверяет пароль при входе в Mini App по логину/паролю. Реализует
-// security.Hasher (метод CheckPassword).
+// Hasher проверяет пароль при входе в Mini App по логину/паролю.
 type Hasher interface {
 	CheckPassword(plain, hashed string) bool
 }
 
-// BotAPI — часть клиента Bot API, нужная боту. Реализуют *telegram.Client и
-// *telegram.FakeClient.
+// BotAPI — часть клиента Bot API, нужная боту.
 type BotAPI interface {
 	GetMe(ctx context.Context) (telegram.User, error)
 	SendMessage(ctx context.Context, p telegram.SendMessageParams) (telegram.Message, error)
@@ -68,10 +61,9 @@ type BotAPI interface {
 	SendChatAction(ctx context.Context, p telegram.SendChatActionParams) error
 }
 
-// NLAnswerer — порт NL-ассистента, объявленный потребителем (ботом, §4.4).
-// Реализует *service.AssistantService. channel всегда "bot"; лимиты общие с HTTP.
+// NLAnswerer — порт NL-ассистента, объявленный потребителем.
 type NLAnswerer interface {
-	// Ask — вопрос с разговором по каналу (bot → tg:dm). Сохранён для совместимости.
+	// Ask — вопрос с разговором по каналу (bot → tg:dm).
 	Ask(ctx context.Context, userID, channel, question string) (model.AssistantAnswer, error)
 	// AskIn — вопрос с явным разговором (tg:dm в личке, tg:<chat_id> в группе).
 	AskIn(ctx context.Context, userID, conversation, question string) (model.AssistantAnswer, error)

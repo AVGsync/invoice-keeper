@@ -32,11 +32,7 @@ interface AskDeps {
   setAssistantDisabled?: () => void
 }
 
-// Выполняет вопрос ассистенту: SSE /assistant/ask/stream. Fallback на
-// /assistant/ask делаем ТОЛЬКО когда стрим не поддержан (не event-stream,
-// сетевая ошибка до заголовков, обрыв без done и без error-кадра). Серверные
-// ошибки (error-кадр, 503 busy, 504 timeout, 429) показываем без повторного
-// запроса, чтобы не удваивать ожидание и лимиты и не звать LLM дважды.
+// Выполняет вопрос ассистенту: SSE /assistant/ask/stream.
 export async function askAssistant(
   question: string,
   h: AskHandlers,
@@ -150,20 +146,17 @@ export async function askAssistant(
         try {
           h.onStep(JSON.parse(e.data) as AssistantStep)
         } catch {
-          /* пропускаем битый кадр */
         }
       } else if (e.event === 'block') {
         try {
           h.onBlock(JSON.parse(e.data) as AssistantBlock)
         } catch {
-          /* пропускаем */
         }
       } else if (e.event === 'text') {
         try {
           const obj = JSON.parse(e.data) as { delta?: string }
           if (obj.delta) h.onText(obj.delta)
         } catch {
-          /* пропускаем */
         }
       } else if (e.event === 'done') {
         try {
@@ -175,7 +168,6 @@ export async function askAssistant(
             h.onDone(env)
           }
         } catch {
-          /* пропускаем */
         }
       } else if (e.event === 'error') {
         try {
@@ -216,7 +208,6 @@ export async function askAssistant(
         return
       }
       // Поток закрылся/оборвался без done и без error-кадра → один fallback на /ask.
-      // Уже показанные блоки остаются до ответа fallback.
       await runFallback()
     }
   } finally {

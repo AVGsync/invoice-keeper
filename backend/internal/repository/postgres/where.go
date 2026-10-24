@@ -5,9 +5,7 @@ import (
 	"strings"
 )
 
-// whereBuilder собирает WHERE с позиционными параметрами $n. Пользовательский
-// текст в SQL-строку не попадает — только через arg(), поэтому инъекция
-// невозможна. Переиспользуется треком C (аудит).
+// whereBuilder собирает WHERE с позиционными параметрами $n.
 type whereBuilder struct {
 	clauses []string
 	args    []any
@@ -19,7 +17,7 @@ func (w *whereBuilder) arg(v any) string {
 	return fmt.Sprintf("$%d", len(w.args))
 }
 
-// add добавляет предикат. clause уже должен содержать плейсхолдеры из arg().
+// add добавляет предикат.
 func (w *whereBuilder) add(clause string) {
 	w.clauses = append(w.clauses, clause)
 }

@@ -1,10 +1,4 @@
-"""Scripted LLM for tests and the e2e smoke (§12.2).
-
-``NLQ_LLM=fake`` replays a fixed sequence of assistant turns (tool calls or final
-content) so the loop, MCP calls, rendering and grounding can be exercised with no
-network and no cost. Tests pass a script in memory; at runtime a JSON file named
-by ``NLQ_FAKE_SCRIPT`` is loaded.
-"""
+"""Scripted LLM for tests and the e2e smoke."""
 
 from __future__ import annotations
 
@@ -22,7 +16,6 @@ class FakeLLM:
         self._script = list(script)
         self._step = 0
         self._model = model
-        # Копии messages каждого вызова chat — для тестов истории (SPEC §D.6).
         self.received: list[list[dict[str, Any]]] = []
 
     @property

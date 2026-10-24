@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	// Регистрирует сгенерированную swag спецификацию (make swagger).
 	_ "github.com/AVGsync/invoice-keeper/backend/docs"
 	"github.com/AVGsync/invoice-keeper/backend/internal/audit"
 	"github.com/AVGsync/invoice-keeper/backend/internal/clock"
@@ -35,24 +34,19 @@ type APIServer struct {
 	logger *slog.Logger
 	router *chi.Mux
 	db     *postgres.DB
-	// tg — компоненты Telegram-бота, собранные в configureRouter и запускаемые
-	// в startBackgroundWorkers (см. telegram.go).
+	// tg — компоненты Telegram-бота, собранные в configureRouter и запускаемые в startBackgroundWorkers (см. telegram.go).
 	tg *telegramRuntime
-	// assistant — сервис NL-ассистента; nil, когда NLQ_ENABLED=false
-	// (см. assistant.go). Общий для HTTP-ручки и бота (порт NLAnswerer).
+	// assistant — сервис NL-ассистента; nil, когда NLQ_ENABLED=false (см. assistant.go).
 	assistant *service.AssistantService
-	// assistantHistory — история диалогов ассистента; есть всегда (ручки истории
-	// работают и при NLQ_ENABLED=false). См. assistant.go.
+	// assistantHistory — история диалогов ассистента; есть всегда (ручки истории работают и при NLQ_ENABLED=false).
 	assistantHistory *service.AssistantHistoryService
-	// mailer — SMTP-рассылка; не используется (решение №1: напоминания только в
-	// командный чат Telegram). nil, когда SMTP_HOST пуст.
+	// mailer — SMTP-рассылка; не используется.
 	mailer *notifications.SMTPMailer
 	// payments — сервис периодов (общий для HTTP и Telegram-адаптера).
 	payments *service.PaymentService
 	// scheduler — генератор периодов и пересчёт overdue (фоновый воркер + ensurer).
 	scheduler *service.PaymentScheduler
-	// audit — журнал действий; общий для HTTP и бота. Создаётся в начале
-	// configureRouter и подключается сервисам через SetAuditRecorder.
+	// audit — журнал действий; общий для HTTP и бота.
 	audit *audit.Logger
 }
 
@@ -62,9 +56,7 @@ func New(config *Config) (*APIServer, error) {
 		return nil, fmt.Errorf("apiserver: configure logger: %w", err)
 	}
 
-	// SMTP необязателен (решение №1: email не используется). Пустой SMTP_HOST —
-	// почта выключена, старт продолжается. Непустой host с неполной конфигурацией
-	// — ошибка (NewSMTPMailer сообщит, чего не хватает).
+	// SMTP необязателен.
 	var mailer *notifications.SMTPMailer
 	if config.SMTPHost == "" {
 		slog.Info("smtp: disabled (SMTP_HOST is empty)")
@@ -96,8 +88,6 @@ func (s *APIServer) Start() error {
 	if err := s.configureDB(); err != nil {
 		return fmt.Errorf("apiserver: configure database: %w", err)
 	}
-	// БД закрываем только после остановки фоновых воркеров (см. ниже wg.Wait),
-	// иначе воркер может обратиться к уже закрытому пулу (docs/TELEGRAM_BOT.md §5.3).
 	if err := s.ensureAdminAccount(); err != nil {
 		s.db.Close()
 		return fmt.Errorf("apiserver: %w", err)
@@ -105,8 +95,6 @@ func (s *APIServer) Start() error {
 
 	s.configureRouter()
 
-	// Корневой контекст фоновых воркеров. Отменяется по сигналу остановки, и все
-	// горутины, запущенные через startBackgroundWorkers, завершаются по нему.
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
@@ -127,8 +115,7 @@ func (s *APIServer) Start() error {
 		"debug", s.config.Debug,
 	)
 
-	// Graceful shutdown: по SIGINT/SIGTERM отменяем корневой контекст воркеров
-	// и даём серверу закрыть соединения.
+	// Graceful shutdown: по SIGINT/SIGTERM отменяем корневой контекст воркеров и даём серверу закрыть соединения.
 	shutdownErr := make(chan error, 1)
 	go func() {
 		quit := make(chan os.Signal, 1)
@@ -151,24 +138,16 @@ func (s *APIServer) Start() error {
 	}
 
 	sdErr := <-shutdownErr
-	// Контекст уже отменён в обработчике сигнала; дожидаемся воркеров и только
-	// потом закрываем пул БД.
+	// Контекст уже отменён в обработчике сигнала; дожидаемся воркеров и только потом закрываем пул БД.
 	wg.Wait()
 	s.db.Close()
 	return sdErr
 }
 
-// startBackgroundWorkers запускает фоновые горутины приложения. В PR №0 их ещё
-// нет: здесь появятся движок напоминаний (reminder.Loop) и Telegram-поллер,
-// каждый как wg.Add(1); go worker.Run(ctx). Все слушают отмену ctx и
-// учитываются в wg, чтобы db.Close выполнился после их остановки (§5.3).
+// startBackgroundWorkers запускает фоновые горутины приложения.
 func (s *APIServer) startBackgroundWorkers(ctx context.Context, wg *sync.WaitGroup) {
-	// Генератор периодов и пересчёт overdue — независимо от бота (см.
-	// payments_worker.go).
 	s.startPaymentsScheduler(ctx, wg)
 
-	// Telegram-поллер/вебхук, засев командного чата и движок напоминаний
-	// (см. telegram.go).
 	s.startTelegram(ctx, wg)
 }
 
@@ -200,9 +179,7 @@ func (s *APIServer) configureDB() error {
 	return nil
 }
 
-// ensureAdminAccount приводит учётку администратора к ADMIN_LOGIN и
-// ADMIN_PASSWORD из окружения. Делается до старта HTTP: если войти в панель
-// некому, поднимать сервер незачем.
+// ensureAdminAccount приводит учётку администратора к ADMIN_LOGIN и ADMIN_PASSWORD из окружения.
 func (s *APIServer) ensureAdminAccount() error {
 	admin, err := service.NewAdminAccount(s.db.User(), security.NewHasher())
 	if err != nil {
@@ -214,8 +191,6 @@ func (s *APIServer) ensureAdminAccount() error {
 }
 
 func (s *APIServer) configureRouter() {
-	// Журнал действий общий для HTTP и бота; создаём первым, чтобы все сервисы
-	// (и бот в buildTelegram) получили рекордер при сборке.
 	s.audit = audit.NewLogger(s.db.Audit())
 
 	hasher := security.NewHasher()
@@ -230,10 +205,13 @@ func (s *APIServer) configureRouter() {
 	paymentService := service.NewPaymentService(s.db.Payment(), clk)
 	scheduler := service.NewPaymentScheduler(s.db.RecurrentPayment(), s.db.Payment(), clk)
 	recPaymentService := service.NewRecurrentPaymentService(s.db.RecurrentPayment(), s.db.Payment(), clk)
-	// Сохраняем для Telegram-адаптера (paymentsPayer) и фонового воркера.
 	s.payments = paymentService
 	s.scheduler = scheduler
 	paymentHandler := handler.NewPaymentHandler(recPaymentService, paymentService, scheduler, clk)
+
+	receiptService := s.newReceiptService()
+	receiptService.SetAuditRecorder(s.audit)
+	receiptHandler := handler.NewReceiptHandler(receiptService)
 
 	searchService := service.NewPaymentSearchService(s.db.Payment(), s.db.RecurrentPayment(), clk)
 	searchHandler := handler.NewSearchHandler(searchService, clk)
@@ -244,8 +222,6 @@ func (s *APIServer) configureRouter() {
 	personaService := service.NewPersonaService(s.db.Persona())
 	personaHandler := handler.NewPersonaHandler(personaService)
 
-	// Подключаем журнал действий ко всем доменным сервисам и к user-хендлеру
-	// (события, которых не видит сервис — неуспешный refresh).
 	userService.SetAuditRecorder(s.audit)
 	userHandler.SetAuditRecorder(s.audit)
 	paymentService.SetAuditRecorder(s.audit)
@@ -256,12 +232,8 @@ func (s *APIServer) configureRouter() {
 
 	mw := middleware.NewMiddleware(jwtManager, s.config.AllowedOrigins)
 
-	// Сервис ассистента собирается до бота: бот получает его как порт NLAnswerer
-	// для свободного текста в личке и команды /ask в группах (NL_QUERIES.md §4.4).
 	s.assistant = s.buildAssistant()
 
-	// Компоненты Telegram-бота собираются один раз и используются и роутером,
-	// и фоновыми воркерами (startBackgroundWorkers).
 	s.tg = s.buildTelegram(userService, hasher)
 	if s.assistant != nil && s.tg != nil {
 		s.tg.service.AttachNLAnswerer(s.assistant)
@@ -283,8 +255,8 @@ func (s *APIServer) configureRouter() {
 
 		s.mountAuth(r, mw, userHandler)
 
-		// Telegram: публичный webhook (только в режиме webhook) и авторизованные
-		// ручки привязки/командного чата с JSON-ошибками (telegram.go).
+		r.With(mw.LimitByIP(60, time.Minute)).Get("/receipt-files/{id}", receiptHandler.ServeFile())
+
 		s.mountTelegramWebhook(r, mw)
 		s.mountTelegramMiniApp(r, mw)
 		s.mountTelegram(r, mw)
@@ -300,7 +272,7 @@ func (s *APIServer) configureRouter() {
 
 			s.mountUsers(r, mw, userHandler)
 			s.mountPersonas(r, mw, personaHandler)
-			s.mountPayments(r, mw, paymentHandler, searchHandler)
+			s.mountPayments(r, mw, paymentHandler, searchHandler, receiptHandler)
 			s.mountNotifications(r, mw, notificationsHandler)
 			s.mountAssistant(r, mw)
 			s.mountAudit(r, mw, auditHandler)
@@ -308,15 +280,11 @@ func (s *APIServer) configureRouter() {
 	})
 }
 
-// mountAuth монтирует публичную группу /auth (login, refresh, logout) с жёстким
-// лимитом по IP против брутфорса.
+// mountAuth монтирует публичную группу /auth (login, refresh, logout) с жёстким лимитом по IP против брутфорса.
 func (s *APIServer) mountAuth(r chi.Router, mw *middleware.Middleware, userHandler *handler.UserHandler) {
 	r.Route("/auth", func(r chi.Router) {
-		// request_id и метаданные журнала нужны и публичным auth-ручкам (вход,
-		// выход, refresh пишут события аудита).
 		r.Use(api.RequestIDMiddleware)
 		r.Use(mw.AuditContext)
-		// Жёсткий лимит по IP против брутфорса логина/refresh. Значения — под тюнинг.
 		r.Use(mw.LimitByIP(10, time.Minute))
 		r.Use(mw.MaxBytes(defaultMaxRequestBody))
 		r.Post("/login", userHandler.Login())
@@ -326,7 +294,6 @@ func (s *APIServer) mountAuth(r chi.Router, mw *middleware.Middleware, userHandl
 }
 
 // mountUsers монтирует управление пользователями — только администратор.
-// Вызывается внутри защищённой группы (Auth, LimitByUser, IsUserOrAdmin).
 func (s *APIServer) mountUsers(r chi.Router, mw *middleware.Middleware, userHandler *handler.UserHandler) {
 	r.Route("/users", func(r chi.Router) {
 		r.Use(mw.IsAdmin)
@@ -340,7 +307,6 @@ func (s *APIServer) mountUsers(r chi.Router, mw *middleware.Middleware, userHand
 }
 
 // mountPersonas монтирует справочник персон — только администратор.
-// Вызывается внутри защищённой группы (Auth, LimitByUser, IsUserOrAdmin).
 func (s *APIServer) mountPersonas(r chi.Router, mw *middleware.Middleware, personaHandler *handler.PersonaHandler) {
 	r.Route("/personas", func(r chi.Router) {
 		r.Use(mw.IsAdmin)

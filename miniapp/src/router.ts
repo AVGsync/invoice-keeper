@@ -62,8 +62,6 @@ export const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  // Пока сессия не готова, доступ не ограничиваем: App показывает Boot/Link/Fatal,
-  // а после авторизации доступ проверяется ещё раз (enforceRouteAccess в session).
   if (to.meta.admin && session.phase === 'ready' && !isAdmin.value) return '/'
   if (to.name === 'ask' && session.phase === 'ready' && !assistant.status.enabled) return '/'
   return true

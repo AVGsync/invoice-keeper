@@ -9,8 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Регэкспы совпадают с CHECK-ограничениями в миграциях,
-// чтобы не отдавать 500 там, где должен быть 400.
+// Регэкспы совпадают с CHECK-ограничениями в миграциях, чтобы не отдавать 500 там, где должен быть 400.
 var loginRegexp = regexp.MustCompile(`^[a-zA-Z0-9_.-]{3,32}$`)
 
 func runesBetween(s string, min, max int) bool {

@@ -1,10 +1,4 @@
-"""The one agent-local tool: ``reply_without_data`` (§5.7).
-
-It never touches the database. It exists so the first LLM step can be
-``tool_choice="required"`` while greetings / off-topic / clarification still
-finish without a DB round-trip. Its message goes through the same cleaning and
-grounding (digits are not allowed in it).
-"""
+"""The one agent-local tool: ``reply_without_data``."""
 
 from __future__ import annotations
 

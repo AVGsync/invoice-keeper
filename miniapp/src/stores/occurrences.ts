@@ -74,7 +74,6 @@ export const occurrences = {
     return occState.items.find((i) => i.id === id)
   },
 
-  // История: тот же recurrent_payment_id, кроме самого периода, по убыванию due_date, до 12.
   history(occ: PaymentResponse): PaymentResponse[] {
     if (!occ.recurrent_payment_id) return []
     return occState.items

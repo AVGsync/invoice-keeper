@@ -9,7 +9,6 @@ const app = createApp(App)
 app.use(router)
 
 initSession(router, () => {
-  // onReady: ничего дополнительного — App реагирует на session.phase.
 })
 
 app.mount('#app')

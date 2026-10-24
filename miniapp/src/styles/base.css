@@ -1,8 +1,7 @@
 :root {
   color-scheme: dark;
 
-  /* palette — Dimension (dark): dusk-lit workspace + frontend accents.
-     :root holds the dark defaults; :root[data-theme='light'] overrides below. */
+  /* palette — Dimension (dark): dusk-lit workspace + frontend accents. */
   --void: #0a0a0a; /* canvas */
   --graphite: #161616; /* elevated panels, grouped lists, inputs */
   --graphite-2: #1f1f1f; /* pressed / selected on graphite */
@@ -20,7 +19,6 @@
   --on-fill: #161616;
   --on-horizon: #ffffff; /* text over the hero gradient — always white */
 
-  /* accents (frontend palette); *-ink is the text/icon variant, *-bg the tint */
   --accent: #3b82f6; /* fills, markers, borders */
   --accent-ink: #60a5fa; /* accent as text/icon, links */
   --accent-bg: #172036;
@@ -87,7 +85,6 @@
   --c-inverse-bg: var(--fill);
   --c-inverse-text: var(--on-fill);
 
-  /* type — Geist everywhere (DM Sans has no Cyrillic); 500 is the loudest weight */
   --font: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
     Arial, sans-serif;
   --fs-display: clamp(32px, 9.5vw, 40px); /* h1: 500, lh 1.05, -0.035em */
@@ -130,7 +127,7 @@
   --dur-focus: 0.2s;
 }
 
-/* Светлая тема — зеркало светлых токенов веб-фронтенда. Хром и акценты по теме. */
+/* Светлая тема — зеркало светлых токенов веб-фронтенда. */
 :root[data-theme='light'] {
   color-scheme: light;
 
@@ -198,7 +195,6 @@ body {
   overflow-x: hidden;
 }
 
-/* violet spotlight behind the top of every screen — the only colour on the canvas */
 body::before {
   content: '';
   position: fixed;
@@ -266,7 +262,7 @@ button {
   line-height: 1.3;
 }
 
-/* Buttons — pills. Default is the hairline ghost; the filled white pill is the Telegram MainButton. */
+/* Buttons — pills. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -451,7 +447,6 @@ select option {
 
 /* ---- motion ---- */
 
-/* screen content fades in on navigation (opacity only — sections carry the movement) */
 .page-enter-active {
   transition: opacity 0.2s var(--ease-out);
 }

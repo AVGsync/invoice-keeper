@@ -10,15 +10,12 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// maxTitleLen — заголовок обрезается, чтобы не раздувать сообщение (§5.5).
+// maxTitleLen — заголовок обрезается, чтобы не раздувать сообщение.
 const maxTitleLen = 200
 
-// demoPrefix помечает сообщения, отправленные в режиме демо-заглушки
-// (REMINDER_SOURCE=stub), чтобы их не путали с настоящими напоминаниями, если
-// бот с общим токеном случайно запущен локально (риск §11, решение №7).
 const demoPrefix = "[DEMO] "
 
-// reminderText собирает текст напоминания (HTML). kind — due_soon или overdue.
+// reminderText собирает текст напоминания (HTML).
 func reminderText(occ model.ReminderOccurrence, today clock.Date, kind string) string {
 	var b strings.Builder
 	if kind == model.NotificationKindOverdue {
@@ -46,8 +43,7 @@ func reminderText(occ model.ReminderOccurrence, today clock.Date, kind string) s
 	return b.String()
 }
 
-// paidText — текст после отметки «Оплачено» (§5.5). actorName может быть пустым
-// (при reconcile мы не знаем, кто отметил, и показываем только дату).
+// paidText — текст после отметки «Оплачено».
 func paidText(occ model.ReminderOccurrence, actorName string) string {
 	var who string
 	if actorName != "" {
@@ -63,21 +59,17 @@ func paidText(occ model.ReminderOccurrence, actorName string) string {
 		html.EscapeString(FormatMoney(occ.Amount, occ.Currency)))
 }
 
-// endedText — текст, когда платёж завершён (§5.6).
+// endedText — текст, когда платёж завершён.
 func endedText(occ model.ReminderOccurrence) string {
 	return fmt.Sprintf("Платёж завершён\n<b>%s</b>",
 		html.EscapeString(truncate(occ.Title, maxTitleLen)))
 }
 
-// deletedText — нейтральный текст, когда период удалён остановкой платежа
-// (исчез из источника, D7). Сам период восстановить нельзя, поэтому только текст.
+// deletedText — нейтральный текст, когда период удалён остановкой платежа (исчез из источника, D7).
 func deletedText() string {
 	return "Платёж отменён администратором"
 }
 
-// reminderKeyboard — клавиатура напоминания: кнопка «Оплачено» (callback p:<hex>)
-// и, если возможно построить ссылку, кнопка «Открыть» на Mini App.
-// callback_data = p:<uuid без дефисов>.
 func reminderKeyboard(occID string, cfg Config) *telegram.InlineKeyboardMarkup {
 	row := []telegram.InlineKeyboardButton{
 		{Text: "✅ Оплачено", CallbackData: "p:" + uuidToHex(occID)},
@@ -88,15 +80,7 @@ func reminderKeyboard(occID string, cfg Config) *telegram.InlineKeyboardMarkup {
 	return &telegram.InlineKeyboardMarkup{InlineKeyboard: [][]telegram.InlineKeyboardButton{row}}
 }
 
-// miniAppStartURL строит Direct Link Mini App в домене t.me, чтобы Telegram
-// открыл Mini App с переданной initData (§3.3, решения №6, №8). Параметр
-// startapp интерпретируют только ссылки t.me, поэтому plain-https на /tg здесь
-// не годится: он открылся бы во внешнем браузере без Telegram.WebApp.
-//
-//	t.me/<bot>/<short_name>?startapp=occ_<hex>  — зарегистрированное Mini App (BotFather /newapp)
-//	t.me/<bot>?startapp=occ_<hex>               — основное Mini App бота
-//
-// Без TELEGRAM_BOT_USERNAME ссылку собрать нельзя — кнопка не добавляется.
+// miniAppStartURL строит Direct Link Mini App в домене t.me, чтобы Telegram открыл Mini App с переданной initData.
 func miniAppStartURL(cfg Config, occID string) (string, bool) {
 	if cfg.BotUsername == "" {
 		return "", false
@@ -159,8 +143,7 @@ func truncate(s string, max int) string {
 	return string(r[:max])
 }
 
-// FormatMoney форматирует десятичную строку суммы по валюте без float (§5.5).
-// RUB -> «1 500,00 ₽», USD -> «$1,500.00», EUR -> «1 500,00 €».
+// FormatMoney форматирует десятичную строку суммы по валюте без float.
 func FormatMoney(amount, currency string) string {
 	neg, intPart, frac := splitAmount(amount)
 
@@ -196,8 +179,7 @@ func FormatMoney(amount, currency string) string {
 	}
 }
 
-// splitAmount разбирает "1500.5"/"1500"/"-10.999" на знак, целую часть и ровно
-// две цифры дробной (с округлением вниз/обрезанием). Без float.
+// splitAmount разбирает "1500.5"/"1500"/"-10.999" на знак, целую часть и ровно две цифры дробной (с округлением вниз/обрезанием).
 func splitAmount(amount string) (neg bool, intPart, frac string) {
 	s := strings.TrimSpace(amount)
 	if s == "" {
@@ -260,13 +242,10 @@ func groupThousands(intPart string, sep byte) string {
 
 // dayDiff возвращает количество календарных дней (to − from).
 func dayDiff(from, to clock.Date) int {
-	// Опираемся на AddDays: ищем сдвиг, но проще — через подсчёт по времени.
-	// AddDays нормализует через time, поэтому используем вспомогательный счёт.
 	return daysSinceEpoch(to) - daysSinceEpoch(from)
 }
 
-// daysSinceEpoch — число дней от фиксированной даты (алгоритм без time.Time,
-// чтобы не зависеть от зоны). Пролептический григорианский календарь.
+// daysSinceEpoch — число дней от фиксированной даты (алгоритм без time.Time, чтобы не зависеть от зоны).
 func daysSinceEpoch(d clock.Date) int {
 	y := d.Y
 	m := int(d.M)
@@ -286,8 +265,7 @@ func uuidToHex(id string) string {
 	return strings.ReplaceAll(id, "-", "")
 }
 
-// hexToUUID восстанавливает uuid с дефисами из 32 hex-символов. Пустая строка,
-// если формат не тот (callback_data не доверяем, §6.3).
+// hexToUUID восстанавливает uuid с дефисами из 32 hex-символов.
 func hexToUUID(hex string) string {
 	if len(hex) != 32 {
 		return ""

@@ -35,9 +35,7 @@ type UserHandler struct {
 	useCase    UserUseCase
 	accessTTL  time.Duration
 	refreshTTL time.Duration
-	// audit — журнал действий; по умолчанию Nop. Используется для событий,
-	// которых не видит сервис (неуспешный refresh). Боевой рекордер ставит
-	// apiserver через SetAuditRecorder.
+	// audit — журнал действий; по умолчанию Nop.
 	audit audit.Recorder
 }
 
@@ -53,8 +51,6 @@ func NewUserHandler(useCase UserUseCase, accessTTL, refreshTTL time.Duration) *U
 // SetAuditRecorder подключает журнал действий к хендлеру.
 func (h *UserHandler) SetAuditRecorder(r audit.Recorder) { h.audit = r }
 
-// setAuthCookies выставляет пару токенов HttpOnly-куками; срок жизни кук
-// совпадает с TTL токенов из конфига (TTL_ACCESS_TOKEN / TTL_REFRESH_TOKEN).
 func (h *UserHandler) setAuthCookies(w http.ResponseWriter, access, refresh string) {
 	setAuthCookie(w, "AccessToken", access, int(h.accessTTL.Seconds()))
 	setAuthCookie(w, "RefreshToken", refresh, int(h.refreshTTL.Seconds()))
@@ -77,8 +73,7 @@ func setAuthCookie(w http.ResponseWriter, name, value string, maxAge int) {
 	})
 }
 
-// userIDParam достаёт id пользователя из пути. Не-UUID отсекаем сразу:
-// иначе Postgres ответит ошибкой приведения типа и клиент получит 500.
+// userIDParam достаёт id пользователя из пути.
 func userIDParam(w http.ResponseWriter, r *http.Request) (string, bool) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -189,8 +184,6 @@ func (h *UserHandler) Logout() http.HandlerFunc {
 // @Router       /auth/refresh [post]
 func (h *UserHandler) RefreshToken() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Обновление не требует валидного access-токена (он как раз истёк):
-		// идентичность подтверждается refresh-токеном из HttpOnly-куки.
 		refreshToken, err := r.Cookie("RefreshToken")
 		if err != nil {
 			h.recordRefreshFailure(r, "no_token")
@@ -447,8 +440,7 @@ func (h *UserHandler) UpdateUserByID() http.HandlerFunc {
 	}
 }
 
-// recordRefreshFailure пишет неуспешное обновление сессии в журнал (auth.refresh,
-// failure). Актор неизвестен (токен не прошёл), сущность не указывается.
+// recordRefreshFailure пишет неуспешное обновление сессии в журнал (auth.refresh, failure).
 func (h *UserHandler) recordRefreshFailure(r *http.Request, reason string) {
 	h.audit.Record(r.Context(), audit.Entry{
 		Action:  audit.ActionAuthRefresh,

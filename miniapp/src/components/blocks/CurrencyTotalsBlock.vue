@@ -5,8 +5,7 @@ import type { CurrencyTotalsBlock, Currency } from '../../api/types'
 
 const props = defineProps<{ block: CurrencyTotalsBlock }>()
 
-// Агент отдаёт суммы в старших единицах строкой ("150000.00"). Переводим в
-// минорные и форматируем через formatMoney (как везде в приложении).
+// Агент отдаёт суммы в старших единицах строкой ("150000.00").
 function toMinor(v: number | string | undefined): number | null {
   if (v === undefined || v === null || v === '') return null
   const n = typeof v === 'number' ? v : parseFloat(v)
@@ -20,8 +19,7 @@ const rows = computed(() =>
     const entry = props.block.by_currency[currency]!
     const paid = toMinor(entry.paid)
     const unpaid = toMinor(entry.unpaid)
-    // Подстрока «Оплачено · Осталось» — только когда обе величины есть
-    // (у basis=run_rate полей paid/unpaid нет).
+    // Подстрока «Оплачено · Осталось» — только когда обе величины есть (у basis=run_rate полей paid/unpaid нет).
     const sub =
       paid !== null && unpaid !== null
         ? `Оплачено ${formatMoney(paid, currency)} · Осталось ${formatMoney(unpaid, currency)}`

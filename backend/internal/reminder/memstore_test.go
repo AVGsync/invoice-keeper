@@ -11,9 +11,7 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// memNotif — in-memory реализация NotificationStore для тестов движка. Повторяет
-// семантику SQL-outbox: дедуп по (occurrence_id, due_date, kind, recipient),
-// возврат cancelled -> pending, фильтр DueForSend по next_attempt_at.
+// memNotif — in-memory реализация NotificationStore для тестов движка.
 type memNotif struct {
 	mu   sync.Mutex
 	seq  int
@@ -184,8 +182,6 @@ func (m *memNotif) ResetFailedByRecipient(ctx context.Context, recipient string,
 }
 
 func (m *memNotif) Cleanup(ctx context.Context, before time.Time) error { return nil }
-
-// ---- вспомогательные методы для проверок в тестах ----
 
 func (m *memNotif) count(state string) int {
 	m.mu.Lock()

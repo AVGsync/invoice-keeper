@@ -87,7 +87,7 @@ func occ(id string, due clock.Date) model.ReminderOccurrence {
 	}
 }
 
-// due_soon уходит один раз; два тика подряд дают одну отправку (§9.2).
+// due_soon уходит один раз; два тика подряд дают одну отправку.
 func TestLoop_DueSoonSentOnceAcrossTicks(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 
@@ -103,14 +103,13 @@ func TestLoop_DueSoonSentOnceAcrossTicks(t *testing.T) {
 	if !strings.Contains(h.fake.Sent[0].Text, "Напоминание об оплате") {
 		t.Errorf("не тот текст напоминания: %q", h.fake.Sent[0].Text)
 	}
-	// Кнопка «Оплачено» с корректным callback_data p:<hex>.
 	mk := h.fake.Sent[0].ReplyMarkup
 	if mk == nil || len(mk.InlineKeyboard) == 0 || mk.InlineKeyboard[0][0].CallbackData != "p:"+uuidToHex(testOccID) {
 		t.Errorf("нет корректной кнопки «Оплачено»: %+v", mk)
 	}
 }
 
-// Оплата после отправки: reconcile правит сообщение на «Оплачено» (§5.6).
+// Оплата после отправки: reconcile правит сообщение на «Оплачено».
 func TestLoop_PaidAfterSendEditsMessage(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 	ctx := context.Background()
@@ -138,7 +137,7 @@ func TestLoop_PaidAfterSendEditsMessage(t *testing.T) {
 	}
 }
 
-// Напоминание о просрочке на следующий день после срока (§5.7, решение №3).
+// Напоминание о просрочке на следующий день после срока.
 func TestLoop_OverdueSent(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(-1))})
 
@@ -157,7 +156,7 @@ func TestLoop_OverdueSent(t *testing.T) {
 	}
 }
 
-// Старую просрочку (более 3 дней) не шлём (§5.7).
+// Старую просрочку (более 3 дней) не шлём.
 func TestLoop_OldOverdueNotSent(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(-6))})
 
@@ -168,7 +167,7 @@ func TestLoop_OldOverdueNotSent(t *testing.T) {
 	}
 }
 
-// Завершённый платёж: новых отправок нет (§1.5).
+// Завершённый платёж: новых отправок нет.
 func TestLoop_EndedNotSent(t *testing.T) {
 	o := occ(testOccID, h2today(t).AddDays(2))
 	o.Ended = true
@@ -181,7 +180,7 @@ func TestLoop_EndedNotSent(t *testing.T) {
 	}
 }
 
-// Нет командного чата: ничего не ставим и не шлём (решение №1 — только команда).
+// Нет командного чата: ничего не ставим и не шлём.
 func TestLoop_NoTeamChatNoSend(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 	h.chats.active = false
@@ -193,7 +192,7 @@ func TestLoop_NoTeamChatNoSend(t *testing.T) {
 	}
 }
 
-// Кнопка «Оплачено»: ответственный — успех и правка; чужой — отказ алертом (§6.3).
+// Кнопка «Оплачено»: ответственный — успех и правка; чужой — отказ алертом.
 func TestBot_MarkPaidCallback(t *testing.T) {
 	h := newHarness(t, []model.ReminderOccurrence{occ(testOccID, h2today(t).AddDays(2))})
 	ctx := context.Background()
@@ -210,7 +209,6 @@ func TestBot_MarkPaidCallback(t *testing.T) {
 		t.Errorf("при отказе правок быть не должно")
 	}
 
-	// Ответственный — успех и правка сообщения.
 	text, alert = h.bot.MarkPaidCallback(ctx, occHex, testAssignee, "Иван Петров")
 	if alert || text != "Отмечено" {
 		t.Errorf("ожидался успех ответственному: %q alert=%v", text, alert)

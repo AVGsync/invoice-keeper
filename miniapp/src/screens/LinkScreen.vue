@@ -13,8 +13,7 @@ const valid = computed(() => login.value.trim() !== '' && password.value !== '')
 const dirty = computed(() => login.value !== '')
 const submitted = ref(false)
 
-// LinkScreen рендерится вне RouterView, поэтому onBeforeRouteLeave здесь не работает
-// (и шумит в dev). Ограничиваемся подтверждением закрытия Telegram.
+// LinkScreen рендерится вне RouterView, поэтому onBeforeRouteLeave здесь не работает (и шумит в dev).
 watch(dirty, (v) => setClosingConfirmation(v && !submitted.value), { immediate: true })
 onUnmounted(() => setClosingConfirmation(false))
 

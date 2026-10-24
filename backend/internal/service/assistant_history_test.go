@@ -10,8 +10,6 @@ import (
 	"github.com/AVGsync/invoice-keeper/backend/internal/model"
 )
 
-// --- фейковое хранилище истории ---
-
 type fakeHistoryRepo struct {
 	turns    []model.AssistantTurn
 	appended []model.AssistantTurn
@@ -83,8 +81,6 @@ func mkTurn(id string, ageMin int, status string) model.AssistantTurn {
 	}
 }
 
-// --- selectContext ---
-
 func TestSelectContext(t *testing.T) {
 	now := time.Now()
 	ttl := 2 * time.Hour
@@ -132,11 +128,8 @@ func TestSelectContext(t *testing.T) {
 	})
 }
 
-// --- History: in_context выставляется по свежим ok|partial ---
-
 func TestHistory_InContext(t *testing.T) {
 	loc := time.UTC
-	// turns DESC: новые первыми.
 	repo := &fakeHistoryRepo{turns: []model.AssistantTurn{
 		mkTurn("t3", 5, "ok"),
 		mkTurn("t2", 15, "ok"),
@@ -151,7 +144,6 @@ func TestHistory_InContext(t *testing.T) {
 	if total != 3 {
 		t.Fatalf("total = %d, want 3", total)
 	}
-	// items по возрастанию: t1(error), t2, t3.
 	if items[0].ID != "t1" || items[2].ID != "t3" {
 		t.Fatalf("items order unexpected: %+v", items)
 	}
@@ -162,8 +154,6 @@ func TestHistory_InContext(t *testing.T) {
 		t.Fatal("ok turns within ttl must be in context")
 	}
 }
-
-// --- Clear: channel=all vs conversation + аудит ---
 
 func TestClear(t *testing.T) {
 	repo := &fakeHistoryRepo{deleted: 7}
@@ -194,8 +184,6 @@ func TestClear(t *testing.T) {
 	}
 }
 
-// --- ContextFor: при выключенной памяти — пусто ---
-
 func TestContextFor_DisabledEmpty(t *testing.T) {
 	repo := &fakeHistoryRepo{turns: []model.AssistantTurn{mkTurn("t1", 1, "ok")}}
 	svc := NewAssistantHistoryService(repo, MemoryConfig{Enabled: false, Turns: 4, TTL: time.Hour, MaxTurns: 20, Keep: 100}, clock.New(time.UTC))
@@ -207,8 +195,6 @@ func TestContextFor_DisabledEmpty(t *testing.T) {
 		t.Fatalf("expected empty context when disabled, got %d turns", len(turns))
 	}
 }
-
-// --- Append пишет ход и prune с Keep ---
 
 func TestAppend_Prune(t *testing.T) {
 	repo := &fakeHistoryRepo{}

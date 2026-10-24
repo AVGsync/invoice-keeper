@@ -11,9 +11,7 @@ import (
 	"github.com/lib/pq"
 )
 
-// TelegramRepository — хранилище ядра бота: привязки, коды привязки, командный
-// чат и дедуп апдейтов (docs/TELEGRAM_BOT.md §5.1). Фабрика объявлена здесь, а
-// не в db.go, чтобы не трогать общий файл (§2.3).
+// TelegramRepository — хранилище ядра бота: привязки, коды привязки, командный чат и дедуп апдейтов.
 type TelegramRepository struct {
 	database *DB
 }
@@ -22,8 +20,6 @@ type TelegramRepository struct {
 func (d *DB) Telegram() *TelegramRepository {
 	return &TelegramRepository{database: d}
 }
-
-// ---- Привязки (telegram_links) ----
 
 func scanLink(row interface{ Scan(dest ...any) error }) (model.TelegramLink, error) {
 	var (
@@ -67,10 +63,7 @@ func (r *TelegramRepository) GetLinkByTGUserID(ctx context.Context, tgUserID int
 	return l, nil
 }
 
-// UpsertLink создаёт или перепривязывает Telegram к пользователю. Сброс
-// bot_blocked при (пере)привязке: пользователь только что написал боту. Если
-// tg_user_id уже занят ДРУГИМ пользователем (UNIQUE), возвращает
-// model.ErrTelegramAlreadyLinked.
+// UpsertLink создаёт или перепривязывает Telegram к пользователю.
 func (r *TelegramRepository) UpsertLink(ctx context.Context, userID string, tgUserID int64, username string) error {
 	var usernamePtr *string
 	if username != "" {
@@ -88,7 +81,6 @@ func (r *TelegramRepository) UpsertLink(ctx context.Context, userID string, tgUs
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			// Нарушен UNIQUE(tg_user_id): этот Telegram привязан к другому аккаунту.
 			return model.ErrTelegramAlreadyLinked
 		}
 		return fmt.Errorf("telegram repository: upsert link: %w", err)
@@ -96,8 +88,7 @@ func (r *TelegramRepository) UpsertLink(ctx context.Context, userID string, tgUs
 	return nil
 }
 
-// DeleteLink удаляет привязку пользователя. Возвращает model.ErrTelegramNotLinked,
-// если привязки не было.
+// DeleteLink удаляет привязку пользователя.
 func (r *TelegramRepository) DeleteLink(ctx context.Context, userID string) error {
 	res, err := r.database.db.ExecContext(ctx, `
 		DELETE FROM telegram_links WHERE user_id = $1`, userID)
@@ -143,8 +134,6 @@ func (r *TelegramRepository) SetDMEnabled(ctx context.Context, userID string, en
 	return nil
 }
 
-// ---- Коды привязки (telegram_link_codes) ----
-
 // CountActiveCodes считает неиспользованные непросроченные коды пользователя.
 func (r *TelegramRepository) CountActiveCodes(ctx context.Context, userID string) (int, error) {
 	var n int
@@ -157,7 +146,7 @@ func (r *TelegramRepository) CountActiveCodes(ctx context.Context, userID string
 	return n, nil
 }
 
-// CreateLinkCode сохраняет хеш кода привязки. Возвращает id созданной записи.
+// CreateLinkCode сохраняет хеш кода привязки.
 func (r *TelegramRepository) CreateLinkCode(ctx context.Context, userID, codeHash string, expiresAt time.Time) (string, error) {
 	var id string
 	err := r.database.db.QueryRowContext(ctx, `
@@ -170,10 +159,7 @@ func (r *TelegramRepository) CreateLinkCode(ctx context.Context, userID, codeHas
 	return id, nil
 }
 
-// ClaimLinkCode находит активный код по хешу и отмечает его открытым этим
-// Telegram-пользователем (claimed_by_tg). Повторный claim тем же tg_user_id
-// допустим (идемпотентность при повторе апдейта). Возвращает id кода и user_id,
-// либо model.ErrTelegramCodeInvalid.
+// ClaimLinkCode находит активный код по хешу и отмечает его открытым этим Telegram-пользователем (claimed_by_tg).
 func (r *TelegramRepository) ClaimLinkCode(ctx context.Context, codeHash string, tgUserID int64) (codeID, userID string, err error) {
 	err = r.database.db.QueryRowContext(ctx, `
 		UPDATE telegram_link_codes
@@ -192,9 +178,7 @@ func (r *TelegramRepository) ClaimLinkCode(ctx context.Context, codeHash string,
 	return codeID, userID, nil
 }
 
-// ConfirmLinkCode атомарно сжигает код (used_at) при подтверждении кнопкой тем
-// же tg_user_id и возвращает user_id. Возвращает model.ErrTelegramCodeInvalid,
-// если код уже использован, истёк или подтверждён с другого аккаунта.
+// ConfirmLinkCode атомарно сжигает код (used_at) при подтверждении кнопкой тем же tg_user_id и возвращает user_id.
 func (r *TelegramRepository) ConfirmLinkCode(ctx context.Context, codeID string, tgUserID int64) (string, error) {
 	var userID string
 	err := r.database.db.QueryRowContext(ctx, `
@@ -225,8 +209,6 @@ func (r *TelegramRepository) CancelLinkCode(ctx context.Context, codeID string, 
 	return nil
 }
 
-// ---- Командный чат (telegram_chats) ----
-
 func scanChat(row interface{ Scan(dest ...any) error }) (model.TelegramChat, error) {
 	var c model.TelegramChat
 	err := row.Scan(&c.ID, &c.TGChatID, &c.Type, &c.Title, &c.IsActive, &c.BoundBy, &c.BoundAt, &c.DeactivatedAt, &c.LastError)
@@ -250,9 +232,6 @@ func (r *TelegramRepository) GetActiveChat(ctx context.Context) (model.TelegramC
 	return c, nil
 }
 
-// GetLastDeactivatedChat возвращает последний деактивированный чат (по
-// deactivated_at) с его last_error — для статуса в UI админа, когда активного
-// чата нет (§5.4). model.ErrTelegramNoTeamChat, если деактивированных нет.
 func (r *TelegramRepository) GetLastDeactivatedChat(ctx context.Context) (model.TelegramChat, error) {
 	c, err := scanChat(r.database.db.QueryRowContext(ctx, telegramChatSelect+`
 		WHERE NOT is_active
@@ -267,10 +246,7 @@ func (r *TelegramRepository) GetLastDeactivatedChat(ctx context.Context) (model.
 	return c, nil
 }
 
-// BindChat делает чат активным командным, деактивируя прежний. Возвращает
-// прежний активный чат (ok=false, если его не было) — чтобы бот уведомил старую
-// группу (§4). Выполняется в транзакции, чтобы частичный уникальный индекс
-// "только один активный" не нарушался между UPDATE и INSERT.
+// BindChat делает чат активным командным, деактивируя прежний.
 func (r *TelegramRepository) BindChat(ctx context.Context, tgChatID int64, chatType, title, boundBy string) (prev model.TelegramChat, hadPrev bool, err error) {
 	tx, err := r.database.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -328,7 +304,6 @@ func (r *TelegramRepository) BindChat(ctx context.Context, tgChatID int64, chatT
 }
 
 // DeactivateChat снимает активность с чата по tg_chat_id с указанием причины.
-// Возвращает model.ErrTelegramNoTeamChat, если активного чата с таким id не было.
 func (r *TelegramRepository) DeactivateChat(ctx context.Context, tgChatID int64, reason string) error {
 	var reasonPtr *string
 	if reason != "" {
@@ -361,8 +336,7 @@ func (r *TelegramRepository) UpdateChatID(ctx context.Context, oldID, newID int6
 	return nil
 }
 
-// SeedChat вставляет начальный командный чат из TELEGRAM_TEAM_CHAT_ID, если
-// активного ещё нет. Делает ничего, если чат с таким id уже есть.
+// SeedChat вставляет начальный командный чат из TELEGRAM_TEAM_CHAT_ID, если активного ещё нет.
 func (r *TelegramRepository) SeedChat(ctx context.Context, tgChatID int64, chatType string) error {
 	_, err := r.database.db.ExecContext(ctx, `
 		INSERT INTO telegram_chats (tg_chat_id, type, is_active)
@@ -374,10 +348,7 @@ func (r *TelegramRepository) SeedChat(ctx context.Context, tgChatID int64, chatT
 	return nil
 }
 
-// ---- Дедуп апдейтов (telegram_updates) ----
-
-// MarkUpdateSeen вставляет update_id. Возвращает fresh=true, если апдейт новый,
-// и false, если такой уже обрабатывался (повтор Telegram).
+// MarkUpdateSeen вставляет update_id.
 func (r *TelegramRepository) MarkUpdateSeen(ctx context.Context, updateID int64) (bool, error) {
 	res, err := r.database.db.ExecContext(ctx, `
 		INSERT INTO telegram_updates (update_id) VALUES ($1)
@@ -392,10 +363,7 @@ func (r *TelegramRepository) MarkUpdateSeen(ctx context.Context, updateID int64)
 	return n > 0, nil
 }
 
-// CleanupStale удаляет мусор ядра бота (§5.3 шаг 5): обработанные апдейты старше
-// updatesBefore и истёкшие коды привязки старше codesBefore. Оффсет поллера от
-// этого не страдает: он держится в памяти и берётся из MAX(update_id), который
-// только растёт, а свежие апдейты (младше updatesBefore) не трогаются.
+// CleanupStale удаляет мусор ядра бота: обработанные апдейты старше updatesBefore и истёкшие коды привязки старше codesBefore.
 func (r *TelegramRepository) CleanupStale(ctx context.Context, updatesBefore, codesBefore time.Time) error {
 	if _, err := r.database.db.ExecContext(ctx, `
 		DELETE FROM telegram_updates WHERE received_at < $1`, updatesBefore); err != nil {
@@ -408,8 +376,7 @@ func (r *TelegramRepository) CleanupStale(ctx context.Context, updatesBefore, co
 	return nil
 }
 
-// MaxUpdateID возвращает наибольший сохранённый update_id (для начального offset
-// поллера). 0, если апдейтов ещё не было.
+// MaxUpdateID возвращает наибольший сохранённый update_id (для начального offset поллера).
 func (r *TelegramRepository) MaxUpdateID(ctx context.Context) (int64, error) {
 	var max sql.NullInt64
 	err := r.database.db.QueryRowContext(ctx, `SELECT MAX(update_id) FROM telegram_updates`).Scan(&max)
