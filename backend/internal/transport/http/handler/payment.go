@@ -113,6 +113,16 @@ func paymentIDParam(w http.ResponseWriter, r *http.Request) (string, bool) {
 	return id, true
 }
 
+// GetRecurringPayments godoc
+// @Summary      Получить список регулярных платежей
+// @Description  Возвращает регулярные платежи текущего пользователя.
+// @Tags         Recurring Payments
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {array} model.RecurrentPayment
+// @Failure      403 {string} string "Не удалось получить данные авторизации"
+// @Failure      500 {string} string "Не удалось получить регулярные платежи"
+// @Router       /recurring-payments [get]
 func (h *PaymentHandler) GetRecurringPayments() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := h.getCurrentUserID(w, r)
@@ -135,6 +145,19 @@ func (h *PaymentHandler) GetRecurringPayments() http.HandlerFunc {
 	}
 }
 
+// CreateRecurringPayment godoc
+// @Summary      Создать регулярный платеж
+// @Description  Создает шаблон регулярного платежа.
+// @Tags         Recurring Payments
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body request.CreateRecurrentPaymentRequest true "Данные регулярного платежа"
+// @Success      201 {object} map[string]string "Идентификатор созданного платежа"
+// @Failure      400 {string} string "Некорректное тело запроса"
+// @Failure      403 {string} string "Не удалось получить данные авторизации"
+// @Failure      500 {string} string "Не удалось создать регулярный платеж"
+// @Router       /recurring-payments [post]
 func (h *PaymentHandler) CreateRecurringPayment() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := h.getCurrentUserID(w, r)
@@ -176,6 +199,17 @@ func (h *PaymentHandler) CreateRecurringPayment() http.HandlerFunc {
 	}
 }
 
+// StopRecurringPayment godoc
+// @Summary      Остановить регулярный платеж
+// @Description  Отписывает текущего пользователя от регулярного платежа, не удаляя шаблон.
+// @Tags         Recurring Payments
+// @Security     BearerAuth
+// @Param        id path string true "UUID регулярного платежа"
+// @Success      204 "Регулярный платеж остановлен"
+// @Failure      400 {string} string "Некорректный UUID"
+// @Failure      403 {string} string "Не удалось получить данные авторизации"
+// @Failure      500 {string} string "Не удалось остановить регулярный платеж"
+// @Router       /recurring-payments/{id}/stop [post]
 func (h *PaymentHandler) StopRecurringPayment() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := h.getCurrentUserID(w, r)
@@ -213,6 +247,19 @@ func (h *PaymentHandler) StopRecurringPayment() http.HandlerFunc {
 	}
 }
 
+// UpdateRecurringPayment godoc
+// @Summary      Обновить регулярный платеж
+// @Description  Обновляет параметры шаблона регулярного платежа.
+// @Tags         Recurring Payments
+// @Security     BearerAuth
+// @Accept       json
+// @Param        id path string true "UUID регулярного платежа"
+// @Param        request body request.UpdateRecurrentPaymentRequest true "Новые параметры регулярного платежа"
+// @Success      204 "Регулярный платеж обновлен"
+// @Failure      400 {string} string "Некорректный UUID или тело запроса"
+// @Failure      404 {string} string "Регулярный платеж не найден"
+// @Failure      500 {string} string "Не удалось обновить регулярный платеж"
+// @Router       /recurring-payments/{id} [put]
 func (h *PaymentHandler) UpdateRecurringPayment() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := paymentIDParam(w, r)
@@ -245,6 +292,16 @@ func (h *PaymentHandler) UpdateRecurringPayment() http.HandlerFunc {
 	}
 }
 
+// GetPaymentOccurrences godoc
+// @Summary      Получить список платежей
+// @Description  Возвращает список платежей текущего пользователя с общей информацией.
+// @Tags         Payments
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} response.PaymentListResponse
+// @Failure      403 {string} string "Не удалось получить данные авторизации"
+// @Failure      500 {string} string "Не удалось получить платежи"
+// @Router       /payments [get]
 func (h *PaymentHandler) GetPaymentOccurrences() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := h.getCurrentUserID(w, r)
@@ -277,6 +334,16 @@ type PaymentSummaryResponse struct {
 	Items []PaymentCurrencySummary `json:"items"`
 }
 
+// GetPaymentsSummary godoc
+// @Summary      Получить сводку платежей
+// @Description  Возвращает суммы оплаченных и неоплаченных платежей по валютам.
+// @Tags         Payments
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200 {object} PaymentSummaryResponse
+// @Failure      403 {string} string "Не удалось получить данные авторизации"
+// @Failure      500 {string} string "Не удалось получить сводку платежей"
+// @Router       /payments/summary [get]
 func (h *PaymentHandler) GetPaymentsSummary() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := h.getCurrentUserID(w, r)
@@ -320,6 +387,19 @@ func (h *PaymentHandler) GetPaymentsSummary() http.HandlerFunc {
 	}
 }
 
+// GetPaymentOccurrence godoc
+// @Summary      Получить платеж по ID
+// @Description  Возвращает платеж, если он принадлежит текущему пользователю.
+// @Tags         Payments
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path string true "UUID платежа"
+// @Success      200 {object} model.Payment
+// @Failure      400 {string} string "Некорректный UUID"
+// @Failure      403 {string} string "Не удалось получить данные авторизации"
+// @Failure      404 {string} string "Платеж не найден"
+// @Failure      500 {string} string "Не удалось получить платеж"
+// @Router       /payments/{id} [get]
 func (h *PaymentHandler) GetPaymentOccurrence() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := h.getCurrentUserID(w, r)
@@ -363,6 +443,24 @@ type PatchPaymentOccurrenceRequest struct {
 	DueDate     *time.Time `json:"due_date"`
 }
 
+// PatchPaymentOccurrence godoc
+// @Summary      Изменить платеж
+// @Description  Обновляет поля платежа или подтверждает оплату.
+// @Description  Для подтверждения оплаты укажите action=confirm.
+// @Description  Для обычного обновления укажите изменяемые поля без action.
+// @Description  Отмена платежа и установка paid_at пока не реализованы.
+// @Tags         Payments
+// @Security     BearerAuth
+// @Accept       json
+// @Param        id path string true "UUID платежа"
+// @Param        request body PatchPaymentOccurrenceRequest true "Действие или поля для обновления"
+// @Success      204 "Платеж обновлен"
+// @Failure      400 {string} string "Некорректный запрос"
+// @Failure      403 {string} string "Не удалось получить данные авторизации"
+// @Failure      404 {string} string "Платеж не найден"
+// @Failure      500 {string} string "Не удалось изменить платеж"
+// @Failure      501 {string} string "Операция не реализована"
+// @Router       /payments/{id} [patch]
 func (h *PaymentHandler) PatchPaymentOccurrence() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := h.getCurrentUserID(w, r)

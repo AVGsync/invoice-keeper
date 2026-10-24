@@ -1,5 +1,61 @@
 basePath: /api/v1
 definitions:
+  handler.PatchPaymentOccurrenceRequest:
+    properties:
+      action:
+        type: string
+      amount:
+        type: integer
+      currency:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      paid_at:
+        type: string
+    type: object
+  handler.PaymentCurrencySummary:
+    properties:
+      currency:
+        type: string
+      outstanding_total:
+        type: integer
+      paid_total:
+        type: integer
+    type: object
+  handler.PaymentSummaryResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handler.PaymentCurrencySummary'
+        type: array
+    type: object
+  model.Payment:
+    properties:
+      amount:
+        type: integer
+      created_at:
+        type: string
+      currency:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      id:
+        type: string
+      paid_at:
+        type: string
+      recurrent_payment_id:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
   model.Persona:
     properties:
       created_at:
@@ -18,6 +74,33 @@ definitions:
       id:
         type: string
       name:
+        type: string
+    type: object
+  model.RecurrentPayment:
+    properties:
+      amount:
+        description: Сумма в минимальных денежных единицах
+        type: integer
+      created_at:
+        type: string
+      currency:
+        type: string
+      day_offset:
+        description: |-
+          Для monthly: день месяца (1–31)
+          Для weekly: день недели (0–6)
+        type: integer
+      description:
+        type: string
+      frequency:
+        description: weekly, monthly
+        type: string
+      id:
+        type: integer
+      interval:
+        description: Каждые N недель или месяцев
+        type: integer
+      updated_at:
         type: string
     type: object
   model.User:
@@ -45,6 +128,21 @@ definitions:
         description: Название, 1–64 символа, уникально без учёта регистра.
         example: Бухгалтер
         type: string
+    type: object
+  request.CreateRecurrentPaymentRequest:
+    properties:
+      amount:
+        type: integer
+      currency:
+        type: string
+      day_offset:
+        type: integer
+      description:
+        type: string
+      frequency:
+        type: string
+      interval:
+        type: integer
     type: object
   request.CreateUserRequest:
     properties:
@@ -104,6 +202,21 @@ definitions:
         example: Главный бухгалтер
         type: string
     type: object
+  request.UpdateRecurrentPaymentRequest:
+    properties:
+      amount:
+        type: integer
+      currency:
+        type: string
+      day_offset:
+        type: integer
+      description:
+        type: string
+      frequency:
+        type: string
+      interval:
+        type: integer
+    type: object
   request.UserUpdateRequest:
     properties:
       full_name:
@@ -118,6 +231,40 @@ definitions:
         example: ivan.new
         maxLength: 64
         minLength: 3
+        type: string
+    type: object
+  response.PaymentListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/response.PaymentResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  response.PaymentResponse:
+    properties:
+      amount:
+        type: integer
+      created_at:
+        type: string
+      currency:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      id:
+        type: string
+      paid_at:
+        type: string
+      recurrent_payment_id:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      user_id:
         type: string
     type: object
   response.PersonaListResponse:
@@ -265,6 +412,137 @@ paths:
       summary: Обновление токенов (ротация)
       tags:
       - Auth
+  /payments:
+    get:
+      description: Возвращает список платежей текущего пользователя с общей информацией.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.PaymentListResponse'
+        "403":
+          description: Не удалось получить данные авторизации
+          schema:
+            type: string
+        "500":
+          description: Не удалось получить платежи
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить список платежей
+      tags:
+      - Payments
+  /payments/{id}:
+    get:
+      description: Возвращает платеж, если он принадлежит текущему пользователю.
+      parameters:
+      - description: UUID платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Payment'
+        "400":
+          description: Некорректный UUID
+          schema:
+            type: string
+        "403":
+          description: Не удалось получить данные авторизации
+          schema:
+            type: string
+        "404":
+          description: Платеж не найден
+          schema:
+            type: string
+        "500":
+          description: Не удалось получить платеж
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить платеж по ID
+      tags:
+      - Payments
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Обновляет поля платежа или подтверждает оплату.
+        Для подтверждения оплаты укажите action=confirm.
+        Для обычного обновления укажите изменяемые поля без action.
+        Отмена платежа и установка paid_at пока не реализованы.
+      parameters:
+      - description: UUID платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Действие или поля для обновления
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.PatchPaymentOccurrenceRequest'
+      responses:
+        "204":
+          description: Платеж обновлен
+        "400":
+          description: Некорректный запрос
+          schema:
+            type: string
+        "403":
+          description: Не удалось получить данные авторизации
+          schema:
+            type: string
+        "404":
+          description: Платеж не найден
+          schema:
+            type: string
+        "500":
+          description: Не удалось изменить платеж
+          schema:
+            type: string
+        "501":
+          description: Операция не реализована
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Изменить платеж
+      tags:
+      - Payments
+  /payments/summary:
+    get:
+      description: Возвращает суммы оплаченных и неоплаченных платежей по валютам.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.PaymentSummaryResponse'
+        "403":
+          description: Не удалось получить данные авторизации
+          schema:
+            type: string
+        "500":
+          description: Не удалось получить сводку платежей
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить сводку платежей
+      tags:
+      - Payments
   /personas:
     get:
       description: |-
@@ -455,6 +733,135 @@ paths:
       summary: Проверка доступности API-сервера
       tags:
       - Система
+  /recurring-payments:
+    get:
+      description: Возвращает регулярные платежи текущего пользователя.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.RecurrentPayment'
+            type: array
+        "403":
+          description: Не удалось получить данные авторизации
+          schema:
+            type: string
+        "500":
+          description: Не удалось получить регулярные платежи
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить список регулярных платежей
+      tags:
+      - Recurring Payments
+    post:
+      consumes:
+      - application/json
+      description: Создает шаблон регулярного платежа.
+      parameters:
+      - description: Данные регулярного платежа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateRecurrentPaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Идентификатор созданного платежа
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Некорректное тело запроса
+          schema:
+            type: string
+        "403":
+          description: Не удалось получить данные авторизации
+          schema:
+            type: string
+        "500":
+          description: Не удалось создать регулярный платеж
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Создать регулярный платеж
+      tags:
+      - Recurring Payments
+  /recurring-payments/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Обновляет параметры шаблона регулярного платежа.
+      parameters:
+      - description: UUID регулярного платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Новые параметры регулярного платежа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateRecurrentPaymentRequest'
+      responses:
+        "204":
+          description: Регулярный платеж обновлен
+        "400":
+          description: Некорректный UUID или тело запроса
+          schema:
+            type: string
+        "404":
+          description: Регулярный платеж не найден
+          schema:
+            type: string
+        "500":
+          description: Не удалось обновить регулярный платеж
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Обновить регулярный платеж
+      tags:
+      - Recurring Payments
+  /recurring-payments/{id}/stop:
+    post:
+      description: Отписывает текущего пользователя от регулярного платежа, не удаляя
+        шаблон.
+      parameters:
+      - description: UUID регулярного платежа
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Регулярный платеж остановлен
+        "400":
+          description: Некорректный UUID
+          schema:
+            type: string
+        "403":
+          description: Не удалось получить данные авторизации
+          schema:
+            type: string
+        "500":
+          description: Не удалось остановить регулярный платеж
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Остановить регулярный платеж
+      tags:
+      - Recurring Payments
   /users:
     get:
       description: |-
