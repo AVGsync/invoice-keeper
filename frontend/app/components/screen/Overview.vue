@@ -54,11 +54,12 @@ const upcoming = computed(() => demo.periods.value.filter((period) => {
 
     <div class="cards">
       <CurrencyCard
-        v-for="total in asOfTotals"
+        v-for="(total, i) in asOfTotals"
         :key="total.code"
+        class="rise"
         :total="total"
         :label="`К оплате по ${toRu(asOf)}¹`"
-        :style="{ viewTransitionName: `card-${total.code}` }"
+        :style="{ viewTransitionName: `card-${total.code}`, '--i': i }"
       />
     </div>
     <p class="kicker footnote">¹ срок до выбранной даты и то, что оплачено раньше срока · курсы и конвертация не применяются</p>
@@ -70,7 +71,7 @@ const upcoming = computed(() => demo.periods.value.filter((period) => {
         class="toggle"
       />
       <template #right>
-        <NuxtLink :to="isAdmin ? '/admin/payments' : '/user/payments'" class="all-link">Все платежи&nbsp; →</NuxtLink>
+        <NuxtLink :to="isAdmin ? '/admin/payments' : '/user/payments'" class="all-link">Все платежи <UiIcon name="arrow" :size="14" class="all-arrow" /></NuxtLink>
       </template>
     </AppSectionTitle>
 
@@ -113,8 +114,25 @@ const upcoming = computed(() => demo.periods.value.filter((period) => {
 }
 
 .all-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   color: var(--ink-2);
+  transition: color 0.2s ease;
+}
+
+.all-link:hover {
+  color: var(--ink);
+}
+
+/* the arrow steps forward on hover */
+.all-arrow {
+  transition: transform 0.35s var(--ease-out);
+}
+
+.all-link:hover .all-arrow {
+  transform: translateX(3px);
 }
 
 .new {

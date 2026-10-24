@@ -22,15 +22,16 @@ defineProps<{ title: string, totals: CurrencyTotal[] }>()
 <style scoped>
 .month {
   view-transition-name: month-totals;
-  padding: 12px 20px 18px;
+  padding: 16px 20px 18px;
 }
 
 .title {
-  font-size: 23px;
+  font-size: 16px;
+  line-height: 24px;
 }
 
 .kicker {
-  margin: 10px 0 15px;
+  margin: 4px 0 14px;
 }
 
 .total + .total {
@@ -43,7 +44,7 @@ defineProps<{ title: string, totals: CurrencyTotal[] }>()
 }
 
 .paid {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
   text-align: right;
 }

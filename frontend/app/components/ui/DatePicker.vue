@@ -82,7 +82,7 @@ useClickOutside(root, () => { open.value = false }, open)
       @keydown.down.prevent="openCalendar"
     >
       <span class="value" :class="{ muted: !model }">{{ model ? toRu(model) : 'ДД.ММ.ГГГГ' }}</span>
-      <span class="caret" aria-hidden="true">{{ open ? '▴' : '▾' }}</span>
+      <UiIcon name="down" :size="14" class="caret" :class="{ flip: open }" />
     </button>
 
     <Transition name="menu">
@@ -97,11 +97,11 @@ useClickOutside(root, () => { open.value = false }, open)
 
         <template v-else>
           <div class="head">
-            <button type="button" class="arrow" aria-label="Предыдущий месяц" @click="shift(-1)">‹</button>
+            <button type="button" class="arrow" aria-label="Предыдущий месяц" @click="shift(-1)"><UiIcon name="left" :size="15" /></button>
             <button type="button" class="month" title="Выбрать месяц" @click="mode = 'months'">
               {{ monthNames[view.month] }} {{ view.year }}
             </button>
-            <button type="button" class="arrow" aria-label="Следующий месяц" @click="shift(1)">›</button>
+            <button type="button" class="arrow" aria-label="Следующий месяц" @click="shift(1)"><UiIcon name="right" :size="15" /></button>
           </div>
 
           <div class="grid">
@@ -148,11 +148,17 @@ useClickOutside(root, () => { open.value = false }, open)
 
 .input:focus,
 .input.open {
-  border-color: var(--accent);
+  border-color: var(--ink-2);
+  box-shadow: 0 0 0 3px var(--subtle);
 }
 
 .caret {
   color: var(--ink-3);
+  transition: transform 0.35s var(--ease-out);
+}
+
+.caret.flip {
+  transform: rotate(180deg);
 }
 
 .calendar {
@@ -164,7 +170,8 @@ useClickOutside(root, () => { open.value = false }, open)
   padding: 10px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
 }
 
 .calendar.right {
@@ -188,7 +195,7 @@ useClickOutside(root, () => { open.value = false }, open)
   padding: 4px 8px;
   background: none;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
 }
@@ -197,12 +204,19 @@ useClickOutside(root, () => { open.value = false }, open)
   background: var(--subtle);
 }
 
+.arrow:hover {
+  background: var(--subtle);
+  color: var(--ink);
+}
+
 .arrow {
+  display: inline-grid;
+  place-items: center;
   width: 28px;
   height: 28px;
   background: none;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 15px;
   color: var(--ink-2);
 }
@@ -215,8 +229,7 @@ useClickOutside(root, () => { open.value = false }, open)
 
 .weekday {
   padding: 4px 0;
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
   text-align: center;
   color: var(--ink-3);
 }
@@ -225,7 +238,7 @@ useClickOutside(root, () => { open.value = false }, open)
   height: 30px;
   background: none;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 12px;
 }
 

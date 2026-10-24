@@ -49,7 +49,7 @@ function toggle(value: string) {
   padding: 0 12px;
   background: none;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 9999px;
   font-size: 12px;
   font-weight: 500;
   color: var(--ink-3);
@@ -57,8 +57,8 @@ function toggle(value: string) {
 }
 
 .chip.on {
-  background: var(--surface);
-  border-color: var(--ink-3);
+  background: var(--subtle);
+  border-color: var(--line-strong);
   color: var(--ink);
 }
 

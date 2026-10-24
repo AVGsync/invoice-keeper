@@ -51,11 +51,13 @@ function unmark() {
 <style scoped>
 .popover {
   width: 296px;
-  padding: 10px 18px 18px;
+  padding: 16px 18px 18px;
+  box-shadow: var(--shadow-pop);
 }
 
 .title {
-  font-size: 22px;
+  font-size: 16px;
+  line-height: 24px;
 }
 
 .meta {

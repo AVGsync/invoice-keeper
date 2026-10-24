@@ -37,7 +37,7 @@ defineEmits<{ mark: [] }>()
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 17px 20px 23px;
+  padding: 16px 20px 20px;
 }
 
 .accent {
@@ -45,10 +45,11 @@ defineEmits<{ mark: [] }>()
 }
 
 .title {
-  margin: -16px 0 -2px;
+  margin: -12px 0 -2px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
-  font-size: 30px;
+  font-size: 20px;
+  line-height: 28px;
 }
 
 .row {
@@ -59,7 +60,7 @@ defineEmits<{ mark: [] }>()
 
 .name {
   display: block;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -69,12 +70,12 @@ defineEmits<{ mark: [] }>()
 }
 
 .amount {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
 }
 
 .persona {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 </style>

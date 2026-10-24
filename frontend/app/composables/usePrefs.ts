@@ -56,5 +56,30 @@ export function usePrefs() {
   const reduceMotion = computed(() => prefs.value.lessMotion
     || (import.meta.client && matchMedia('(prefers-reduced-motion: reduce)').matches))
 
-  return { prefs, reduceMotion }
+  // the new theme spreads out in a circle from the point that was clicked
+  async function switchTheme(theme: Prefs['theme'], from?: { x: number, y: number }) {
+    if (theme === prefs.value.theme) return
+    const set = () => {
+      prefs.value.theme = theme
+      applyPrefs(prefs.value)
+    }
+    if (reduceMotion.value || !document.startViewTransition) return set()
+
+    const root = document.documentElement
+    // named blocks (table rows etc) would fade on their own instead of being uncovered with the rest
+    root.classList.add('theme-switch')
+    const x = from?.x ?? innerWidth / 2
+    const y = from?.y ?? innerHeight / 2
+    const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
+    const transition = document.startViewTransition(set)
+    await transition.ready
+    root.animate(
+      { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+      { duration: 650, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', pseudoElement: '::view-transition-new(root)' },
+    )
+    await transition.finished
+    root.classList.remove('theme-switch')
+  }
+
+  return { prefs, reduceMotion, switchTheme }
 }

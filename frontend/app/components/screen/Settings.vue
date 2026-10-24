@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { prefs } = usePrefs()
+const { prefs, switchTheme } = usePrefs()
 const demo = useDemo()
 const api = useApi()
 
@@ -10,7 +10,7 @@ const themes = [
 // segmented works with plain strings, prefs want the exact union
 const theme = computed({
   get: () => prefs.value.theme,
-  set: value => (prefs.value.theme = value as 'dark' | 'light'),
+  set: value => switchTheme(value as 'dark' | 'light'),
 })
 
 const resetDone = ref(false)
@@ -45,7 +45,7 @@ const assistantText = { checking: 'проверяем…', ok: 'работает
     <AppPageHeader title="Настройки" subtitle="Хранятся в этом браузере" />
 
     <div class="groups">
-      <section class="card group">
+      <section class="card group rise" style="--i: 0">
         <h2 class="title display">Оформление</h2>
         <div class="row">
           <span>Тема</span>
@@ -53,7 +53,7 @@ const assistantText = { checking: 'проверяем…', ok: 'работает
         </div>
       </section>
 
-      <section class="card group">
+      <section class="card group rise" style="--i: 1">
         <h2 class="title display">Доступность</h2>
         <div class="row">
           <div>
@@ -71,7 +71,7 @@ const assistantText = { checking: 'проверяем…', ok: 'работает
         </div>
       </section>
 
-      <section class="card group">
+      <section class="card group rise" style="--i: 2">
         <h2 class="title display">Демо-режим</h2>
         <div class="row">
           <div>
@@ -89,7 +89,7 @@ const assistantText = { checking: 'проверяем…', ok: 'работает
         </div>
       </section>
 
-      <section class="card group">
+      <section class="card group rise" style="--i: 3">
         <h2 class="title display">О системе</h2>
         <UiLeaderRow>
           <template #label>Сервер</template>
@@ -124,7 +124,8 @@ const assistantText = { checking: 'проверяем…', ok: 'работает
 }
 
 .title {
-  font-size: 20px;
+  font-size: 16px;
+  line-height: 24px;
 }
 
 .row {

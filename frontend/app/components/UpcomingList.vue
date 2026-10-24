@@ -6,9 +6,9 @@ defineEmits<{ mark: [period: Period] }>()
 </script>
 
 <template>
-  <ul class="card list">
-    <li v-for="item in items" :key="item.title" class="row">
-      <UiDateTile month="ОКТ" :day="item.due.slice(0, 2)" />
+  <ul class="list">
+    <li v-for="(item, i) in items" :key="item.title" class="row rise" :style="{ '--i': i }">
+      <UiDateTile month="окт" :day="item.due.slice(0, 2)" />
       <span class="relative" :class="{ near: item.relative === 'завтра' }">{{ item.relative }}</span>
       <span>
         <span class="title">{{ item.title }}</span>
@@ -18,7 +18,7 @@ defineEmits<{ mark: [period: Period] }>()
       <span class="amount mono">{{ item.amount }}</span>
       <span class="currency mono">{{ item.currency }}</span>
       <span>
-        <UiStamp v-if="item.paidAt" large>ОПЛАЧЕНО {{ item.paidAt.slice(0, 5) }}</UiStamp>
+        <UiStatus v-if="item.paidAt" status="paid" :label="`Оплачено ${item.paidAt.slice(0, 5)}`" />
         <UiStatus v-else :status="item.status" />
       </span>
       <span class="action">
@@ -29,9 +29,12 @@ defineEmits<{ mark: [period: Period] }>()
 </template>
 
 <style scoped>
+/* no box: hairlines above, between and below the rows */
 .list {
-  margin: 0;
-  padding: 0 20px;
+  margin: 0 -12px;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   list-style: none;
 }
 
@@ -40,6 +43,12 @@ defineEmits<{ mark: [period: Period] }>()
   grid-template-columns: 42px 98px 230px 150px 150px 100px 1fr 112px;
   align-items: center;
   height: 60px;
+  padding: 0 12px;
+  transition: background-color 0.2s ease;
+}
+
+.row:hover {
+  background: var(--subtle);
 }
 
 .row + .row {
@@ -53,7 +62,7 @@ defineEmits<{ mark: [period: Period] }>()
 }
 
 .relative.near {
-  color: var(--accent-ink);
+  color: var(--ink);
   font-weight: 500;
 }
 

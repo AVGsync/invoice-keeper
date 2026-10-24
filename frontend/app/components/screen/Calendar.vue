@@ -75,7 +75,7 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
           <p class="italic margin">
             Отметка на полях:<br>{{ overdueNow[0]!.title.toLowerCase() }} за {{ Number(overdueNow[0]!.due.slice(0, 2)) }}-е ещё не оплачена.
           </p>
-          <UiStamp color="red" large class="stamp">{{ overdueNow.length }} ПРОСРОЧЕН{{ overdueNow.length > 1 ? 'О' : '' }}</UiStamp>
+          <UiStatus status="overdue" :label="`${overdueNow.length} просрочен${overdueNow.length > 1 ? 'о' : ''}`" />
         </div>
       </div>
     </div>
@@ -102,8 +102,11 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
   margin-left: 14px;
 }
 
+/* legend shows just the dot and the word, without the badge fill */
 .legend :deep(.status) {
-  font-size: 12px;
+  height: auto;
+  padding: 0;
+  background: none;
   font-weight: 400;
   color: var(--ink-2);
 }
@@ -131,9 +134,5 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
   font-size: 13px;
   line-height: 18px;
   color: var(--ink-2);
-}
-
-.stamp {
-  font-size: 11px;
 }
 </style>

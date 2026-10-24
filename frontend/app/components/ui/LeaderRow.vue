@@ -1,4 +1,4 @@
-<!-- "label ........ value" line -->
+<!-- label on the left, value on the right -->
 <template>
   <div class="row">
     <span class="label"><slot name="label" /></span>
@@ -15,8 +15,11 @@
   font-size: 13px;
 }
 
+.label {
+  color: var(--ink-2);
+}
+
 .leader {
   flex: 1;
-  border-bottom: 1px dotted var(--line-strong);
 }
 </style>

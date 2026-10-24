@@ -38,23 +38,26 @@ defineEmits<{ close: [] }>()
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(20 20 20 / 0.28);
+  background: rgb(0 0 0 / 0.4);
+  backdrop-filter: blur(6px);
 }
 
 .modal {
   background: var(--surface);
-  border-radius: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-pop);
 }
 
 .head {
   display: flex;
   justify-content: space-between;
-  padding: 18px 28px 0;
+  padding: 20px 24px 0;
 }
 
 .title {
-  font-size: 24px;
-  line-height: 32px;
+  font-size: 18px;
+  line-height: 28px;
 }
 
 .subtitle {
@@ -77,14 +80,14 @@ defineEmits<{ close: [] }>()
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px 28px 24px;
+  padding: 16px 24px 24px;
 }
 
 .foot {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 20px 28px;
+  padding: 16px 24px;
   border-top: 1px solid var(--line);
 }
 </style>

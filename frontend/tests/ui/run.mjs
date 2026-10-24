@@ -581,46 +581,52 @@ try {
 
   // ---------- admin pages without figma screens ----------
   await check('T28', async () => {
-    const pages = { Персоны: '/admin/personas', Журнал: '/admin/log', Настройки: '/admin/settings' }
+    const pages = { Журнал: '/admin/log', Настройки: '/admin/settings' }
     for (const [label, path] of Object.entries(pages)) {
       await page.locator('aside.sidebar').getByRole('link', { name: label }).click()
       await page.waitForURL(`**${path}`, { timeout: 10000 })
+      // the new page fades in after the url changes (pageTransition), wait for its title
+      await page.locator('h1.title', { hasText: label }).waitFor({ timeout: 5000 }).catch(() => {})
       const title = await page.locator('h1.title').innerText()
       assert(title === label, `${path}: title "${title}"`)
       assert(await page.locator('aside.sidebar .item.active').innerText() === label, `${path}: nav item not active`)
     }
+    // personas live in the panel on the users page now, the page and its nav item are gone
+    assert(await page.locator('aside.sidebar').getByRole('link', { name: 'Персоны' }).count() === 0, 'Персоны still in the nav')
   })
 
   await check('T29', async () => {
     const P3 = `uitest_p3_${tag}`
-    await page.goto(`${BASE}/admin/personas`)
+    // personas are managed from the panel on the users page
+    await page.goto(`${BASE}/admin/users`)
     await hydrated(page)
-    await page.getByRole('button', { name: 'Новая персона' }).click()
+    const items = () => page.locator('.panel .item')
+    await page.getByRole('button', { name: /Добавить персону/ }).click()
     let modal = modalTitled(page, 'Новая персона')
     await modal.getByLabel('Название').fill(P3)
     await modal.getByLabel('Описание').fill('first')
     await modal.getByRole('button', { name: 'Создать персону' }).click()
     await modal.waitFor({ state: 'detached', timeout: 10000 })
-    const row = () => rows().filter({ hasText: P3 })
-    await row().waitFor({ timeout: 10000 })
+    await items().filter({ hasText: P3 }).waitFor({ timeout: 10000 })
 
     // edit: rename and clear the description
-    await row().getByRole('button', { name: 'Изменить' }).click()
+    await items().filter({ hasText: P3 }).getByRole('button', { name: 'Изменить' }).click()
     modal = modalTitled(page, 'Изменить персону')
     await modal.getByLabel('Название').fill(`${P3}_v2`)
     await modal.getByLabel('Описание').fill('')
     await modal.getByRole('button', { name: 'Сохранить' }).click()
     await modal.waitFor({ state: 'detached', timeout: 10000 })
-    await rows().filter({ hasText: `${P3}_v2` }).waitFor({ timeout: 10000 })
-    assert((await rows().filter({ hasText: `${P3}_v2` }).innerText()).includes('—'), 'description not cleared')
+    const renamed = items().filter({ hasText: `${P3}_v2` })
+    await renamed.waitFor({ timeout: 10000 })
+    assert(await renamed.locator('.description').count() === 0, 'description not cleared')
     await page.screenshot({ path: `${SHOTS}A5-personas.png` })
 
     // delete: first click asks, second deletes
-    await rows().filter({ hasText: `${P3}_v2` }).getByRole('button', { name: 'Изменить' }).click()
+    await renamed.getByRole('button', { name: 'Изменить' }).click()
     await modal.getByRole('button', { name: 'Удалить' }).click()
     await modal.getByRole('button', { name: 'Точно удалить?' }).click()
     await modal.waitFor({ state: 'detached', timeout: 10000 })
-    await rows().filter({ hasText: `${P3}_v2` }).waitFor({ state: 'detached', timeout: 10000 })
+    await renamed.waitFor({ state: 'detached', timeout: 10000 })
   })
 
   await check('T30', async () => {

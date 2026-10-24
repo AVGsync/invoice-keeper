@@ -76,7 +76,7 @@ export function useAssistant() {
 
   // reads the server-sent events: step, block, text, done, error
   async function readStream(stream: ReadableStream<Uint8Array>, message: ChatMessage) {
-    const reader = stream.pipeThrough(new TextDecoderStream()).getReader()
+    const reader = stream.pipeThrough(new TextDecoderStream() as TransformStream<Uint8Array, string>).getReader()
     let buffer = ''
     let text = ''
     let envelope: AssistantAnswerResponse | undefined

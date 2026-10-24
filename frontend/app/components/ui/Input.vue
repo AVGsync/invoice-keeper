@@ -84,7 +84,8 @@ function onBlur() {
 }
 
 .input:focus {
-  border-color: var(--accent);
+  border-color: var(--ink-2);
+  box-shadow: 0 0 0 3px var(--subtle);
 }
 
 .input::placeholder {

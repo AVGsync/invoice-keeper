@@ -15,6 +15,8 @@ const loading = ref(true)
 const modal = ref<'newUser' | 'editUser'>()
 const personaOpen = ref(false)
 const editing = ref<User>()
+// persona being edited in the panel, empty = creating a new one
+const editingPersona = ref<Persona>()
 
 async function load() {
   try {
@@ -43,7 +45,12 @@ function done() {
   load()
 }
 
-async function personaCreated() {
+function openPersona(persona?: Persona) {
+  editingPersona.value = persona
+  personaOpen.value = true
+}
+
+async function personaSaved() {
   personaOpen.value = false
   await load()
 }
@@ -61,7 +68,7 @@ async function personaCreated() {
 
     <div class="layout">
       <UsersTable :users="users" :loading="loading" @edit="edit" />
-      <PersonasPanel :items="personas" :loading="loading" @add="personaOpen = true" />
+      <PersonasPanel :items="personas" :loading="loading" @add="openPersona()" @edit="openPersona" />
     </div>
 
     <Transition name="modal">
@@ -70,14 +77,14 @@ async function personaCreated() {
         :personas="personas"
         @close="modal = undefined"
         @created="done"
-        @new-persona="personaOpen = true"
+        @new-persona="openPersona()"
       />
     </Transition>
     <Transition name="modal">
       <EditUserModal v-if="modal === 'editUser' && editing" :user="editing" @close="modal = undefined" @saved="done" />
     </Transition>
     <Transition name="modal">
-      <PersonaModal v-if="personaOpen" @close="personaOpen = false" @saved="personaCreated" />
+      <PersonaModal v-if="personaOpen" :persona="editingPersona" @close="personaOpen = false" @saved="personaSaved" />
     </Transition>
   </div>
 </template>

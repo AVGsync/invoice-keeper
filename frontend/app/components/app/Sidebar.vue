@@ -1,21 +1,37 @@
 <script setup lang="ts">
+import type { IconName } from '~/components/ui/Icon.vue'
+
 const { role, isAdmin } = useRole()
 
-const mainNav = computed(() => [
-  { label: 'Обзор', to: `/${role.value}/overview` },
-  { label: 'Платежи', to: `/${role.value}/payments` },
-  { label: 'Календарь', to: `/${role.value}/calendar` },
-  { label: 'Регулярные', to: `/${role.value}/recurring` },
+interface NavItem { label: string, to: string, icon: IconName }
+
+const mainNav = computed<NavItem[]>(() => [
+  { label: 'Обзор', to: `/${role.value}/overview`, icon: 'overview' },
+  { label: 'Платежи', to: `/${role.value}/payments`, icon: 'payments' },
+  { label: 'Календарь', to: `/${role.value}/calendar`, icon: 'calendar' },
+  { label: 'Регулярные', to: `/${role.value}/recurring`, icon: 'recurring' },
   // admins have it in their own section below
-  ...(isAdmin.value ? [] : [{ label: 'Настройки', to: '/user/settings' }]),
+  ...(isAdmin.value ? [] : [{ label: 'Настройки', to: '/user/settings', icon: 'settings' } as NavItem]),
 ])
 
-const adminNav = [
-  { label: 'Пользователи', to: '/admin/users' },
-  { label: 'Персоны', to: '/admin/personas' },
-  { label: 'Журнал', to: '/admin/log' },
-  { label: 'Настройки', to: '/admin/settings' },
+const adminNav: NavItem[] = [
+  { label: 'Пользователи', to: '/admin/users', icon: 'users' },
+  { label: 'Журнал', to: '/admin/log', icon: 'log' },
+  { label: 'Настройки', to: '/admin/settings', icon: 'settings' },
 ]
+
+// one highlight slides from the old page's item to the new one, across both sections
+const root = ref<HTMLElement>()
+const marker = ref<{ top: number, height: number }>()
+const route = useRoute()
+
+function placeMarker() {
+  const active = root.value?.querySelector<HTMLElement>('.item.active')
+  marker.value = active ? { top: active.offsetTop, height: active.offsetHeight } : undefined
+}
+
+watch(() => route.path, () => nextTick(placeMarker))
+onMounted(placeMarker)
 
 const { user: me, logout } = useAuth()
 
@@ -37,28 +53,40 @@ const user = computed(() => ({
 // backend has no bot status endpoint yet, so it's always online for now
 const botOnline = ref(true)
 
-const { prefs } = usePrefs()
+const { prefs, switchTheme } = usePrefs()
 const demo = useDemo()
 const isLight = computed(() => prefs.value.theme === 'light')
-function toggleTheme() {
-  prefs.value.theme = isLight.value ? 'dark' : 'light'
+function toggleTheme(e: MouseEvent) {
+  const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  switchTheme(isLight.value ? 'dark' : 'light', { x: box.left + box.width / 2, y: box.top + box.height / 2 })
 }
 </script>
 
 <template>
-  <aside class="sidebar">
+  <aside ref="root" class="sidebar" :class="{ placed: marker }">
     <AppLogo />
     <div class="rule" />
 
+    <span
+      v-if="marker"
+      class="marker"
+      :style="{ transform: `translateY(${marker.top}px)`, height: `${marker.height}px` }"
+      aria-hidden="true"
+    />
+
     <nav class="nav">
       <template v-for="item in mainNav" :key="item.label">
-        <NuxtLink :to="item.to" class="item" active-class="active">{{ item.label }}</NuxtLink>
+        <NuxtLink :to="item.to" class="item" active-class="active">
+          <UiIcon :name="item.icon" class="item-icon" />{{ item.label }}
+        </NuxtLink>
       </template>
 
       <template v-if="isAdmin">
         <p class="kicker section">Администратор</p>
         <template v-for="item in adminNav" :key="item.label">
-          <NuxtLink :to="item.to" class="item" active-class="active">{{ item.label }}</NuxtLink>
+          <NuxtLink :to="item.to" class="item" active-class="active">
+            <UiIcon :name="item.icon" class="item-icon" />{{ item.label }}
+          </NuxtLink>
         </template>
       </template>
     </nav>
@@ -105,7 +133,9 @@ function toggleTheme() {
           <span class="me-loading"><UiSkeleton width="100px" /><UiSkeleton width="70px" height="10px" /></span>
         </template>
       </ClientOnly>
-      <button type="button" class="logout" @click="signOut">Выйти</button>
+      <button type="button" class="logout" aria-label="Выйти" title="Выйти" @click="signOut">
+        <UiIcon name="logout" class="logout-icon" />
+      </button>
     </div>
   </aside>
 </template>
@@ -119,6 +149,7 @@ function toggleTheme() {
   width: 233px;
   height: 100vh;
   padding: 24px 12px 0;
+  background: var(--side);
   border-right: 1px solid var(--line);
 }
 
@@ -128,7 +159,7 @@ function toggleTheme() {
 
 .rule {
   margin: 16px 12px;
-  border-top: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line);
 }
 
 .nav {
@@ -137,46 +168,57 @@ function toggleTheme() {
   gap: 2px;
 }
 
-/* picking an item fades its background in and grows the blue bar,
-   the item you leave does the same backwards */
+/* the active item sits on a soft blue fill (.marker), no side bar */
 .item {
   position: relative;
-  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
   padding: 0 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--ink-2);
-  line-height: 32px;
-  transition: background-color 0.2s ease, color 0.2s ease, font-weight 0.2s ease;
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .item:hover:not(.active) {
+  background: var(--subtle);
   color: var(--ink);
 }
 
 .item.active {
-  background: var(--muted-bg);
   color: var(--ink);
-  font-weight: 500;
 }
 
-/* blue bar on the left, hidden (squashed) until the item is active */
-.item::before {
-  content: '';
+/* until the marker is placed (first paint) the item paints its own fill */
+.sidebar:not(.placed) .item.active {
+  background: var(--accent-bg);
+}
+
+.item-icon {
+  color: var(--ink-3);
+  transition: color 0.2s ease, transform 0.45s var(--ease-spring);
+}
+
+.item:hover .item-icon {
+  color: var(--ink);
+  transform: scale(1.12);
+}
+
+.item.active .item-icon {
+  color: var(--accent-ink);
+}
+
+/* the sliding fill behind the active item */
+.marker {
   position: absolute;
-  left: 0;
-  top: 8px;
-  width: 3px;
-  height: 16px;
-  border-radius: 2px;
-  background: var(--accent);
-  opacity: 0;
-  transform: scaleY(0);
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.item.active::before {
-  opacity: 1;
-  transform: scaleY(1);
+  top: 0;
+  left: 12px;
+  right: 12px;
+  border-radius: 8px;
+  background: var(--accent-bg);
+  transition: transform 0.5s var(--ease-out), height 0.5s var(--ease-out);
 }
 
 .section {
@@ -186,10 +228,11 @@ function toggleTheme() {
 .demo {
   align-self: flex-start;
   margin: auto 12px 12px;
-  padding: 2px 8px;
-  border: 1px dashed var(--amber);
-  border-radius: 4px;
-  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  background: var(--amber-bg);
+  font-size: 12px;
+  font-weight: 500;
   color: var(--amber);
 }
 
@@ -208,7 +251,7 @@ function toggleTheme() {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 
@@ -220,7 +263,7 @@ function toggleTheme() {
   padding: 0;
   background: none;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--ink-2);
   transition: color 0.2s ease, border-color 0.2s ease;
 }
@@ -255,7 +298,7 @@ function toggleTheme() {
 }
 
 .me-role {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -266,11 +309,28 @@ function toggleTheme() {
 }
 
 .logout {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
   margin-left: auto;
   padding: 0;
   background: none;
-  border: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
   font-size: 12px;
   color: var(--red);
+}
+.logout-icon {
+  transition: transform 0.35s var(--ease-out);
+}
+
+.logout:hover {
+  background: var(--red-bg);
+}
+
+.logout:hover .logout-icon {
+  transform: translateX(2px);
 }
 </style>

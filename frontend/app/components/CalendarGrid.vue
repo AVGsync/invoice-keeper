@@ -18,9 +18,9 @@ function select(period: Period) {
   withTransition(() => { selected.value = period })
 }
 
-const weekdays = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
+const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
-const short = { pending: 'ЖДЁТ', paid: 'ОПЛ.', late: 'ОПЛ.', overdue: 'ПРОСР.' }
+const short = { pending: 'ждёт', paid: 'опл.', late: 'опл.', overdue: 'проср.' }
 
 function label(period: Period) {
   const extra = period.status === 'late' ? ` ${period.overdue?.replace(' дн.', '')}` : ''
@@ -39,12 +39,12 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
 
 <template>
   <div class="card grid">
-    <span v-for="name in weekdays" :key="name" class="weekday mono" :class="{ off: name === 'СБ' || name === 'ВС' }">
+    <span v-for="name in weekdays" :key="name" class="weekday" :class="{ off: name === 'Сб' || name === 'Вс' }">
       {{ name }}
     </span>
 
     <div v-for="cell in cells" :key="cell.key" class="cell" :class="{ weekend: cell.weekend }">
-      <span v-if="cell.today" class="today mono"><span class="circle">{{ cell.day }}</span>СЕГОДНЯ</span>
+      <span v-if="cell.today" class="today"><span class="circle">{{ cell.day }}</span>сегодня</span>
       <span v-else class="day mono" :class="{ other: !cell.inMonth }">{{ cell.day }}</span>
 
       <button
@@ -56,7 +56,7 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
       >
         <span class="title">{{ cell.period.title }}</span>
         <span class="amount mono">{{ cell.period.amount }}</span>
-        <span class="who mono">{{ label(cell.period) }}</span>
+        <span class="who">{{ label(cell.period) }}</span>
       </button>
     </div>
   </div>
@@ -71,23 +71,22 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
 }
 
 .weekday {
-  padding: 8px 12px;
-  background: var(--subtle);
+  padding: 7px 12px;
   border-bottom: 1px solid var(--line);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--ink-2);
+  color: var(--ink-3);
 }
 
 .weekday.off {
   color: var(--ink-3);
+  opacity: 0.7;
 }
 
 .cell {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px;
   padding: 12px 6px 6px;
   border-top: 1px solid var(--line);
   border-left: 1px solid var(--line);
@@ -103,7 +102,7 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
 }
 
 .cell.weekend {
-  background: color-mix(in srgb, var(--subtle) 60%, transparent);
+  background: color-mix(in srgb, var(--subtle) 50%, transparent);
 }
 
 .day {
@@ -122,8 +121,8 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
   align-items: center;
   gap: 6px;
   margin: -4px 0 -5px;
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--accent-ink);
 }
 
@@ -143,26 +142,34 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
 .payment {
   display: flex;
   flex-direction: column;
-  height: 78px;
-  padding: 8px 8px 8px 11px;
+  height: 86px;
+  padding: 8px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--ink-3);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
   text-align: left;
 }
 
-.payment.selected {
-  border-color: var(--accent-ink);
-  border-left-color: var(--ink-3);
+.payment {
+  transition: border-color 0.2s ease, transform 0.35s var(--ease-out), box-shadow 0.2s ease;
 }
 
-.payment.paid { border-left-color: var(--green); }
-.payment.late { border-left-color: var(--amber); }
+.payment:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+/* the status is told by the coloured line at the bottom (.who), the card itself stays neutral;
+   only an overdue one gets a faint red wash */
 .payment.overdue {
   background: var(--red-bg);
-  border-left-color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 30%, var(--line));
+}
+
+.payment.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 /* long names stop after 2 lines so amount and status always fit in the card */
@@ -185,8 +192,7 @@ const cells = computed(() => monthCells(props.year, props.month, 5).map(cell => 
 
 .who {
   margin-top: 2px;
-  font-size: 9px;
-  letter-spacing: 0.06em;
+  font-size: 11px;
   color: var(--ink-3);
 }
 

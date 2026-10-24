@@ -79,7 +79,7 @@ function add() {
       <span class="who">
         <PersonCell :person="people.olga" />
         <span class="muted">{{ people.olga.persona }}</span>
-        <span class="muted caret">▾</span>
+        <UiIcon name="down" :size="14" class="muted caret" />
       </span>
     </UiField>
 

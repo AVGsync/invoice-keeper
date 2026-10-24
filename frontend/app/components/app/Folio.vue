@@ -10,7 +10,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: auto;
-  padding: 24px 0 15px;
-  letter-spacing: 0.08em;
+  padding: 32px 0 16px;
+  font-weight: 400;
 }
 </style>

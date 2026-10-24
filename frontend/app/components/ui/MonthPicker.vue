@@ -1,4 +1,4 @@
-<!-- month as 'YYYY-MM'. ‹ › step a month, clicking the month name opens a 12-month dropdown -->
+<!-- month as 'YYYY-MM'. arrows step a month, clicking the month name opens a 12-month dropdown -->
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
   // control = small box for filter rows, title = big month name like on Календарь
@@ -34,17 +34,17 @@ function step(by: number) {
         <span class="mono year">{{ shown.year }}</span>
       </button>
       <span class="arrows">
-        <button type="button" aria-label="Предыдущий месяц" @click="step(-1)">‹</button>
-        <button type="button" aria-label="Следующий месяц" @click="step(1)">›</button>
+        <button type="button" aria-label="Предыдущий месяц" @click="step(-1)"><UiIcon name="left" :size="15" /></button>
+        <button type="button" aria-label="Следующий месяц" @click="step(1)"><UiIcon name="right" :size="15" /></button>
       </span>
     </template>
 
     <template v-else>
-      <button type="button" class="arrow" aria-label="Предыдущий месяц" @click="step(-1)">‹</button>
+      <button type="button" class="arrow" aria-label="Предыдущий месяц" @click="step(-1)"><UiIcon name="left" :size="15" /></button>
       <button type="button" class="label" :aria-expanded="open" @click="open = !open">
         {{ monthNames[shown.month] }} {{ shown.year }}
       </button>
-      <button type="button" class="arrow" aria-label="Следующий месяц" @click="step(1)">›</button>
+      <button type="button" class="arrow" aria-label="Следующий месяц" @click="step(1)"><UiIcon name="right" :size="15" /></button>
     </template>
 
     <Transition name="menu">
@@ -75,7 +75,7 @@ function step(by: number) {
   padding: 0 6px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .control .label {
@@ -88,6 +88,8 @@ function step(by: number) {
 }
 
 .arrow {
+  display: inline-grid;
+  place-items: center;
   width: 20px;
   background: none;
   border: 0;
@@ -95,7 +97,7 @@ function step(by: number) {
   color: var(--ink-2);
 }
 
-/* big month name + year, then the ‹ › box */
+/* big month name + year, then the arrows box */
 .title {
   gap: 26px;
 }
@@ -110,7 +112,8 @@ function step(by: number) {
 }
 
 .big {
-  font-size: 34px;
+  font-size: 24px;
+  line-height: 32px;
 }
 
 .year {
@@ -123,15 +126,24 @@ function step(by: number) {
   height: 32px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .arrows button {
+  display: inline-grid;
+  place-items: center;
   width: 46px;
+  transition: background-color 0.2s ease, color 0.2s ease;
   background: none;
   border: 0;
   font-size: 15px;
   color: var(--ink-2);
+}
+
+.arrows button:hover,
+.arrow:hover {
+  background: var(--subtle);
+  color: var(--ink);
 }
 
 .arrows button + button {
@@ -147,6 +159,7 @@ function step(by: number) {
   padding: 10px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
 }
 </style>

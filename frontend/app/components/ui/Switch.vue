@@ -26,8 +26,8 @@ const model = defineModel<boolean>({ default: false })
   position: relative;
   width: 28px;
   height: 16px;
-  border-radius: 8px;
-  background: var(--subtle);
+  border-radius: 9999px;
+  background: var(--line-strong);
 }
 
 .track.on {
@@ -41,7 +41,7 @@ const model = defineModel<boolean>({ default: false })
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--ink);
+  background: #fff;
   transition: left 0.14s ease;
 }
 

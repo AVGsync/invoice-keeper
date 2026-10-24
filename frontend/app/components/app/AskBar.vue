@@ -134,6 +134,7 @@ onBeforeUnmount(() => {
       <span class="count mono">{{ messages.filter(message => message.from === 'me').length }}</span>
     </button>
     <form v-else class="ask" @submit.prevent="send">
+      <UiIcon name="search" :size="15" class="search" />
       <input
         ref="input"
         v-model="question"
@@ -209,14 +210,29 @@ onBeforeUnmount(() => {
   height: 34px;
   padding: 0 12px;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: 8px;
   font-size: 13px;
   color: var(--ink-2);
 }
 
+.ask {
+  transition: border-color 0.2s ease, box-shadow 0.3s var(--ease-out);
+}
+
 .ask:focus-within {
-  border-color: var(--line-strong);
+  border-color: var(--ink-2);
+  box-shadow: 0 0 0 3px var(--subtle);
+}
+
+.search {
+  color: var(--ink-3);
+  transition: color 0.2s ease, transform 0.45s var(--ease-spring);
+}
+
+.ask:focus-within .search {
+  color: var(--ink);
+  transform: scale(1.1);
 }
 
 .resume:hover {
@@ -258,6 +274,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: var(--shadow-pop);
   transition: width 0.2s ease;
 }
 
@@ -270,10 +287,11 @@ onBeforeUnmount(() => {
 }
 
 .demo {
-  padding: 0 6px;
-  border: 1px dashed var(--amber);
-  border-radius: 4px;
-  font-size: 10px;
+  padding: 0 7px;
+  border-radius: 9999px;
+  background: var(--amber-bg);
+  font-size: 11px;
+  font-weight: 500;
   color: var(--amber);
 }
 
@@ -396,7 +414,7 @@ onBeforeUnmount(() => {
   padding: 3px 9px;
   background: none;
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: 9999px;
   font-size: 12px;
   color: var(--ink-2);
 }

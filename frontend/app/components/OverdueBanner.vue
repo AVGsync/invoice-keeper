@@ -18,10 +18,11 @@ defineEmits<{ mark: [] }>()
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 52px;
-  padding: 0 14px 0 18px;
-  background: var(--red-bg);
-  border-radius: 8px;
+  height: 56px;
+  padding: 0 12px 0 18px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--red) 35%, var(--line));
+  border-radius: 12px;
 }
 
 .dot {
@@ -32,7 +33,7 @@ defineEmits<{ mark: [] }>()
 }
 
 .title {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--red);
 }
 
