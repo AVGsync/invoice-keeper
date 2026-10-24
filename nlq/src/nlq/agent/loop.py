@@ -255,7 +255,7 @@ async def run_loop(
     deadline = start + max(cfg.total_timeout - _FALLBACK_RESERVE, _MIN_STEP_BUDGET)
     telemetry = LoopTelemetry()
     messages: list[dict[str, Any]] = [
-        {"role": "system", "content": build_system_prompt(actor, today, cfg.tz, scope)},
+        {"role": "system", "content": build_system_prompt(actor, today, cfg.tz, scope) + mem.history_context(history)},
         *mem.history_messages(history),
         {"role": "user", "content": question},
     ]

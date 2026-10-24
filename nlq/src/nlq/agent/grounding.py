@@ -20,10 +20,19 @@ _DATE = re.compile(r"\b(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?\b")
 _NUMBER = re.compile(r"\d[\d\s  ]*(?:[.,]\d+)?")
 
 
+# Служебные метки памяти диалога: модель не должна показывать их пользователю.
+_MEMORY_MARKER = re.compile(r"\s*\[(?:Данные этого ответа|Инструменты:)[^\n]*\]")
+
+
+def strip_memory_markers(text: str) -> str:
+    return _MEMORY_MARKER.sub("", text).strip()
+
+
 def clean_text(text: str | None) -> str:
     if not text:
         return ""
-    out = _MD_IMAGE.sub(" ", text)
+    out = strip_memory_markers(text)
+    out = _MD_IMAGE.sub(" ", out)
     out = _MD_LINK.sub(r"\1", out)
     out = _URL.sub(" ", out)
     out = _HTML_TAG.sub(" ", out)
