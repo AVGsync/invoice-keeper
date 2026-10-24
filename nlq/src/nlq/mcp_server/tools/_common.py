@@ -54,7 +54,7 @@ async def compute_coverage(
     when any active payment has no periods, has none at all, or its last period
     is before the end of the requested window.
     """
-    rows = await state.db.ro_query(load_sql("coverage.sql"))
+    rows = await state.db.ro_query(load_sql("horizon.sql"))
     row = rows[0] if rows else None
     coverage_until = row["coverage_until"] if row else None
     any_missing = bool(row["any_without_periods"]) if row else False

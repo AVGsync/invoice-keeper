@@ -201,7 +201,7 @@ Python is pinned to 3.14 in the Dockerfile (env default) vs 3.12 in the spec;
   `category_unavailable:true` so the renderer adds a note, rather than silently
   returning nothing. The dev fixture (`db/dev_b_tables.sql`) ships the column for
   local/test use.
-- **Coverage is per active payment (decision #4).** `coverage.sql` returns the
+- **Coverage is per active payment (decision #4).** `horizon.sql` returns the
   earliest last-occurrence across active payments (not a single global
   `max(due_date)`) plus `any_without_periods`, so one payment generated far ahead
   cannot hide others whose periods were never created. `find_occurrences` and

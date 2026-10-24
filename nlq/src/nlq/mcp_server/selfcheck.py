@@ -70,7 +70,7 @@ def _rendered_templates(category_available: bool) -> list[str]:
         "0",
     ):
         out.append(load_sql("find_people.sql").format(active_payments=active))
-    out.append(load_sql("coverage.sql"))
+    out.append(load_sql("horizon.sql"))
     out.append(load_sql("run_rate.sql"))
     return out
 

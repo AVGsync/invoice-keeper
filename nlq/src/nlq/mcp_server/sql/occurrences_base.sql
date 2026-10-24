@@ -1,6 +1,6 @@
 -- The ONLY place that knows developer B's payment columns (section 5.2).
 -- When B fixes the schema, only this file, find_recurring_payments.sql,
--- coverage.sql and run_rate.sql change; tool contracts, the prompt and eval
+-- horizon.sql and run_rate.sql change; tool contracts, the prompt and eval
 -- stay the same.
 -- The category_col fragment is chosen by code (fragments.category_col): the
 -- real rp.category when B's column exists, or NULL::text so the adapter keeps
