@@ -142,6 +142,10 @@ func (s *APIServer) configureRouter() {
 	userService := service.NewUserService(s.db.User(), hasher, jwtManager, refreshTTL)
 	userHandler := handler.NewUserHandler(userService, accessTTL, refreshTTL)
 
+	paymentService := service.NewPaymentService(s.db.Payment())
+	recPaymentService := service.NewRecurrentPaymentService(s.db.RecurrentPayment())
+	paymentHandler := handler.NewPaymentHandler(recPaymentService, paymentService)
+
 	personaService := service.NewPersonaService(s.db.Persona())
 	personaHandler := handler.NewPersonaHandler(personaService)
 
@@ -187,6 +191,32 @@ func (s *APIServer) configureRouter() {
 				r.Post("/", userHandler.CreateUser())
 				r.Patch("/{id}", userHandler.UpdateUserByID())
 				r.Delete("/{id}", userHandler.DeleteUserByID())
+			})
+
+			r.Route("/payments", func(r chi.Router) {
+				r.Use(middleware.IsUserOrAdmin)
+				r.Use(middleware.MaxBytes(defaultMaxRequestBody))
+
+				r.Get("/summary", paymentHandler.GetPaymentsSummary())
+			})
+
+			r.Route("/recurring-payments", func(r chi.Router) {
+				r.Use(middleware.IsAdmin)
+				r.Use(middleware.MaxBytes(defaultMaxRequestBody))
+
+				r.Get("/", paymentHandler.GetRecurringPayments())
+				r.Post("/", paymentHandler.CreateRecurringPayment())
+				r.Patch("/{id}", paymentHandler.UpdateRecurringPayment())
+				r.Delete("/{id}", paymentHandler.StopRecurringPayment())
+			})
+
+			r.Route("/payment-occurrences", func(r chi.Router) {
+				r.Use(middleware.IsUserOrAdmin)
+				r.Use(middleware.MaxBytes(defaultMaxRequestBody))
+
+				r.Get("/", paymentHandler.GetPaymentOccurrences())
+				r.Get("/{id}", paymentHandler.GetPaymentOccurrence())
+				r.Patch("/{id}", paymentHandler.PatchPaymentOccurrence())
 			})
 
 			// Справочник персон для назначения пользователям — только администратор.

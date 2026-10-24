@@ -46,3 +46,11 @@ func (d *DB) User() *UserRepository {
 func (d *DB) Persona() *PersonaRepository {
 	return &PersonaRepository{database: d}
 }
+
+func (d *DB) Payment() *PaymentRepository {
+	return &PaymentRepository{database: d}
+}
+
+func (d *DB) RecurrentPayment() *RecurrentPaymentRepository {
+	return &RecurrentPaymentRepository{database: d}
+}

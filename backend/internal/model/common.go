@@ -67,3 +67,36 @@ type Claims struct {
 
 	jwt.RegisteredClaims
 }
+
+type RecurrentPayment struct {
+	ID          int64  `json:"id"`
+	Amount      int64  `json:"amount"` // Сумма в минимальных денежных единицах
+	Currency    string `json:"currency"`
+	Frequency   string `json:"frequency"` // weekly, monthly
+	Interval    int    `json:"interval"`  // Каждые N недель или месяцев
+	Description string `json:"description"`
+
+	// Для monthly: день месяца (1–31)
+	// Для weekly: день недели (0–6)
+	DayOffset int `json:"day_offset"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type Payment struct {
+	ID                 string  `json:"id"`
+	UserID             string  `json:"user_id"`
+	RecurrentPaymentID *string `json:"recurrent_payment_id,omitempty"`
+
+	Amount      int64  `json:"amount"`
+	Currency    string `json:"currency"`
+	Description string `json:"description"`
+
+	DueDate time.Time  `json:"due_date"`
+	PaidAt  *time.Time `json:"paid_at,omitempty"`
+	Status  string     `json:"status"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
