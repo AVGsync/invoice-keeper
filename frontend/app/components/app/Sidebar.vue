@@ -7,27 +7,29 @@ interface NavItem { label: string, to: string, icon: IconName }
 
 const mainNav = computed<NavItem[]>(() => [
   { label: 'Обзор', to: `/${role.value}/overview`, icon: 'overview' },
-  { label: 'Платежи', to: `/${role.value}/payments`, icon: 'payments' },
   { label: 'Календарь', to: `/${role.value}/calendar`, icon: 'calendar' },
+  { label: 'Периоды', to: `/${role.value}/payments`, icon: 'payments' },
   { label: 'Регулярные', to: `/${role.value}/recurring`, icon: 'recurring' },
-  // admins have it in their own section below
-  ...(isAdmin.value ? [] : [{ label: 'Настройки', to: '/user/settings', icon: 'settings' } as NavItem]),
+  // admins have it in their own section below, with everybody's actions
+  ...(isAdmin.value ? [] : [{ label: 'Журнал', to: '/user/log', icon: 'log' } as NavItem]),
 ])
 
 const adminNav: NavItem[] = [
   { label: 'Пользователи', to: '/admin/users', icon: 'users' },
   { label: 'Журнал', to: '/admin/log', icon: 'log' },
-  { label: 'Настройки', to: '/admin/settings', icon: 'settings' },
 ]
 
 // one highlight slides from the old page's item to the new one, across both sections
 const root = ref<HTMLElement>()
 const marker = ref<{ top: number, height: number }>()
+// no nav item is active (e.g. on «Настройки»): the fill fades where it was instead of vanishing
+const markerOff = ref(false)
 const route = useRoute()
 
 function placeMarker() {
   const active = root.value?.querySelector<HTMLElement>('.item.active')
-  marker.value = active ? { top: active.offsetTop, height: active.offsetHeight } : undefined
+  markerOff.value = !active
+  if (active) marker.value = { top: active.offsetTop, height: active.offsetHeight }
 }
 
 watch(() => route.path, () => nextTick(placeMarker))
@@ -44,17 +46,12 @@ async function signOut() {
 const user = computed(() => ({
   initials: initials(me.value?.full_name),
   name: me.value?.full_name ?? '',
-  // admin always comes from .env, users show their persona
   role: me.value?.role === 'admin'
-    ? 'admin · .env'
-    : ['user', me.value?.persona?.name].filter(Boolean).join(' · '),
+    ? roleName('admin')
+    : [roleName('user'), me.value?.persona?.name].filter(Boolean).join(' · '),
 }))
 
-// backend has no bot status endpoint yet, so it's always online for now
-const botOnline = ref(true)
-
 const { prefs, switchTheme } = usePrefs()
-const demo = useDemo()
 const isLight = computed(() => prefs.value.theme === 'light')
 function toggleTheme(e: MouseEvent) {
   const box = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -63,13 +60,14 @@ function toggleTheme(e: MouseEvent) {
 </script>
 
 <template>
-  <aside ref="root" class="sidebar" :class="{ placed: marker }">
+  <aside ref="root" class="sidebar" :class="{ placed: marker && !markerOff }">
     <AppLogo />
     <div class="rule" />
 
     <span
       v-if="marker"
       class="marker"
+      :class="{ off: markerOff }"
       :style="{ transform: `translateY(${marker.top}px)`, height: `${marker.height}px` }"
       aria-hidden="true"
     />
@@ -82,6 +80,7 @@ function toggleTheme(e: MouseEvent) {
       </template>
 
       <template v-if="isAdmin">
+        <div class="rule section-rule" />
         <p class="kicker section">Администратор</p>
         <template v-for="item in adminNav" :key="item.label">
           <NuxtLink :to="item.to" class="item" active-class="active">
@@ -91,17 +90,17 @@ function toggleTheme(e: MouseEvent) {
       </template>
     </nav>
 
-    <NuxtLink v-if="demo.enabled.value" :to="`/${role}/settings`" class="demo mono" title="Действия меняют только демо-данные в этом браузере">
-      демо-режим
-    </NuxtLink>
-
+    <!-- settings on the left, the theme on the right: two round icon buttons -->
     <div class="status">
-      <p class="bot mono">
-        <span class="bot-dot" :class="{ offline: !botOnline }" />TG-бот · {{ botOnline ? 'онлайн' : 'оффлайн' }}
-      </p>
+      <NuxtLink :to="`/${role}/settings`" class="round settings" active-class="active" aria-label="Настройки" title="Настройки">
+        <!-- drawn on the same 16px grid and at the same size as the sun and moon next to it -->
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path fill="currentColor" fill-rule="evenodd" stroke="currentColor" stroke-width="0.6" stroke-linejoin="round" d="M6.67 2.66 L6.99 0.87 L9.01 0.87 L9.33 2.66 L10.84 3.29 L12.32 2.24 L13.76 3.68 L12.71 5.16 L13.34 6.67 L15.13 6.99 L15.13 9.01 L13.34 9.33 L12.71 10.84 L13.76 12.32 L12.32 13.76 L10.84 12.71 L9.33 13.34 L9.01 15.13 L6.99 15.13 L6.67 13.34 L5.16 12.71 L3.68 13.76 L2.24 12.32 L3.29 10.84 L2.66 9.33 L0.87 9.01 L0.87 6.99 L2.66 6.67 L3.29 5.16 L2.24 3.68 L3.68 2.24 L5.16 3.29ZM8 5.7a2.3 2.3 0 1 0 0 4.6a2.3 2.3 0 1 0 0 -4.6Z" />
+        </svg>
+      </NuxtLink>
       <button
         type="button"
-        class="theme"
+        class="round theme"
         :aria-label="isLight ? 'Тёмная тема' : 'Светлая тема'"
         :title="isLight ? 'Тёмная тема' : 'Светлая тема'"
         @click="toggleTheme"
@@ -125,7 +124,7 @@ function toggleTheme(e: MouseEvent) {
           <UiAvatar :initials="user.initials" :size="30" />
           <div>
             <p class="me-name">{{ user.name }}</p>
-            <p class="me-role mono">{{ user.role }}</p>
+            <p class="me-role">{{ user.role }}</p>
           </div>
         </template>
         <template #fallback>
@@ -218,44 +217,31 @@ function toggleTheme(e: MouseEvent) {
   right: 12px;
   border-radius: 9999px;
   background: var(--accent-bg);
-  transition: transform 0.5s var(--ease-out), height 0.5s var(--ease-out);
+  transition: transform 0.5s var(--ease-out), height 0.5s var(--ease-out), opacity 0.3s ease, scale 0.4s var(--ease-out);
+}
+
+.marker.off {
+  opacity: 0;
+  scale: 0.92 1;
+}
+
+.section-rule {
+  margin: 14px 12px 0;
 }
 
 .section {
-  margin: 21px 12px 12px;
-}
-
-.demo {
-  align-self: flex-start;
-  margin: auto 12px 12px;
-  padding: 2px 9px;
-  border-radius: 9999px;
-  background: var(--amber-bg);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--amber);
+  margin: 14px 12px 12px;
 }
 
 .status {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: auto 4px 12px 12px;
+  /* the settings circle lines up with the nav icons above it */
+  margin: auto 4px 12px 6px;
 }
 
-.demo + .status {
-  margin-top: 0;
-}
-
-.bot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--ink-2);
-}
-
-.theme {
+.round {
   display: grid;
   place-items: center;
   width: 28px;
@@ -268,20 +254,15 @@ function toggleTheme(e: MouseEvent) {
   transition: color 0.2s ease, border-color 0.2s ease;
 }
 
-.theme:hover {
+.round:hover {
   color: var(--ink);
   border-color: var(--line-strong);
 }
 
-.bot-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-}
-
-.bot-dot.offline {
-  background: var(--red);
+/* on the settings page: looks hovered, no colour */
+.round.active {
+  color: var(--ink);
+  border-color: var(--line-strong);
 }
 
 .me {

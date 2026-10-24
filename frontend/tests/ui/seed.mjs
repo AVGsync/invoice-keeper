@@ -65,7 +65,7 @@ await call('POST', 'auth/logout')
 await api.dispose()
 
 if (created.length) {
-  if (!existsSync(OUT)) writeFileSync(OUT, '# Sample users on the live server\n\nCreated by `npm run seed`. Local only, don\'t commit.\n\n| ФИО | Логин | Пароль | Персона |\n| --- | ----- | ------ | ------- |\n')
+  if (!existsSync(OUT)) writeFileSync(OUT, '# Sample users on the live server\n\nCreated by `npm run seed`. Local only, don\'t commit.\n\n| ФИО | Логин | Пароль | Должность |\n| --- | ----- | ------ | ------- |\n')
   for (const u of created) appendFileSync(OUT, `| ${u.full_name} | ${u.login} | \`${u.password}\` | ${u.persona ?? '—'} |\n`)
   console.log(`\npasswords saved to ${OUT}`)
 }

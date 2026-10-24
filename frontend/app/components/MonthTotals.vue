@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { CurrencyTotal } from '~/utils/demo'
+import type { CurrencyTotal } from '~/utils/periods'
 
-defineProps<{ title: string, totals: CurrencyTotal[] }>()
+// loading: grey blocks instead of zeros until the payments arrive
+defineProps<{ title: string, totals: CurrencyTotal[], loading?: boolean }>()
 </script>
 
 <template>
@@ -12,9 +13,11 @@ defineProps<{ title: string, totals: CurrencyTotal[] }>()
     <div v-for="total in totals" :key="total.code" class="total">
       <UiLeaderRow>
         <template #label><span class="mono code">{{ total.code }}</span></template>
-        <span class="sum">{{ total.total }}</span>
+        <UiSkeleton v-if="loading" width="110px" />
+        <UiCountUp v-else class="sum" :value="total.total" />
       </UiLeaderRow>
-      <p class="paid mono">оплачено {{ total.paid }}</p>
+      <p v-if="loading" class="paid"><UiSkeleton width="90px" height="10px" /></p>
+      <p v-else class="paid mono">оплачено <UiCountUp :value="total.paid" /></p>
     </div>
   </section>
 </template>

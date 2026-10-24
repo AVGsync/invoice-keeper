@@ -38,10 +38,16 @@ provide('fieldId', id)
   font-size: 12px;
   font-weight: 500;
   color: var(--ink-2);
+  transition: color 0.2s ease;
 }
 
 .hint {
   font-size: 12px;
   color: var(--ink-3);
+}
+
+/* the label of the field being typed in gets brighter */
+.field:focus-within .label {
+  color: var(--ink);
 }
 </style>

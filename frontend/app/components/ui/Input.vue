@@ -10,6 +10,8 @@ const props = withDefaults(defineProps<{
   filter?: (text: string) => string
   // tidies the text when the field loses focus, e.g. moneyFormat
   format?: (text: string) => string
+  // no frame and no glow, for a field inside a menu
+  bare?: boolean
 }>(), { type: 'text', suffix: '', filter: undefined, format: undefined })
 
 // autocomplete, placeholder etc. go to the <input>, not the wrapper
@@ -38,7 +40,7 @@ function onBlur() {
 </script>
 
 <template>
-  <span class="wrap">
+  <span class="wrap" :class="{ bare }">
     <input
       :id="fieldId"
       :value="model"
@@ -77,6 +79,11 @@ function onBlur() {
   border-radius: 9999px;
   font-size: 14px;
   outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.35s var(--ease-out);
+}
+
+.input:hover:not(:focus) {
+  border-color: var(--ink-3);
 }
 
 .input.has-eye {
@@ -86,6 +93,22 @@ function onBlur() {
 .input:focus {
   border-color: var(--ink-2);
   box-shadow: 0 0 0 3px var(--subtle);
+  animation: focus-ring 0.45s var(--ease-out);
+}
+
+
+.bare .input {
+  height: 34px;
+  padding: 0 10px;
+  background: none;
+  border: 0;
+  font-size: 13px;
+  box-shadow: none;
+  animation: none;
+}
+
+.bare .suffix {
+  right: 10px;
 }
 
 .input::placeholder {

@@ -22,6 +22,12 @@ const model = defineModel<boolean>({ default: false })
   color: var(--ink-2);
 }
 
+/* e.g. email reminders without an email */
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .track {
   position: relative;
   width: 28px;

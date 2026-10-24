@@ -1,80 +1,91 @@
 <script setup lang="ts">
 import type { Persona } from '~/types/api'
 
-defineProps<{ items: Persona[], loading?: boolean }>()
+const props = defineProps<{ items: Persona[], loading?: boolean }>()
 defineEmits<{ add: [], edit: [persona: Persona] }>()
+
+const { visible, hasMore, sentinel } = useLazyList(() => props.items)
 </script>
 
 <template>
-  <aside class="card panel">
-    <header class="head">
-      <h2 class="title display">Персоны</h2>
-      <span class="hint">на права не влияют</span>
-    </header>
+  <!-- the same rows as the users table next to it, in a rounded card -->
+  <aside class="card table panel">
+    <div class="row head">
+      <span>Должность</span>
+      <span class="right">Польз.</span>
+      <span />
+    </div>
 
-    <ul class="list">
-      <li v-for="n in (loading ? 3 : 0)" :key="`s${n}`" class="item">
+    <template v-if="loading">
+      <div v-for="n in 3" :key="n" class="row">
         <span class="stack"><UiSkeleton width="100px" /><UiSkeleton width="150px" height="10px" /></span>
-      </li>
-      <li v-for="(item, i) in (loading ? [] : items)" :key="item.id" class="item rise" :style="{ '--i': i }">
-        <span>
-          <span class="name">{{ item.name }}</span>
-          <span v-if="item.description" class="description">{{ item.description }}</span>
-        </span>
-        <span class="side">
-          <span class="count mono">{{ item.users_count ?? 0 }} польз.</span>
-          <button type="button" class="edit" @click="$emit('edit', item)">Изменить</button>
-        </span>
-      </li>
-      <li v-if="!loading && !items.length" class="item muted">Персон пока нет</li>
-    </ul>
+        <UiSkeleton width="16px" class="right-skeleton" />
+        <span />
+      </div>
+    </template>
 
-    <footer class="foot">
-      <button type="button" class="add" @click="$emit('add')">+&nbsp; Добавить персону</button>
-    </footer>
+    <div v-for="(item, i) in (loading ? [] : visible)" :key="item.id" class="row item rise" :style="{ '--i': i }">
+      <span class="text">
+        <span class="name">{{ item.name }}</span>
+        <span v-if="item.description" class="description" :title="item.description">{{ item.description }}</span>
+      </span>
+      <span class="mono right">{{ item.users_count ?? 0 }}</span>
+      <button type="button" class="action" @click="$emit('edit', item)">Изменить</button>
+    </div>
+
+    <div v-if="!loading && !items.length" class="row empty">Должностей пока нет</div>
+    <div v-if="hasMore" ref="sentinel" class="sentinel" />
+
+    <div class="row foot">
+      <button type="button" class="add" @click="$emit('add')">+&nbsp; Добавить должность</button>
+    </div>
   </aside>
 </template>
 
 <style scoped>
-.panel {
-  align-self: flex-start;
+.table {
+  flex-shrink: 0;
   width: 320px;
+  padding: 0 16px;
+  font-size: 13px;
 }
 
-.head {
-  display: flex;
+.row {
+  display: grid;
+  grid-template-columns: 1fr 48px 76px;
   align-items: center;
-  justify-content: space-between;
-  height: 56px;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--line);
+  gap: 12px;
+  height: 60px;
+  border-top: 1px solid var(--line);
 }
 
-.title {
-  font-size: 16px;
-  line-height: 24px;
-}
-
-.hint {
+/* header: plain small text, the hairline under it does the separating */
+.row.head {
+  height: 40px;
+  border-top: 0;
   font-size: 12px;
+  font-weight: 500;
   color: var(--ink-3);
 }
 
-.list {
-  margin: 0;
-  padding: 0 20px;
-  list-style: none;
+.text {
+  min-width: 0;
 }
 
-.item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 58px;
+.name {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.item + .item {
-  border-top: 1px solid var(--line);
+/* one line, the full text is in the tooltip */
+.description {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--ink-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stack {
@@ -83,43 +94,34 @@ defineEmits<{ add: [], edit: [persona: Persona] }>()
   gap: 6px;
 }
 
-.name {
-  display: block;
-  font-weight: 500;
+.right-skeleton {
+  justify-self: end;
 }
 
-.description {
-  font-size: 12px;
+.empty {
+  display: flex;
   color: var(--ink-3);
 }
 
-.side {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
+.sentinel {
+  height: 1px;
 }
 
-.count {
-  font-size: 12px;
-  color: var(--ink-2);
-}
-
-.edit {
+.action {
+  justify-self: end;
   padding: 0;
   background: none;
   border: 0;
-  font-size: 12px;
-  color: var(--ink-3);
+  font-size: 13px;
+  color: var(--ink-2);
 }
 
-.edit:hover {
+.action:hover {
   color: var(--ink);
 }
 
 .foot {
-  padding: 18px 20px 19px;
-  border-top: 1px solid var(--line);
+  display: flex;
 }
 
 .add {

@@ -7,12 +7,10 @@ export interface Prefs {
   lessMotion: boolean
   // Andika: clearer letter shapes, easier with dyslexia, has Cyrillic
   readableFont: boolean
-  // demo mode: actions change the demo data in the browser until reload
-  demoMode: boolean
 }
 
 const KEY = 'invoice-keeper:prefs'
-const defaults: Prefs = { theme: 'dark', lessMotion: false, readableFont: false, demoMode: false }
+const defaults: Prefs = { theme: 'dark', lessMotion: false, readableFont: false }
 
 function load(): Prefs {
   try {

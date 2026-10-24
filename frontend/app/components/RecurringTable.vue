@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Template } from '~/utils/demo'
+import type { Template } from '~/utils/periods'
 
-const props = defineProps<{ templates: Template[] }>()
+const props = defineProps<{ templates: Template[], loading?: boolean }>()
 const emit = defineEmits<{ stop: [template: Template] }>()
 
 // stopping can't be undone, so the first click only asks
@@ -19,6 +19,8 @@ const { isAdmin } = useRole()
 // soonest next due date first, stopped ones (no next date) at the end
 const sorted = computed(() => [...props.templates].sort((a, b) =>
   (a.nextDue ? fromRu(a.nextDue) : '9999').localeCompare(b.nextDue ? fromRu(b.nextDue) : '9999')))
+
+const { visible, hasMore, sentinel } = useLazyList(sorted)
 </script>
 
 <template>
@@ -35,7 +37,28 @@ const sorted = computed(() => [...props.templates].sort((a, b) =>
       <span v-if="isAdmin" />
     </div>
 
-    <div v-for="(item, i) in sorted" :key="item.id" class="row rise" :class="{ ended: item.ended }" :style="{ '--i': i }">
+    <!-- grey rows of the same size until the payments arrive -->
+    <template v-if="loading">
+      <div v-for="n in 4" :key="`s${n}`" class="row">
+        <span />
+        <span class="stack"><UiSkeleton width="150px" /><UiSkeleton width="90px" height="10px" /></span>
+        <UiSkeleton width="90px" class="end" />
+        <UiSkeleton width="30px" height="10px" class="currency-skeleton" />
+        <span class="stack"><UiSkeleton width="90px" /><UiSkeleton width="60px" height="10px" /></span>
+        <UiSkeleton width="110px" />
+        <UiSkeleton width="80px" />
+        <UiSkeleton width="70px" height="20px" />
+        <span v-if="isAdmin" />
+      </div>
+    </template>
+
+    <div
+      v-for="(item, i) in visible"
+      :key="item.id"
+      class="row rise"
+      :class="{ ended: item.ended }"
+      :style="{ viewTransitionName: `template-${item.id}`, '--i': i }"
+    >
       <span class="mono muted small">{{ String(i + 1).padStart(2, '0') }}</span>
       <span>
         <span class="title">{{ item.title }}</span>
@@ -66,6 +89,7 @@ const sorted = computed(() => [...props.templates].sort((a, b) =>
         <button v-else type="button" class="action text-action soon" disabled :title="soonHint">История</button>
       </template>
     </div>
+    <div v-if="hasMore" ref="sentinel" class="sentinel" />
   </div>
 </template>
 
@@ -85,7 +109,9 @@ const sorted = computed(() => [...props.templates].sort((a, b) =>
 
 .row {
   display: grid;
-  grid-template-columns: 36px 234px 130px 90px 180px 160px 120px 1fr;
+  /* the spare width is shared between the columns, so the gaps stay even */
+  grid-template-columns: 28px minmax(120px, 2.2fr) minmax(100px, 1fr) 56px minmax(100px, 1.2fr) minmax(116px, 1.4fr) minmax(104px, 1fr) minmax(84px, 1fr);
+  column-gap: 12px;
   align-items: center;
   height: 56px;
   padding: 0 12px;
@@ -93,12 +119,20 @@ const sorted = computed(() => [...props.templates].sort((a, b) =>
   white-space: nowrap;
 }
 
-.admin .row {
-  grid-template-columns: 36px 210px 130px 80px 160px 160px 120px 1fr 130px;
+/* a cell may get narrower than its text, long names end with «…» */
+.row > * {
+  min-width: 0;
 }
 
-/* header: plain small text, the hairline under it does the separating */
+.admin .row {
+  grid-template-columns: 28px minmax(120px, 2.2fr) minmax(100px, 1fr) 56px minmax(100px, 1.2fr) minmax(116px, 1.4fr) minmax(104px, 1fr) minmax(84px, 1fr) minmax(124px, 1fr);
+}
+
+/* header: plain small text, the hairline under it does the separating.
+   above the rows, so a filter menu isn't hidden under them */
 .row.head {
+  position: relative;
+  z-index: 4;
   height: 40px;
   border-top: 0;
   font-size: 12px;
@@ -108,8 +142,10 @@ const sorted = computed(() => [...props.templates].sort((a, b) =>
 
 .title {
   display: block;
+  overflow: hidden;
   font-size: 14px;
   font-weight: 500;
+  text-overflow: ellipsis;
 }
 
 .small {
@@ -122,13 +158,31 @@ const sorted = computed(() => [...props.templates].sort((a, b) =>
 }
 
 .currency {
-  padding-left: 20px;
+  padding-left: 8px;
 }
 
 /* stopped payment: everything grey except who pays */
 .ended .title,
 .ended .dim {
   color: var(--ink-3);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.end {
+  justify-self: end;
+}
+
+.currency-skeleton {
+  margin-left: 20px;
+}
+
+.sentinel {
+  height: 1px;
 }
 
 .action {

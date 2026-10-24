@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { NewPayment } from '~/composables/usePayments'
-import type { Currency } from '~/utils/demo'
+import type { Currency } from '~/utils/periods'
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -12,7 +12,7 @@ const form = reactive({
   currency: 'RUB',
   due: payments.today.value,
   frequency: 'monthly',
-  // user id on live data, the person's name in demo mode
+  // user id of the person who pays
   assignee: '',
 })
 
@@ -68,7 +68,6 @@ async function add() {
         dueIso: form.due,
         frequency: form.frequency as NewPayment['frequency'],
         assigneeId: picked?.id,
-        who: picked?.person,
       })
       emit('close')
     }

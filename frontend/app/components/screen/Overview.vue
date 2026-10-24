@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Period } from '~/utils/demo'
+import type { Period } from '~/utils/periods'
 
 const { isAdmin } = useRole()
 
@@ -55,13 +55,13 @@ function mark(period: Period) {
     <OverdueBanner
       v-if="overdue"
       :title="overdueTitle"
-      :text="`${overdue.title} · срок ${overdue.due.slice(0, 5)} · просрочка ${overdue.overdue} · отвечает: ${owner}`"
+      :text="`${overdue.title} · срок ${overdue.due.slice(0, 5)} · просрочка ${overdue.overdue} · ответственный: ${owner}`"
       :amount="overdue.amount"
       :can-mark="payments.canMark(overdue)"
       @mark="mark(overdue)"
     />
 
-    <AppSectionTitle index="01" title="Итоги по валютам" hint="валюты не суммируются между собой" class="section">
+    <AppSectionTitle index="01" title="Итоги по валютам" class="section">
       <template #right>
         <span class="as-of">
           <span class="muted">По дате</span>
@@ -77,10 +77,11 @@ function mark(period: Period) {
         class="rise"
         :total="total"
         :label="`К оплате по ${toRu(asOf)}¹`"
+        :loading="!payments.ready.value"
         :style="{ viewTransitionName: `card-${total.code}`, '--i': i }"
       />
     </div>
-    <p class="kicker footnote">¹ срок до выбранной даты и то, что оплачено раньше срока · курсы и конвертация не применяются</p>
+    <p class="kicker footnote">¹ срок до выбранной даты и то, что оплачено раньше срока</p>
 
     <AppSectionTitle index="02" title="Ближайшие 7 дней" class="section">
       <UiSegmented
@@ -93,7 +94,7 @@ function mark(period: Period) {
       </template>
     </AppSectionTitle>
 
-    <UiState v-if="payments.pending.value" class="upcoming-state">Загружаем платежи…</UiState>
+    <UpcomingList v-if="payments.pending.value" :items="[]" loading />
     <UiState v-else-if="payments.loadError.value" kind="error" class="upcoming-state" @retry="payments.load">
       Не удалось загрузить платежи: {{ payments.loadError.value }}
     </UiState>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { CurrencyTotal } from '~/utils/demo'
+import type { CurrencyTotal } from '~/utils/periods'
 
-withDefaults(defineProps<{ total: CurrencyTotal, label?: string }>(), { label: 'К оплате за месяц¹' })
+// loading: grey blocks instead of the numbers, so the card doesn't show zeros before the data arrives
+withDefaults(defineProps<{ total: CurrencyTotal, label?: string, loading?: boolean }>(), { label: 'К оплате за месяц¹', loading: false })
 </script>
 
 <template>
@@ -9,27 +10,32 @@ withDefaults(defineProps<{ total: CurrencyTotal, label?: string }>(), { label: '
     <header class="head">
       <span class="code mono">{{ total.code }}</span>
       <span class="name">{{ total.name }}</span>
-      <span class="count mono">{{ total.count }}</span>
+      <UiSkeleton v-if="loading" width="70px" height="11px" class="count" />
+      <span v-else class="count mono">{{ total.count }}</span>
     </header>
 
     <p class="label">{{ label }}</p>
-    <p class="sum mono">{{ total.total }}</p>
+    <p v-if="loading" class="sum"><UiSkeleton width="190px" height="26px" /></p>
+    <p v-else class="sum mono"><UiCountUp :value="total.total" /></p>
 
     <div class="track">
-      <div class="paid" :style="{ width: `${Math.max(total.progress * 100, 1.2)}%` }" />
+      <div v-if="!loading" class="paid" :style="{ width: `${Math.max(total.progress * 100, 1.2)}%` }" />
     </div>
 
     <UiLeaderRow>
       <template #label>Оплачено</template>
-      {{ total.paid }}
+      <UiSkeleton v-if="loading" width="80px" />
+      <UiCountUp v-else :value="total.paid" />
     </UiLeaderRow>
     <UiLeaderRow>
       <template #label>Не оплачено</template>
-      {{ total.unpaid }}
+      <UiSkeleton v-if="loading" width="70px" />
+      <UiCountUp v-else :value="total.unpaid" />
     </UiLeaderRow>
     <UiLeaderRow>
       <template #label>Просрочено</template>
-      <span :class="total.overdue ? 'overdue' : 'muted'">{{ total.overdue ?? '—' }}</span>
+      <UiSkeleton v-if="loading" width="60px" />
+      <span v-else :class="total.overdue ? 'overdue' : 'muted'"><UiCountUp v-if="total.overdue" :value="total.overdue" /><template v-else>—</template></span>
     </UiLeaderRow>
   </article>
 </template>

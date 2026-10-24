@@ -58,8 +58,8 @@ function remove() {
 
 <template>
   <UiModal
-    :title="persona ? 'Изменить персону' : 'Новая персона'"
-    subtitle="Должность в команде, на права не влияет."
+    :title="persona ? 'Изменить должность' : 'Новая должность'"
+    subtitle="На права не влияет."
     @close="$emit('close')"
   >
     <UiField label="Название">
@@ -78,7 +78,7 @@ function remove() {
       </button>
       <UiButton size="md" class="cancel" @click="$emit('close')">Отмена</UiButton>
       <UiButton size="md" variant="primary" :disabled="busy" @click="save">
-        {{ persona ? 'Сохранить' : 'Создать персону' }}
+        {{ persona ? 'Сохранить' : 'Создать должность' }}
       </UiButton>
     </template>
   </UiModal>

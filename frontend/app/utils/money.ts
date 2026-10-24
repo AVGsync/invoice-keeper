@@ -1,4 +1,4 @@
-import type { Currency } from '~/utils/demo'
+import type { Currency } from '~/utils/periods'
 
 // '120 000,00 ₽' -> 120000
 export function parseMoney(text: string): number {

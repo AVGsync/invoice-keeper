@@ -16,12 +16,14 @@ withDefaults(defineProps<{ title: string, subtitle?: string }>(), { subtitle: ''
 </template>
 
 <style scoped>
+/* a hairline under the title on every page, so it stands apart from what comes next */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding-top: 24px;
-  margin-bottom: 24px;
+  padding: 24px 0 14px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--line);
 }
 
 .title {

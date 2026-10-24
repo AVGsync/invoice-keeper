@@ -10,3 +10,10 @@ export function initials(name?: string): string {
   const letters = words.length > 1 ? words[0]![0]! + words[1]![0]! : (words[0] ?? '').slice(0, 2)
   return letters.toUpperCase()
 }
+
+// role from the server -> how the screens show it
+export function roleName(role?: string): string {
+  if (role === 'admin') return 'Администратор'
+  if (role === 'user') return 'Пользователь'
+  return role ?? ''
+}
