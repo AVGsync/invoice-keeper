@@ -6,6 +6,8 @@ const mainNav = computed(() => [
   { label: 'Платежи', to: `/${role.value}/payments` },
   { label: 'Календарь', to: `/${role.value}/calendar` },
   { label: 'Регулярные', to: `/${role.value}/recurring` },
+  // admins have it in their own section below
+  ...(isAdmin.value ? [] : [{ label: 'Настройки', to: '/user/settings' }]),
 ])
 
 const adminNav = [
@@ -34,6 +36,13 @@ const user = computed(() => ({
 
 // backend has no bot status endpoint yet, so it's always online for now
 const botOnline = ref(true)
+
+const { prefs } = usePrefs()
+const demo = useDemo()
+const isLight = computed(() => prefs.value.theme === 'light')
+function toggleTheme() {
+  prefs.value.theme = isLight.value ? 'dark' : 'light'
+}
 </script>
 
 <template>
@@ -54,9 +63,31 @@ const botOnline = ref(true)
       </template>
     </nav>
 
-    <p class="bot mono">
-      <span class="bot-dot" :class="{ offline: !botOnline }" />TG-бот · {{ botOnline ? 'онлайн' : 'оффлайн' }}
-    </p>
+    <NuxtLink v-if="demo.enabled.value" :to="`/${role}/settings`" class="demo mono" title="Действия меняют только демо-данные в этом браузере">
+      демо-режим
+    </NuxtLink>
+
+    <div class="status">
+      <p class="bot mono">
+        <span class="bot-dot" :class="{ offline: !botOnline }" />TG-бот · {{ botOnline ? 'онлайн' : 'оффлайн' }}
+      </p>
+      <button
+        type="button"
+        class="theme"
+        :aria-label="isLight ? 'Тёмная тема' : 'Светлая тема'"
+        :title="isLight ? 'Тёмная тема' : 'Светлая тема'"
+        @click="toggleTheme"
+      >
+        <!-- moon in the light theme, sun in the dark one: shows where the click takes you -->
+        <svg v-if="isLight" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path d="M13.5 9.8A5.5 5.5 0 0 1 6.2 2.5a5.5 5.5 0 1 0 7.3 7.3Z" fill="currentColor" />
+        </svg>
+        <svg v-else viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <circle cx="8" cy="8" r="3" fill="currentColor" />
+          <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+        </svg>
+      </button>
+    </div>
 
     <div class="me">
       <!-- the server doesn't know who's logged in, so the profile is drawn only in the browser.
@@ -152,13 +183,51 @@ const botOnline = ref(true)
   margin: 21px 12px 12px;
 }
 
+.demo {
+  align-self: flex-start;
+  margin: auto 12px 12px;
+  padding: 2px 8px;
+  border: 1px dashed var(--amber);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--amber);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: auto 4px 12px 12px;
+}
+
+.demo + .status {
+  margin-top: 0;
+}
+
 .bot {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: auto 12px 20px;
   font-size: 11px;
   color: var(--ink-2);
+}
+
+.theme {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink-2);
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.theme:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
 }
 
 .bot-dot {

@@ -7,11 +7,23 @@ const asOf = ref(demoToday)
 const { transitioned } = useViewTransition()
 // picking a date crossfades the numbers in the cards
 const asOfModel = transitioned(asOf)
-const asOfTotals = computed(() => totalsOn(asOf.value))
+const demo = useDemo()
+const asOfTotals = computed(() => totalsOn(asOf.value, demo.periods.value))
 const showNewPayment = ref(false)
 
-const overdue = periods.find(period => period.status === 'overdue')!
-const owner = computed(() => isAdmin.value ? overdue.who.short : 'вы')
+const overdueList = computed(() => demo.periods.value.filter(period => period.status === 'overdue'))
+const overdue = computed(() => overdueList.value[0])
+const overdueTitle = computed(() => {
+  const n = overdueList.value.length
+  return `${n === 1 ? 'Просрочен' : 'Просрочено'} ${n} ${plural(n, ['платёж', 'платежа', 'платежей'])}`
+})
+const owner = computed(() => (isAdmin.value ? overdue.value?.who.short : 'вы'))
+
+// due in the next 7 days
+const upcoming = computed(() => demo.periods.value.filter((period) => {
+  const days = daysBetween(demoToday, fromRu(period.due))
+  return days >= 1 && days <= 7
+}))
 </script>
 
 <template>
@@ -23,9 +35,12 @@ const owner = computed(() => isAdmin.value ? overdue.who.short : 'вы')
     </AppPageHeader>
 
     <OverdueBanner
-      title="Просрочен 1 платёж"
+      v-if="overdue"
+      :title="overdueTitle"
       :text="`${overdue.title} · срок ${overdue.due.slice(0, 5)} · просрочка ${overdue.overdue} · ответственная — ${owner}`"
       :amount="overdue.amount"
+      :soon="!demo.enabled.value"
+      @mark="demo.markPaid(overdue, demoToday)"
     />
 
     <AppSectionTitle index="01" title="Итоги по валютам" hint="валюты не суммируются между собой" class="section">
@@ -59,7 +74,7 @@ const owner = computed(() => isAdmin.value ? overdue.who.short : 'вы')
       </template>
     </AppSectionTitle>
 
-    <UpcomingList :items="upcoming" />
+    <UpcomingList :items="upcoming" :soon="!demo.enabled.value" @mark="period => demo.markPaid(period, demoToday)" />
 
     <Transition name="modal">
       <NewPaymentModal v-if="showNewPayment" @close="showNewPayment = false" />

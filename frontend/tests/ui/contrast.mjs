@@ -1,21 +1,26 @@
 // lists every piece of text with contrast under 3:1 on each screen and modal (logs in as admin).
 // the login receipt is skipped, it has its own paper colours.
 //   npm run test:contrast
-// env: UI_BASE, UI_ADMIN_LOGIN, UI_ADMIN_PASSWORD, same as run.mjs
+// env: UI_BASE, UI_ADMIN_LOGIN, UI_ADMIN_PASSWORD, same as run.mjs; UI_THEME=light checks the light theme
 import { chromium } from 'playwright'
 
 const BASE = process.env.UI_BASE ?? 'http://localhost:3000'
-const ADMIN = { login: process.env.UI_ADMIN_LOGIN ?? 'admin', password: process.env.UI_ADMIN_PASSWORD ?? 'change-me-admin' }
+const ADMIN = { login: process.env.UI_ADMIN_LOGIN ?? 'admin', password: process.env.UI_ADMIN_PASSWORD ?? 'admin123' }
 let problems = 0
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+const theme = process.env.UI_THEME ?? 'dark'
+await page.addInitScript(t => localStorage.setItem('invoice-keeper:prefs', JSON.stringify({ theme: t })), theme)
+console.log(`theme: ${theme}`)
 const hydrated = () => page.waitForFunction(() => !!document.querySelector('#__nuxt')?.__vue_app__).then(() => page.waitForLoadState('networkidle'))
 
 // every visible text element whose contrast with the real background behind it is under 3:1
 function audit() {
   const parse = (c) => {
     const m = c.match(/[\d.]+/g)?.map(Number) ?? [0, 0, 0, 0]
-    return { r: m[0], g: m[1], b: m[2], a: m[3] ?? 1 }
+    // color-mix() comes back as color(srgb 0.9 0.9 0.9 / 0.5), channels from 0 to 1
+    const scale = c.startsWith('color(') ? 255 : 1
+    return { r: m[0] * scale, g: m[1] * scale, b: m[2] * scale, a: m[3] ?? 1 }
   }
   const lum = ({ r, g, b }) => {
     const f = v => (v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
@@ -28,6 +33,9 @@ function audit() {
     a: 1,
   })
   const bgOf = (el) => {
+    // the picked segment sits on a sliding thumb next to it, not inside it
+    const thumb = el.closest('.seg .item.active')?.parentElement.querySelector('.thumb')
+    if (thumb) el = thumb
     const layers = []
     for (let n = el; n; n = n.parentElement) {
       const c = parse(getComputedStyle(n).backgroundColor)
@@ -69,7 +77,7 @@ await page.getByRole('button', { name: 'Войти' }).click()
 await page.waitForURL('**/admin/overview')
 await hydrated()
 await report('overview')
-for (const path of ['payments', 'calendar', 'recurring', 'users']) {
+for (const path of ['payments', 'calendar', 'recurring', 'settings', 'users']) {
   await page.goto(`${BASE}/admin/${path}`)
   await hydrated()
   await report(path)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Period } from '~/utils/demo'
 
-defineProps<{ items: Period[] }>()
+defineProps<{ items: Period[], soon?: boolean }>()
 defineEmits<{ mark: [period: Period] }>()
 </script>
 
@@ -22,7 +22,7 @@ defineEmits<{ mark: [period: Period] }>()
         <UiStatus v-else :status="item.status" />
       </span>
       <span class="action">
-        <UiButton v-if="!item.paidAt" soon @click="$emit('mark', item)">Оплачено</UiButton>
+        <UiButton v-if="!item.paidAt" :soon="soon" @click="$emit('mark', item)">Оплачено</UiButton>
       </span>
     </li>
   </ul>

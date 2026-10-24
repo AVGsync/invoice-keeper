@@ -5,8 +5,10 @@ import type { Ref } from 'vue'
 // browsers without it, or people with reduced motion on, just get the change instantly.
 // the look (duration, what stays still) is set in main.css
 export function useViewTransition() {
+  const { reduceMotion } = usePrefs()
+
   function withTransition(update: () => void) {
-    if (!import.meta.client || !document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!import.meta.client || !document.startViewTransition || reduceMotion.value) {
       update()
       return
     }

@@ -5,7 +5,7 @@ const props = defineProps<{ person: Person }>()
 const { isAdmin } = useRole()
 
 // on user screens your own payments get a blue avatar and "· вы"
-const me = computed(() => !isAdmin.value && props.person === currentUser)
+const me = computed(() => !isAdmin.value && props.person.name === currentUser.name)
 </script>
 
 <template>

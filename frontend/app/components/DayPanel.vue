@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Period } from '~/utils/demo'
 
-defineProps<{ kicker: string, title: string, period: Period }>()
+defineProps<{ kicker: string, title: string, period: Period, soon?: boolean }>()
 defineEmits<{ mark: [] }>()
 </script>
 
@@ -25,7 +25,7 @@ defineEmits<{ mark: [] }>()
 
     <UiStatus :status="period.status" :label="period.reminded ? `Ожидает · напомнили ${period.reminded}` : undefined" />
 
-    <UiButton v-if="!period.paidAt" variant="primary" size="lg" block soon @click="$emit('mark')">
+    <UiButton v-if="!period.paidAt" variant="primary" size="lg" block :soon="soon" @click="$emit('mark')">
       Отметить оплату
     </UiButton>
   </section>

@@ -8,7 +8,8 @@ const demoMonth = demoToday.slice(0, 7)
 const month = ref(demoMonth)
 const shown = computed(() => parseMonthKey(month.value))
 
-const selected = ref<Period | undefined>(periods.find(period => period.title === 'Сервер VPS'))
+const demo = useDemo()
+const selected = ref<Period | undefined>(demo.periods.value.find(period => period.title === 'Сервер VPS'))
 
 // another month: the picked day isn't on screen anymore, so the side panel goes too
 const monthModel = computed({
@@ -28,7 +29,11 @@ const day = computed(() => Number(selectedIso.value.slice(8, 10)))
 const weekday = computed(() => (selectedIso.value ? new Date(selectedIso.value).toLocaleDateString('ru-RU', { weekday: 'long' }) : ''))
 
 // «Итоги октября» for the shown month
-const monthTotals = computed(() => totalsOn(lastDayOf(month.value), periods.filter(period => fromRu(period.due).startsWith(month.value))))
+const monthPeriods = computed(() => demo.periods.value.filter(period => fromRu(period.due).startsWith(month.value)))
+const monthTotals = computed(() => totalsOn(lastDayOf(month.value), monthPeriods.value))
+
+// the margin note follows what's actually overdue
+const overdueNow = computed(() => demo.periods.value.filter(period => period.status === 'overdue'))
 const kicker = computed(() => [weekday.value, selected.value?.relative].filter(Boolean).join(' · '))
 </script>
 
@@ -53,15 +58,24 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
         :year="shown.year"
         :month="shown.month"
         :today="month === demoMonth ? Number(demoToday.slice(8)) : 0"
-        :periods="periods"
+        :periods="demo.periods.value"
       />
 
       <div class="side">
-        <DayPanel v-if="selected" :kicker="kicker" :title="`${day} ${monthNamesGenitive[shown.month]}`" :period="selected" />
+        <DayPanel
+          v-if="selected"
+          :kicker="kicker"
+          :title="`${day} ${monthNamesGenitive[shown.month]}`"
+          :period="selected"
+          :soon="!demo.enabled.value"
+          @mark="demo.markPaid(selected, demoToday)"
+        />
         <MonthTotals :title="`Итоги ${monthNamesGenitive[shown.month]}`" :totals="monthTotals" />
-        <div class="note">
-          <p class="italic margin">Отметка на полях:<br>аренда за 18-е ещё не оплачена.</p>
-          <UiStamp color="red" large class="stamp">1 ПРОСРОЧЕН</UiStamp>
+        <div v-if="overdueNow.length" class="note">
+          <p class="italic margin">
+            Отметка на полях:<br>{{ overdueNow[0]!.title.toLowerCase() }} за {{ Number(overdueNow[0]!.due.slice(0, 2)) }}-е ещё не оплачена.
+          </p>
+          <UiStamp color="red" large class="stamp">{{ overdueNow.length }} ПРОСРОЧЕН{{ overdueNow.length > 1 ? 'О' : '' }}</UiStamp>
         </div>
       </div>
     </div>

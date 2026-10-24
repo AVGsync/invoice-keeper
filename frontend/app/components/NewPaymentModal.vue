@@ -1,5 +1,9 @@
 <script setup lang="ts">
-defineEmits<{ close: [] }>()
+import type { Currency } from '~/utils/demo'
+
+const emit = defineEmits<{ close: [] }>()
+
+const demo = useDemo()
 
 const form = reactive({
   title: '',
@@ -25,6 +29,20 @@ const nextDates = computed(() => (form.due ? nextDueDates(form.due, 5, form.freq
 
 // the reminder goes out right away when the first due date is less than 3 days off
 const remindsNow = computed(() => !!form.due && daysBetween(demoToday, form.due) < 3)
+
+// demo mode only: the payment goes into the browser's demo data
+const error = ref('')
+function add() {
+  const title = form.title.trim()
+  const amount = parseMoney(form.amount)
+  if (title.length < 2) error.value = 'Введите название'
+  else if (amount <= 0) error.value = 'Введите сумму больше нуля'
+  else if (!form.due) error.value = 'Выберите дату'
+  else {
+    demo.add({ title, amount, currency: form.currency as Currency, dueIso: form.due, yearly: form.frequency === 'yearly' })
+    emit('close')
+  }
+}
 </script>
 
 <template>
@@ -77,9 +95,11 @@ const remindsNow = computed(() => !!form.due && daysBetween(demoToday, form.due)
       Срок ближе 3 дней — напоминание уйдёт в Telegram сразу, ответственной придёт упоминание.
     </p>
 
+    <p v-if="error" class="error-text">{{ error }}</p>
+
     <template #footer>
       <UiButton size="md" class="cancel" @click="$emit('close')">Отмена</UiButton>
-      <UiButton size="md" variant="primary" soon>Добавить платёж</UiButton>
+      <UiButton size="md" variant="primary" :soon="!demo.enabled.value" @click="add">Добавить платёж</UiButton>
     </template>
   </UiModal>
 </template>

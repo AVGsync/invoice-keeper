@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Template } from '~/utils/demo'
 
-defineProps<{ templates: Template[] }>()
+defineProps<{ templates: Template[], demo?: boolean }>()
+defineEmits<{ stop: [template: Template] }>()
 const { isAdmin } = useRole()
 </script>
 
@@ -35,9 +36,13 @@ const { isAdmin } = useRole()
       <span class="mono dim">{{ item.nextDue ?? '—' }}</span>
       <span v-if="item.ended" class="muted">Прекращён</span>
       <UiStatus v-else status="active" />
-      <button v-if="isAdmin" type="button" class="action text-action soon" disabled :title="soonHint">
-        {{ item.ended ? 'История' : 'Прекратить' }}
-      </button>
+      <!-- «Прекратить» works in demo mode, «История» needs the backend either way -->
+      <template v-if="isAdmin">
+        <button v-if="!item.ended && demo" type="button" class="action" @click="$emit('stop', item)">Прекратить</button>
+        <button v-else type="button" class="action text-action soon" disabled :title="soonHint">
+          {{ item.ended ? 'История' : 'Прекратить' }}
+        </button>
+      </template>
     </div>
   </div>
 </template>

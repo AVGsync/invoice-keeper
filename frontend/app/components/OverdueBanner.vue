@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{ title: string, text: string, amount: string }>()
+defineProps<{ title: string, text: string, amount: string, soon?: boolean }>()
 defineEmits<{ mark: [] }>()
 </script>
 
@@ -9,7 +9,7 @@ defineEmits<{ mark: [] }>()
     <strong class="title">{{ title }}</strong>
     <span class="text">{{ text }}</span>
     <span class="amount mono">{{ amount }}</span>
-    <UiButton soon @click="$emit('mark')">Отметить оплату</UiButton>
+    <UiButton :soon="soon" @click="$emit('mark')">Отметить оплату</UiButton>
   </div>
 </template>
 

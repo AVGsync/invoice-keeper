@@ -1,6 +1,9 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
+  // the panel only works logged in and login cookies live in the browser,
+  // so pages render there; server rendering only caused mismatches (T23)
+  ssr: false,
   devtools: { enabled: true },
   modules: ['@nuxt/eslint'],
   css: ['~/assets/css/main.css'],

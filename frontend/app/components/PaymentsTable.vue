@@ -4,14 +4,15 @@ import type { CurrencyTotal, Period } from '~/utils/demo'
 withDefaults(defineProps<{ periods: Period[], totals: CurrencyTotal[], filtered?: boolean, month?: string }>(), { month: 'октябрь' })
 // every demo payment (the `periods` prop only has the filtered ones).
 // its index gives each row a stable view-transition-name
-const allPeriods = periods
+const { periods: allPeriods, enabled: demoOn } = useDemo()
 defineEmits<{ reset: [] }>()
 
 // title of the row whose "mark paid" popover is open
 const open = ref<string>()
 
+// paid rows only open (to fix the date or unmark) in demo mode
 function toggle(period: Period) {
-  if (period.paidAt) return
+  if (period.paidAt && !demoOn.value) return
   open.value = open.value === period.title ? undefined : period.title
 }
 </script>
@@ -34,7 +35,7 @@ function toggle(period: Period) {
       v-for="(period, i) in periods"
       :key="period.title"
       class="row"
-      :class="{ overdue: period.status === 'overdue', clickable: !period.paidAt, 'has-popover': open === period.title }"
+      :class="{ overdue: period.status === 'overdue', clickable: !period.paidAt || demoOn, 'has-popover': open === period.title }"
       :style="{ viewTransitionName: `row-${allPeriods.indexOf(period)}` }"
       @click="toggle(period)"
     >

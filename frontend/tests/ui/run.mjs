@@ -7,7 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 
 const BASE = process.env.UI_BASE ?? 'http://localhost:3000'
 const SHOTS = new URL('./shots/', import.meta.url).pathname
-const ADMIN = { login: process.env.UI_ADMIN_LOGIN ?? 'admin', password: process.env.UI_ADMIN_PASSWORD ?? 'change-me-admin' }
+const ADMIN = { login: process.env.UI_ADMIN_LOGIN ?? 'admin', password: process.env.UI_ADMIN_PASSWORD ?? 'admin123' }
 mkdirSync(SHOTS, { recursive: true })
 const tag = Math.random().toString(36).slice(2, 7)
 const P1 = `uitest_p_${tag}`
@@ -48,6 +48,7 @@ const page = await admin.newPage()
 watch(page, 'admin')
 const shot = name => page.screenshot({ path: `${SHOTS}${name}.png` })
 const rows = () => page.locator('.table .row:not(.head)')
+const rowsOf = p => p.locator('.table .row:not(.head)')
 const modalTitled = (p, title) => p.locator('.modal').filter({ has: p.locator('h2.title', { hasText: new RegExp(`^${title}$`) }) })
 const hydrated = p => p.waitForFunction(() => !!document.querySelector('#__nuxt')?.__vue_app__, null, { timeout: 15000 }).then(() => p.waitForLoadState('networkidle'))
 let userPassword = ''
@@ -386,9 +387,9 @@ try {
   })
 
   await check('T31', async () => {
-    // custom 404 page and its way back
-    const res = await page.goto(`${BASE}/no-such-page`)
-    assert(res?.status() === 404, `status ${res?.status()}`)
+    // custom 404 page and its way back. the app is browser-only (ssr: false), so the server
+    // answers 200 with the empty page and the 404 is drawn in the browser
+    await page.goto(`${BASE}/no-such-page`)
     await page.getByText('Такой строки в ведомости нет').waitFor({ timeout: 10000 })
     await hydrated(page)
     await shot('404')
@@ -646,11 +647,140 @@ try {
     const markPaid = page.getByRole('button', { name: 'Отметить оплату' })
     assert(await markPaid.isDisabled(), '«Отметить оплату» is clickable')
     assert((await markPaid.getAttribute('title'))?.includes('сервер'), 'no hint on «Отметить оплату»')
-    assert(await page.locator('.ask input').isDisabled(), 'ask bar still editable')
     await page.goto(`${BASE}/admin/recurring`)
     await hydrated(page)
     assert(await page.getByRole('button', { name: 'Прекратить' }).first().isDisabled(), '«Прекратить» is clickable')
     return `${count} on Обзор`
+  })
+
+  // a fresh browser with the admin's cookies, so settings saved here don't leak into other checks
+  const prefsContext = () => browser.newContext({ viewport: { width: 1920, height: 1080 }, reducedMotion: 'reduce', storageState: { cookies: [], origins: [] } })
+    .then(async (ctx) => {
+      await ctx.addCookies((await admin.storageState()).cookies)
+      return ctx
+    })
+
+  await check('T49', async () => {
+    // theme switch in the sidebar, accessibility switches in Настройки, all kept after reload
+    const ctx = await prefsContext()
+    const p = await ctx.newPage()
+    watch(p, 'prefs')
+    await p.goto(`${BASE}/admin/overview`)
+    await hydrated(p)
+    const attr = name => p.evaluate(n => document.documentElement.dataset[n] ?? '', name)
+    assert(await attr('theme') === 'dark', 'not dark by default')
+    await p.getByRole('button', { name: 'Светлая тема' }).click()
+    assert(await attr('theme') === 'light', 'theme button did nothing')
+    const bg = await p.evaluate(() => getComputedStyle(document.body).backgroundColor)
+    await p.goto(`${BASE}/admin/settings`)
+    await hydrated(p)
+    await p.getByRole('switch', { name: 'Меньше движения' }).click()
+    await p.getByRole('switch', { name: 'Шрифт для дислексии' }).click()
+    await p.reload()
+    await hydrated(p)
+    assert(await attr('theme') === 'light', 'theme lost after reload')
+    assert(await attr('motion') === 'reduced', 'less motion lost after reload')
+    assert(await attr('font') === 'readable', 'readable font lost after reload')
+    assert(await p.locator('link#readable-font').count() === 1, 'readable font not loaded')
+    await p.screenshot({ path: `${SHOTS}A8-settings-light.png` })
+    await ctx.close()
+    return `light body bg ${bg}`
+  })
+
+  await check('T50', async () => {
+    // demo mode: «скоро» buttons work on the demo data in this browser
+    const ctx = await prefsContext()
+    const p = await ctx.newPage()
+    watch(p, 'demo')
+    await p.goto(`${BASE}/admin/settings`)
+    await hydrated(p)
+    await p.getByRole('switch', { name: 'Демо-режим' }).click()
+    await p.locator('aside .demo').waitFor()
+
+    // Обзор: paying the overdue rent removes the banner
+    await p.locator('aside.sidebar').getByRole('link', { name: 'Обзор' }).click()
+    await p.waitForURL('**/admin/overview')
+    await p.getByRole('button', { name: 'Отметить оплату' }).click()
+    await p.locator('.banner').waitFor({ state: 'detached', timeout: 5000 })
+
+    // Платежи: a paid row opens the popover too, and the mark can be taken off
+    await p.locator('aside.sidebar').getByRole('link', { name: 'Платежи' }).click()
+    await p.waitForURL('**/admin/payments')
+    await rowsOf(p).filter({ hasText: 'Аренда офиса' }).click()
+    await p.getByRole('button', { name: 'Снять отметку' }).click()
+    await rowsOf(p).filter({ hasText: 'Аренда офиса' }).filter({ hasText: /Просроч/ }).waitFor({ timeout: 5000 })
+
+    // Регулярные: stop one, add one
+    await p.locator('aside.sidebar').getByRole('link', { name: 'Регулярные' }).click()
+    await p.waitForURL('**/admin/recurring')
+    const before = await rowsOf(p).count()
+    await rowsOf(p).filter({ hasText: 'Почта Workspace' }).getByRole('button', { name: 'Прекратить' }).click()
+    await p.waitForFunction(n => document.querySelectorAll('.table .row:not(.head)').length === n - 1, before)
+    await p.getByRole('button', { name: 'Новый платёж' }).click()
+    const modal = modalTitled(p, 'Новый регулярный платёж')
+    await modal.getByRole('button', { name: 'Добавить платёж' }).click()
+    await modal.getByText('Введите название').waitFor()
+    await modal.getByLabel('Название').fill('Тестовый склад')
+    await modal.getByLabel('Сумма').fill('45000')
+    await modal.getByRole('button', { name: 'Добавить платёж' }).click()
+    await modal.waitFor({ state: 'detached' })
+    await rowsOf(p).filter({ hasText: 'Тестовый склад' }).waitFor()
+
+    // reset brings the seed data back
+    await p.locator('aside.sidebar').getByRole('link', { name: 'Настройки' }).click()
+    await p.waitForURL('**/admin/settings')
+    await p.getByRole('button', { name: 'Сбросить', exact: true }).click()
+    await p.locator('aside.sidebar').getByRole('link', { name: 'Регулярные' }).click()
+    await p.waitForURL('**/admin/recurring')
+    assert(await rowsOf(p).filter({ hasText: 'Тестовый склад' }).count() === 0, 'reset kept the added payment')
+    await ctx.close()
+  })
+
+  await check('T51', async () => {
+    // chat under the ask bar: grows with the answer, fits the screen, turns into a button on click outside
+    const ctx = await prefsContext()
+    const p = await ctx.newPage()
+    watch(p, 'chat')
+    await p.goto(`${BASE}/admin/overview`)
+    await hydrated(p)
+    const bar = p.getByLabel('Вопрос ассистенту')
+
+    // the live assistant answers or says it's unavailable, either way in words
+    await bar.fill('Что просрочено?')
+    await bar.press('Enter')
+    await p.waitForFunction(() => document.querySelector('.chat .answer')?.textContent?.trim(), null, { timeout: 30000 })
+    const live = await p.locator('.chat .answer').last().innerText()
+
+    // demo answers come from the demo data
+    await p.evaluate(() => {
+      const prefs = JSON.parse(localStorage.getItem('invoice-keeper:prefs') ?? '{}')
+      localStorage.setItem('invoice-keeper:prefs', JSON.stringify({ ...prefs, demoMode: true }))
+    })
+    await p.reload()
+    await hydrated(p)
+    await bar.fill('Кто отвечает за аренду?')
+    await bar.press('Enter')
+    await p.locator('.chat .answer', { hasText: 'Ольга Иванова' }).waitFor({ timeout: 5000 })
+    const questions = ['Что просрочено?', 'Сколько платим в рублях?', 'Что оплатить на этой неделе?', 'Сколько платим в долларах в этом месяце?']
+    // twice, so the chat gets longer than the screen
+    for (const q of [...questions, ...questions]) {
+      await bar.fill(q)
+      await bar.press('Enter')
+      await p.waitForFunction(() => !document.querySelector('.chat .pending, .chat .typing'))
+    }
+    const box = await p.locator('.chat').boundingBox()
+    assert(box.width > 300 && box.width <= 1920 / 4 + 2, `chat width ${box.width}`)
+    assert(box.y + box.height <= 1080, 'chat goes below the screen')
+    assert(await p.locator('.chat .thumb').isVisible(), 'no scrollbar on a long chat')
+
+    await p.mouse.click(700, 900)
+    const resume = p.getByRole('button', { name: /Чат с ассистентом/ })
+    await resume.waitFor({ timeout: 3000 })
+    await resume.click()
+    assert(await p.locator('.chat .mine').count() === 9, 'chat history lost after reopening')
+    await p.screenshot({ path: `${SHOTS}A1-chat.png` })
+    await ctx.close()
+    return `live: ${live.slice(0, 60)}`
   })
 
   await check('T44', async () => {
@@ -694,7 +824,11 @@ finally {
   await browser.close()
 }
 
-results.T23 = { ok: consoleIssues.length === 0, note: `${consoleIssues.length} console issues` }
+// the browser logs every failed request. these are expected: 401 from the guest check before login,
+// 409 from the duplicate-login test, 503 when the live assistant is down
+const expected = /Failed to load resource: the server responded with a status of (401|409|503)/
+const realIssues = consoleIssues.filter(issue => !expected.test(issue))
+results.T23 = { ok: realIssues.length === 0, note: `${realIssues.length} console issues (${consoleIssues.length - realIssues.length} expected request errors)` }
 writeFileSync(new URL('./results.json', import.meta.url), JSON.stringify({ results, consoleIssues }, null, 2))
 console.log('\nCONSOLE ISSUES:\n' + (consoleIssues.join('\n') || 'none'))
 process.exitCode = Object.values(results).some(r => !r.ok) ? 1 : 0

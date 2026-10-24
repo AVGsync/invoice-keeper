@@ -225,3 +225,40 @@ p {
 .soon.text-action::after {
     content: none;
 }
+
+/* ---- personal settings (usePrefs) ---- */
+
+/* light theme: the original light palette from the design */
+:root[data-theme="light"] {
+    --bg: #f0eee9;
+    --surface: #ffffff;
+    --subtle: #f3f1ec;
+    --muted-bg: #e6e3dc;
+    --line: #e2dfd8;
+    --line-strong: #d1cdc4;
+
+    --ink: #141414;
+    --ink-2: #5c5b57;
+    --ink-3: #8a8883;
+
+    --accent: #2b3ef0;
+    --accent-ink: #2b3ef0;
+    --red: #c4321c;
+    --red-bg: #faede9;
+    --green: #1e7a3e;
+    --amber: #a35f00;
+}
+
+/* less motion, switched on in Настройки: same as the system setting */
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+}
+
+/* dyslexia-friendly font for text and titles, numbers stay monospaced */
+:root[data-font="readable"] {
+    --sans: "Andika", "Geologica", system-ui, sans-serif;
+    --display: "Andika", "Geologica", system-ui, sans-serif;
+}

@@ -8,7 +8,7 @@ import { appendFileSync, existsSync, writeFileSync } from 'node:fs'
 import { usePasswordGenerator } from '../../app/composables/usePasswordGenerator.ts'
 
 const API = process.env.UI_API ?? 'https://77.239.105.84/api/v1'
-const ADMIN = { login: process.env.UI_ADMIN_LOGIN ?? 'admin', password: process.env.UI_ADMIN_PASSWORD ?? 'change-me-admin' }
+const ADMIN = { login: process.env.UI_ADMIN_LOGIN ?? 'admin', password: process.env.UI_ADMIN_PASSWORD ?? 'admin123' }
 const OUT = new URL('../../SAMPLE_USERS.md', import.meta.url).pathname
 
 const personas = [

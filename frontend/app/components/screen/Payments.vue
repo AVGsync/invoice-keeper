@@ -19,10 +19,12 @@ const currencyOptions = [
 const assignee = ref('')
 const assigneeOptions = Object.entries(people).map(([key, person]) => ({ value: key, label: person.short, meta: person.persona }))
 
+const demo = useDemo()
+
 // currency and assignee filters first, the status filter goes on top of that
-const filtered = computed(() => periods.filter(period => fromRu(period.due).startsWith(month.value)
+const filtered = computed(() => demo.periods.value.filter(period => fromRu(period.due).startsWith(month.value)
   && currencies.value.includes(period.currency)
-  && (!assignee.value || period.who === people[assignee.value as keyof typeof people])))
+  && (!assignee.value || period.who.name === people[assignee.value as keyof typeof people].name)))
 
 const count = (s: string) => filtered.value.filter(period => s === 'paid'
   ? period.status === 'paid' || period.status === 'late'

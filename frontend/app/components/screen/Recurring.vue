@@ -4,8 +4,9 @@ const showNewPayment = ref(false)
 
 // stopped payments stay in history but are hidden unless asked for
 const showStopped = ref(false)
-const stoppedCount = templates.filter(item => item.ended).length
-const shown = computed(() => templates.filter(item => showStopped.value || !item.ended))
+const demo = useDemo()
+const stoppedCount = computed(() => demo.templates.value.filter(item => item.ended).length)
+const shown = computed(() => demo.templates.value.filter(item => showStopped.value || !item.ended))
 </script>
 
 <template>
@@ -25,7 +26,7 @@ const shown = computed(() => templates.filter(item => showStopped.value || !item
       <UiSwitch v-model="showStopped">Показать прекращённые <span class="mono muted">{{ stoppedCount }}</span></UiSwitch>
     </div>
 
-    <RecurringTable :templates="shown" />
+    <RecurringTable :templates="shown" :demo="demo.enabled.value" @stop="demo.stop" />
 
     <p v-if="!isAdmin" class="read-only">
       <span class="dot" />
