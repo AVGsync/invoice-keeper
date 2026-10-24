@@ -150,8 +150,11 @@ func TestSearchPaymentsFilters(t *testing.T) {
 	ctx := context.Background()
 	today, _ := clock.ParseDate(searchToday)
 
+	// В общей тестовой БД лежат фикстуры других тестов (CI гоняет пакеты подряд
+	// в одной базе), поэтому выборка ограничена ответственными этих фикстур.
 	base := func() model.OccurrenceFilter {
-		return model.OccurrenceFilter{Sort: "due_date", Order: "asc", Limit: 50, Offset: 0}
+		return model.OccurrenceFilter{Sort: "due_date", Order: "asc", Limit: 50, Offset: 0,
+			AssigneeIDs: []string{fxUserA, fxUserB}}
 	}
 
 	t.Run("status overdue", func(t *testing.T) {
@@ -349,7 +352,8 @@ func TestSearchRecurrentPayments(t *testing.T) {
 	ctx := context.Background()
 
 	base := func() model.RecurringFilter {
-		return model.RecurringFilter{Sort: "description", Order: "asc", Limit: 50, Statuses: []string{"active"}}
+		return model.RecurringFilter{Sort: "description", Order: "asc", Limit: 50, Statuses: []string{"active"},
+			AssigneeIDs: []string{fxUserA, fxUserB}} // см. комментарий в TestSearchPaymentsFilters
 	}
 
 	t.Run("default only active", func(t *testing.T) {

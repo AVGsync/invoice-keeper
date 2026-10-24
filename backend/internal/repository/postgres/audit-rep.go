@@ -59,7 +59,7 @@ const auditSelect = `
 		al.entity_id,
 		al.changes,
 		al.payload,
-		al.ip::text,
+		host(al.ip),
 		al.user_agent,
 		al.request_id
 	FROM audit_log al
