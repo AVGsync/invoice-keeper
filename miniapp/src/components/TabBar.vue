@@ -25,6 +25,8 @@ const tabs = computed(() =>
   allTabs.filter((t) => t.name !== 'ask' || assistant.status.enabled),
 )
 
+const activeIndex = computed(() => tabs.value.findIndex((t) => t.name === route.name))
+
 function isActive(name: string): boolean {
   return route.name === name
 }
@@ -36,6 +38,12 @@ function onTap(name: string): void {
 
 <template>
   <nav class="tabbar">
+    <span
+      class="indicator"
+      :class="{ off: activeIndex < 0 }"
+      :style="{ '--i': Math.max(activeIndex, 0), '--n': tabs.length }"
+      aria-hidden="true"
+    />
     <RouterLink
       v-for="t in tabs"
       :key="t.name"
@@ -53,56 +61,80 @@ function onTap(name: string): void {
 </template>
 
 <style scoped>
+/* glass pill that glides to the active tab (spatial consistency) */
+.indicator {
+  position: absolute;
+  top: var(--tb-pad);
+  bottom: var(--tb-pad);
+  left: var(--tb-pad);
+  width: calc((100% - var(--tb-pad) * 2) / var(--n));
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  transform: translateX(calc(var(--i) * 100%));
+  transition:
+    transform 0.36s var(--ease-drawer),
+    opacity 0.2s var(--ease-out);
+  pointer-events: none;
+}
+.indicator.off {
+  opacity: 0;
+}
 .tab {
   position: relative;
+  z-index: 1;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 10px 2px 8px;
-  color: var(--fog);
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 2px;
+  border-radius: 22px;
+  color: var(--muted);
   font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   user-select: none;
-  transition: color var(--dur) var(--ease);
+  transition: color 0.25s var(--ease-out);
 }
 @media (max-width: 374px) {
   .tab {
-    text-transform: none;
-    letter-spacing: 0.01em;
+    font-size: 10px;
+    letter-spacing: -0.01em;
+    padding: 6px 0;
   }
 }
 .label {
   max-width: 100%;
   overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .tab.active {
-  color: var(--bone);
+  color: var(--snow);
 }
 .icon {
   width: 22px;
   height: 22px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.25;
-  stroke-linecap: square;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.14s var(--ease-out);
 }
-.tab::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: 20%;
-  right: 20%;
-  height: 1px;
-  background: var(--bone);
-  transform: scaleX(0);
-  transition: transform var(--dur) var(--ease);
+/* press feedback */
+.tab:active .icon {
+  transform: scale(0.88);
 }
-.tab.active::before {
-  transform: scaleX(1);
+.tab.active .icon {
+  animation: pop 0.32s var(--ease-out);
+}
+@keyframes pop {
+  from {
+    transform: scale(0.86);
+  }
 }
 </style>

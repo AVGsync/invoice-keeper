@@ -140,8 +140,9 @@ useMainButton({
   border-bottom: 1px solid var(--c-line);
 }
 .rrow.focus {
-  outline: 1px solid var(--bone);
+  outline: 1px solid rgba(var(--violet), 0.9);
   outline-offset: -1px;
+  border-radius: 12px;
   padding-left: var(--sp-3);
   padding-right: var(--sp-3);
 }

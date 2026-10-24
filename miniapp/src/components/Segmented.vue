@@ -40,48 +40,48 @@ function pick(v: T): void {
 .segmented {
   position: relative;
   display: flex;
-  border: 1px solid var(--ash);
-  border-radius: 0;
-  padding: 0;
+  padding: 4px;
   gap: 0;
-  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--graphite);
 }
+/* sliding white pill */
 .segmented::before {
   content: '';
   position: absolute;
-  top: -1px;
-  bottom: -1px;
-  left: -1px;
-  width: calc((100% + 2px) / var(--n));
-  border: 1px solid var(--bone);
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / var(--n));
+  border-radius: var(--radius-pill);
+  background: var(--snow);
   transform: translateX(calc(var(--i) * 100%));
-  transition: transform var(--dur) var(--ease);
+  transition: transform 0.36s var(--ease-drawer);
   pointer-events: none;
 }
 .seg {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-width: 0;
-  min-height: 44px;
-  padding: 0 8px;
+  min-height: 40px;
+  padding: 0 10px;
   border: 0;
+  border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--fog);
-  font-size: var(--fs-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border-radius: 0;
+  color: var(--ash-text);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: color var(--dur) var(--ease);
 }
-@media (max-width: 374px) {
-  .seg {
-    letter-spacing: 0.02em;
-  }
-}
 .seg.active {
-  color: var(--bone);
-  background: transparent;
+  color: var(--ink);
 }
-.seg:active {
-  opacity: 0.6;
+.seg:active:not(.active) {
+  color: var(--snow);
 }
 </style>

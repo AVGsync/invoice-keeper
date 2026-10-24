@@ -176,29 +176,27 @@ onMounted(() => void occurrences.load())
   margin-bottom: var(--sp-2);
 }
 .payments :deep(.section):first-of-type {
-  margin-top: var(--sp-6);
+  margin-top: var(--sp-5);
 }
 .payments :deep(.section + .section) {
-  margin-top: 0;
+  margin-top: var(--sp-3);
 }
 .wk-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: transparent;
-  padding: var(--sp-5) 0 var(--sp-3);
+  gap: var(--sp-3);
+  padding: var(--sp-4) 0 var(--sp-3);
   border-bottom: 1px solid var(--c-line);
-  font-weight: 400;
 }
 .wk-head > span:first-child {
   font-size: var(--fs-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fog);
+  font-weight: 500;
+  color: var(--muted);
 }
 .wk-sum {
-  font-size: var(--fs-small);
-  color: var(--bone);
+  font-size: var(--fs-caption);
+  color: var(--ash-text);
 }
 .earlier {
   width: 100%;

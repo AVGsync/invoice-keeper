@@ -149,9 +149,9 @@ export function setClosingConfirmation(on: boolean): void {
 }
 
 // Тема зафиксирована тёмной: дизайн dark-only, поэтому colorScheme и --tg-theme-*
-// намеренно не используются. Обёртка красит хром Telegram в #101010 и подписывается
+// намеренно не используются. Обёртка красит хром Telegram в #0a0a0a и подписывается
 // на события (Telegram может сбросить цвета хрома при смене темы — переприменяем).
-export const CHROME_BG = '#101010'
+export const CHROME_BG = '#0a0a0a'
 
 function syncChrome(tg: TgWebApp): void {
   try {

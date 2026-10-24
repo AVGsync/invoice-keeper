@@ -83,8 +83,6 @@ function pick(date: string): void {
   text-align: center;
   color: var(--fog);
   font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   padding: 4px 0;
 }
 .cell {
@@ -97,7 +95,7 @@ function pick(date: string): void {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border-radius: 0;
+  border-radius: 14px;
   position: relative;
   transition: background-color var(--dur-focus) var(--ease-press);
 }
@@ -106,11 +104,12 @@ function pick(date: string): void {
   opacity: 1;
 }
 .cell.today {
-  outline: 1px solid var(--bone);
-  outline-offset: -1px;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  font-weight: 500;
 }
 .cell.selected {
-  background: var(--veil);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
 }
 .cell:active {
   background: var(--press);
@@ -130,7 +129,8 @@ function pick(date: string): void {
   height: 5px;
 }
 .mk--overdue {
-  background: var(--bone);
+  background: var(--snow);
+  border-radius: 1px;
 }
 .mk--pending {
   border: 1px solid var(--bone);
@@ -151,8 +151,6 @@ function pick(date: string): void {
   gap: 16px;
   margin-top: var(--sp-4);
   font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--fog);
 }
 .lg {

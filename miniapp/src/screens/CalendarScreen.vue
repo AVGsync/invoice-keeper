@@ -122,9 +122,9 @@ onMounted(() => void occurrences.load())
   margin: var(--sp-6) 0 var(--sp-5);
 }
 .mtitle {
-  font-size: clamp(28px, 9vw, 36px);
-  line-height: 1;
-  letter-spacing: -0.02em;
+  font-size: clamp(28px, 8.5vw, 34px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
   flex: 1;
   margin: 0;
   order: 1;
@@ -132,11 +132,12 @@ onMounted(() => void occurrences.load())
 .nav {
   width: 44px;
   height: 44px;
-  border: 1px solid var(--ash);
-  border-radius: 0;
-  background: transparent;
-  color: var(--bone);
-  font-size: 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--graphite);
+  color: var(--bone-text);
+  font-size: 18px;
+  line-height: 1;
 }
 .nav:active {
   background: var(--press);

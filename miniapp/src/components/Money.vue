@@ -16,10 +16,10 @@ const long = computed(() => text.value.length > 10)
 .large {
   font-size: var(--fs-amount-xl);
   line-height: 1;
-  letter-spacing: -0.02em;
-  font-weight: 400;
+  letter-spacing: -0.035em;
+  font-weight: 500;
 }
 .large.long {
-  font-size: 36px;
+  font-size: 34px;
 }
 </style>

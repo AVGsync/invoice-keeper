@@ -13,7 +13,7 @@ import CurrencyTotals from '../components/CurrencyTotals.vue'
 import Money from '../components/Money.vue'
 import Skeleton from '../components/Skeleton.vue'
 import ErrorState from '../components/ErrorState.vue'
-import Prism from '../components/Prism.vue'
+import Horizon from '../components/Horizon.vue'
 import { CURRENCY_ORDER } from '../lib/money'
 import type { Currency, PaymentResponse } from '../api/types'
 
@@ -67,7 +67,7 @@ onMounted(() => void occurrences.load())
   <div class="today">
     <div class="title-row">
       <h1 class="title">Сегодня</h1>
-      <Prism class="mark" size="mark" />
+      <Horizon class="mark" size="mark" />
     </div>
     <Segmented
       :model-value="scope"
@@ -83,6 +83,8 @@ onMounted(() => void occurrences.load())
 
     <template v-else>
       <button v-if="overdueItems.length" class="overdue-card" type="button" @click="openOverdue">
+        <span class="ov-bg" aria-hidden="true" />
+        <span class="ov-sheen" aria-hidden="true" />
         <div class="ov-head">Просрочено: {{ overdueItems.length }}</div>
         <CurrencyTotals :totals="overdueTotals" inline class="ov-sum" />
       </button>
@@ -122,54 +124,119 @@ onMounted(() => void occurrences.load())
 <style scoped>
 .title-row {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--sp-5);
+  gap: var(--sp-3);
+  margin: var(--sp-6) 0 var(--sp-5);
 }
 .title-row .title {
-  margin: var(--sp-6) 0 0;
+  margin: 0;
 }
-.mark {
-  margin-bottom: 6px;
-}
+/* Hero Horizon — the one full-colour surface in the app */
 .overdue-card {
   display: block;
   width: 100%;
   text-align: left;
-  border: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius);
-  background: var(--c-inverse-bg);
-  color: var(--c-inverse-text);
-  padding: var(--sp-5);
-  margin: var(--sp-6) 0 0;
+  background: #5b4bd0;
+  color: var(--snow);
+  padding: var(--sp-5) var(--sp-5) var(--sp-6);
+  margin: var(--sp-5) 0 0;
   position: relative;
-  transition: opacity var(--dur-press) var(--ease-press);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform var(--dur-press) var(--ease-press);
+}
+/* soft vignette keeps small white text ≥4.5:1 on the warm end */
+.overdue-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0) 60%);
+  z-index: -1;
+}
+/* the gradient layer is wider than the card and drifts slowly — transform only */
+.ov-bg {
+  position: absolute;
+  inset: 0 -40%;
+  background: var(--horizon);
+  z-index: -2;
+  animation: drift 14s var(--ease-in-out) infinite alternate;
+}
+@keyframes drift {
+  from {
+    transform: translateX(-12%);
+  }
+  to {
+    transform: translateX(12%);
+  }
+}
+/* one light sweep when the card appears */
+.ov-sheen {
+  position: absolute;
+  inset: -20% auto -20% 0;
+  width: 45%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent
+  );
+  transform: translateX(-120%) skewX(-12deg);
+  animation: sweep 1.1s var(--ease-out) 0.45s both;
+  pointer-events: none;
+}
+@keyframes sweep {
+  to {
+    transform: translateX(320%) skewX(-12deg);
+  }
+}
+.ov-head,
+.ov-sum {
+  position: relative;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ov-bg,
+  .ov-sheen {
+    animation: none;
+  }
+  .ov-sheen {
+    display: none;
+  }
 }
 .overdue-card:active {
-  opacity: 0.85;
+  transform: scale(0.985);
 }
 .overdue-card::after {
-  content: '→';
+  content: '';
   position: absolute;
   top: var(--sp-5);
   right: var(--sp-5);
-  font-size: var(--fs-body-l);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background:
+    no-repeat center / 14px
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M1 7h11M8 3l4 4-4 4' fill='none' stroke='%23161616' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+    var(--snow);
 }
 .ov-head {
-  font-size: var(--fs-body);
-  font-weight: 400;
-  margin-bottom: var(--sp-3);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  opacity: 0.92;
+  margin-bottom: var(--sp-5);
 }
 .ov-sum {
   font-size: var(--fs-amount-l);
   line-height: 1.05;
-  letter-spacing: -0.015em;
-  font-weight: 400;
+  letter-spacing: -0.035em;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 .empty-inline {
   padding: var(--sp-4) 0;
-  color: var(--fog);
+  color: var(--muted);
   margin: 0;
 }
 .month {
@@ -182,12 +249,11 @@ onMounted(() => void occurrences.load())
   border-bottom: 1px solid var(--c-line);
 }
 .cur {
-  width: 48px;
-  padding-top: 3px;
+  width: 40px;
+  padding-top: 2px;
   font-size: var(--fs-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fog);
+  font-weight: 500;
+  color: var(--muted);
 }
 .mvals {
   flex: 1;
@@ -203,14 +269,15 @@ onMounted(() => void occurrences.load())
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--bone);
+  color: var(--bone-text);
   font-size: var(--fs-small);
 }
 .over::before {
   content: '';
   width: 6px;
   height: 6px;
-  background: var(--bone);
+  border-radius: 50%;
+  background: var(--snow);
   flex: 0 0 6px;
 }
 .over :deep(.num) {

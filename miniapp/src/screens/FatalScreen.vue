@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { session, retryBoot } from '../stores/session'
 import { getWebApp } from '../telegram/webapp'
-import Prism from '../components/Prism.vue'
+import Horizon from '../components/Horizon.vue'
 
 const phase = computed(() => session.phase)
 // Закрыть — для терминальных фаз, где повтор не поможет.
@@ -18,7 +18,7 @@ function close(): void {
 
 <template>
   <div class="fatal">
-    <Prism size="hero" class="fatal-prism" />
+    <Horizon size="hero" class="fatal-horizon" />
     <p class="msg">{{ session.fatalReason }}</p>
     <p v-if="showDevHint" class="hint">
       Dev: задайте токен бота в miniapp/.env.development.local
@@ -37,13 +37,15 @@ function close(): void {
   align-items: center;
   gap: var(--sp-5);
 }
-.fatal-prism {
-  --prism-size: 120px;
+.fatal-horizon {
+  --horizon-size: 96px;
+  margin-bottom: var(--sp-3);
 }
 .msg {
   font-size: var(--fs-title);
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
   max-width: 28ch;
   margin: 0;
 }

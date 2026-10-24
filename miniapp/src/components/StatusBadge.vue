@@ -17,27 +17,28 @@ const info = computed(() => statusInfo({ status: props.status, paid_late: props.
   align-items: center;
   gap: 6px;
   height: 22px;
-  padding: 0 8px;
+  padding: 0 9px;
   border-radius: var(--radius-pill);
-  font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1;
   white-space: nowrap;
   border: 1px solid transparent;
 }
+/* overdue — the only filled badge */
 .badge--overdue {
-  background: var(--bone);
-  color: var(--obsidian);
+  background: var(--snow);
+  color: var(--ink);
 }
 .badge--pending {
-  border-color: var(--bone);
-  color: var(--bone);
+  border-color: var(--line-strong);
+  background: var(--glass);
+  color: var(--bone-text);
 }
 .badge--paid {
   border: 0;
   padding-left: 0;
-  color: var(--fog);
+  color: var(--muted);
 }
 .badge--paid::before {
   content: '';
@@ -48,7 +49,7 @@ const info = computed(() => statusInfo({ status: props.status, paid_late: props.
   transform: translateY(-2px) rotate(-45deg);
 }
 .badge--ended {
-  border: 1px dashed var(--fog);
-  color: var(--fog);
+  border: 1px dashed var(--slate);
+  color: var(--muted);
 }
 </style>

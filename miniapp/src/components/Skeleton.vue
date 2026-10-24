@@ -13,27 +13,36 @@ withDefaults(defineProps<{ rows?: number }>(), { rows: 4 })
   padding: 8px 0;
 }
 .sk-row {
+  position: relative;
+  overflow: hidden;
   height: 56px;
-  border-radius: 0;
-  margin: 0;
-  background: var(--veil-weak);
-  border-bottom: 1px solid var(--obsidian);
-  animation: sk 1.6s var(--ease) infinite alternate;
+  border-radius: 16px;
+  margin: 0 0 8px;
+  background: var(--graphite);
 }
-.sk-row:nth-child(2n) {
-  animation-delay: 0.2s;
+/* light passes across the rows, slightly offset per row */
+.sk-row::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05) 50%, transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.5s linear infinite;
 }
-@keyframes sk {
-  from {
-    opacity: 0.45;
-  }
+.sk-row:nth-child(2n)::after {
+  animation-delay: 0.12s;
+}
+.sk-row:nth-child(3n)::after {
+  animation-delay: 0.24s;
+}
+@keyframes shimmer {
   to {
-    opacity: 1;
+    transform: translateX(100%);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sk-row {
-    animation: none;
+  .sk-row::after {
+    display: none;
   }
 }
 </style>

@@ -59,8 +59,8 @@ export function useMainButton(opts: MainButtonOptions): void {
     const dim = !enabled && !loading
     tg.MainButton.setParams({
       text,
-      color: dim ? '#2A2A2A' : '#FFFDF9',
-      text_color: dim ? '#6F879C' : '#101010',
+      color: dim ? '#262626' : '#FFFFFF',
+      text_color: dim ? '#686868' : '#161616',
       is_active: enabled && !loading,
       is_visible: visible,
     })

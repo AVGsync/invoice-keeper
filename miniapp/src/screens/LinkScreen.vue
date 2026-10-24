@@ -3,7 +3,7 @@ import { ref, computed, toRef, watch, onUnmounted } from 'vue'
 import { session, link } from '../stores/session'
 import { useMainButton } from '../composables/useMainButton'
 import { haptic, setClosingConfirmation } from '../telegram/webapp'
-import Prism from '../components/Prism.vue'
+import Horizon from '../components/Horizon.vue'
 
 const login = ref('')
 const password = ref('')
@@ -38,7 +38,7 @@ useMainButton({
 
 <template>
   <div class="link">
-    <Prism size="hero" class="link-prism" />
+    <Horizon size="hero" class="link-horizon" />
     <h1 class="title">Привязка аккаунта</h1>
     <p class="intro">
       Войдите один раз логином и паролем от Invoice Keeper — дальше вход будет по Telegram
@@ -80,15 +80,15 @@ useMainButton({
 .link {
   padding-top: 24px;
 }
-.link-prism {
-  --prism-size: 112px;
-  margin: var(--sp-8) auto var(--sp-6);
+.link-horizon {
+  --horizon-size: 88px;
+  margin: var(--sp-8) 0 var(--sp-7);
 }
 .title {
   margin: 0 0 var(--sp-5);
 }
 .intro {
-  color: var(--fog);
+  color: var(--ash-text);
   font-size: var(--fs-body);
   max-width: 34ch;
   margin-bottom: var(--sp-8);
@@ -100,10 +100,9 @@ useMainButton({
 .lbl {
   display: block;
   font-size: var(--fs-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fog);
-  margin-bottom: 4px;
+  font-weight: 500;
+  color: var(--muted);
+  margin: 0 0 8px var(--sp-1);
 }
 .pw {
   position: relative;
@@ -113,22 +112,23 @@ useMainButton({
 }
 .toggle {
   position: absolute;
-  right: 0;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
   border: 0;
+  border-radius: var(--radius-pill);
+  padding: 0 12px;
   background: transparent;
-  color: var(--bone);
-  font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  color: var(--ash-text);
+  font-size: var(--fs-caption);
+  font-weight: 500;
   min-height: 44px;
 }
 .error {
   display: block;
   color: var(--bone);
   font-size: var(--fs-small);
-  border-left: 2px solid var(--bone);
+  border-left: 2px solid rgba(var(--violet), 0.9);
   padding-left: 10px;
   margin-top: 8px;
 }

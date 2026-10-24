@@ -124,10 +124,9 @@ useMainButton({
 .lbl {
   display: block;
   font-size: var(--fs-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fog);
-  margin-bottom: 4px;
+  font-weight: 500;
+  color: var(--muted);
+  margin: 0 0 8px var(--sp-1);
 }
 .pw {
   position: relative;
@@ -137,22 +136,23 @@ useMainButton({
 }
 .toggle {
   position: absolute;
-  right: 0;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
   border: 0;
+  border-radius: var(--radius-pill);
+  padding: 0 12px;
   background: transparent;
-  color: var(--bone);
-  font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  color: var(--ash-text);
+  font-size: var(--fs-caption);
+  font-weight: 500;
   min-height: 44px;
 }
 .err {
   display: block;
   color: var(--bone);
   font-size: var(--fs-small);
-  border-left: 2px solid var(--bone);
+  border-left: 2px solid rgba(var(--violet), 0.9);
   padding-left: 10px;
   margin-top: 8px;
 }
@@ -163,7 +163,7 @@ useMainButton({
   display: block;
   color: var(--bone);
   font-size: var(--fs-small);
-  border-left: 2px solid var(--bone);
+  border-left: 2px solid rgba(var(--violet), 0.9);
   padding-left: 10px;
   margin-top: 8px;
 }

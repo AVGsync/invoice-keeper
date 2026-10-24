@@ -61,9 +61,8 @@ useMainButton({
   font-weight: 400;
 }
 .role {
-  font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 500;
   padding-left: 0;
   color: var(--fog);
   border: 1px solid transparent;
@@ -74,8 +73,9 @@ useMainButton({
   height: 22px;
   display: inline-flex;
   align-items: center;
-  border-color: var(--bone);
-  color: var(--bone);
+  border-color: var(--snow);
+  background: var(--snow);
+  color: var(--ink);
 }
 .sub {
   font-size: var(--fs-small);

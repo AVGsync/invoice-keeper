@@ -26,8 +26,10 @@ const rel = computed(() => {
     <div class="left">
       <div class="desc">{{ occ.description }}</div>
       <div class="meta">
-        <span>{{ rel }}</span>
-        <span v-if="showAssignee && occ.assignee_name"> · {{ occ.assignee_name }}</span>
+        <span class="when"
+          >{{ rel
+          }}<template v-if="showAssignee && occ.assignee_name"> · {{ occ.assignee_name }}</template></span
+        >
         <StatusBadge v-if="showStatus" :status="occ.status" :paid-late="occ.paid_late" />
       </div>
     </div>
@@ -55,29 +57,24 @@ const rel = computed(() => {
 }
 .desc {
   font-size: var(--fs-body-l);
-  font-weight: 400;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .meta {
-  color: var(--fog);
+  color: var(--muted);
   font-size: var(--fs-small);
   margin-top: 4px;
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
 }
-.meta::after {
-  content: '';
-  flex-basis: 100%;
-  order: 1;
-}
-.meta > .badge {
-  order: 2;
-}
-.meta > span {
+.when {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .occ-row :deep(.num) {

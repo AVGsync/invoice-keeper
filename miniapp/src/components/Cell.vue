@@ -29,9 +29,8 @@ defineProps<{ label?: string; value?: string; chevron?: boolean; clickable?: boo
   flex: 1;
 }
 .cell-label {
-  font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: var(--fs-caption);
+  font-weight: 500;
   color: var(--fog);
   line-height: 1.2;
   margin-bottom: 4px;

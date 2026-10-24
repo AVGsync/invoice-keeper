@@ -26,17 +26,16 @@ defineEmits<{ open: [string] }>()
 
 <style scoped>
 .block {
-  background: var(--obsidian);
-  border: 1px solid var(--c-line);
-  border-radius: var(--radius);
+  background: var(--graphite);
+  border: 1px solid var(--line);
+  border-radius: 20px;
   overflow: hidden;
   margin: 0;
 }
 .block-title {
   padding: var(--sp-4) var(--sp-5) var(--sp-2);
   font-size: var(--fs-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-weight: 500;
   color: var(--fog);
   line-height: 1.2;
 }

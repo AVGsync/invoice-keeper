@@ -68,7 +68,7 @@ function go(path: string): void {
   display: block;
   color: var(--bone);
   font-size: var(--fs-small);
-  border-left: 2px solid var(--bone);
+  border-left: 2px solid rgba(var(--violet), 0.9);
   padding-left: 10px;
   margin-top: 8px;
 }
@@ -79,7 +79,5 @@ function go(path: string): void {
   text-align: left;
   margin: var(--sp-8) 0;
   font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 </style>

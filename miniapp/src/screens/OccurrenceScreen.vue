@@ -267,12 +267,11 @@ onUnmounted(() => controller?.abort())
   padding: var(--sp-6) 0 var(--sp-2);
 }
 .desc {
-  font-size: var(--fs-title);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  font-weight: 400;
-  margin-bottom: var(--sp-4);
-  color: var(--fog);
+  font-size: var(--fs-body-l);
+  line-height: 1.3;
+  font-weight: 500;
+  margin-bottom: var(--sp-3);
+  color: var(--ash-text);
 }
 .head > .badge {
   margin-top: var(--sp-4);
@@ -303,7 +302,7 @@ onUnmounted(() => controller?.abort())
 }
 .banner {
   padding: var(--sp-4) 0;
-  color: var(--fog);
+  color: var(--ash-text);
   font-size: var(--fs-body);
 }
 .notfound {

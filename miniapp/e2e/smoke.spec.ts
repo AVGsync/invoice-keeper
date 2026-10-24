@@ -25,8 +25,9 @@ function guardConsole(page: Page): { errors: string[] } {
 }
 
 async function screenshot(page: Page, name: string, theme: string): Promise<void> {
-  await page.waitForTimeout(150)
-  await page.screenshot({ path: shotPath(name, theme), fullPage: true })
+  await page.waitForTimeout(700) // дать входным анимациям доиграть
+  // Экран телефона, а не вся страница: фиксированная панель вкладок остаётся внизу.
+  await page.screenshot({ path: shotPath(name, theme) })
 }
 
 async function waitMainButton(page: Page): Promise<void> {

@@ -185,10 +185,9 @@ useMainButton({
 .lbl {
   display: block;
   font-size: var(--fs-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fog);
-  margin-bottom: 4px;
+  font-weight: 500;
+  color: var(--muted);
+  margin: 0 0 8px var(--sp-1);
 }
 .lbl ~ .section {
   margin-top: var(--sp-2);
@@ -205,7 +204,7 @@ useMainButton({
   display: block;
   color: var(--bone);
   font-size: var(--fs-small);
-  border-left: 2px solid var(--bone);
+  border-left: 2px solid rgba(var(--violet), 0.9);
   padding-left: 10px;
   margin-top: 8px;
 }
@@ -260,7 +259,7 @@ useMainButton({
   display: block;
   color: var(--bone);
   font-size: var(--fs-small);
-  border-left: 2px solid var(--bone);
+  border-left: 2px solid rgba(var(--violet), 0.9);
   padding-left: 10px;
   margin-top: 8px;
 }

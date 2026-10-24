@@ -161,16 +161,20 @@ onUnmounted(() => controller?.abort())
   padding-bottom: 16px;
 }
 .exchange {
+  animation: rise 0.32s var(--ease-out) both;
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
 }
 .bubble.q {
+  transform-origin: bottom right;
+  animation: bubble 0.28s var(--ease-out) both;
   align-self: flex-end;
-  background: var(--veil);
-  color: var(--bone);
+  background: var(--graphite);
+  border: 1px solid var(--line);
+  color: var(--bone-text);
   padding: 12px 16px;
-  border-radius: 15px 15px 0 15px;
+  border-radius: 20px 20px 6px 20px;
   max-width: 85%;
   font-size: var(--fs-body);
 }
@@ -184,6 +188,13 @@ onUnmounted(() => controller?.abort())
 }
 .steps li {
   padding: 2px 0;
+  animation: rise 0.24s var(--ease-out) both;
+}
+@keyframes bubble {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
 }
 .steps li.spinner::after {
   content: ' …';
@@ -209,8 +220,8 @@ onUnmounted(() => controller?.abort())
   padding: 0;
 }
 .err-card {
-  background: transparent;
-  border: 1px solid var(--bone);
+  background: var(--graphite);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   color: var(--bone);
   padding: var(--sp-4) var(--sp-5);
@@ -221,13 +232,17 @@ onUnmounted(() => controller?.abort())
   font-variant-numeric: tabular-nums;
   padding: 0;
 }
+/* sits just above the floating tab bar */
 .composer {
   position: sticky;
-  bottom: 0;
-  background: var(--obsidian);
-  border-top: 1px solid var(--c-line);
-  padding: var(--sp-3) 0 var(--sp-2);
+  bottom: calc(var(--tabbar-h) + var(--tabbar-gap) * 2 + var(--safe-bottom));
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0), var(--void) 24%);
+  padding: var(--sp-5) 0 var(--sp-2);
   margin-top: var(--sp-4);
+}
+.composer textarea {
+  border-radius: 20px;
 }
 .counter {
   font-size: var(--fs-micro);

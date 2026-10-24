@@ -14,31 +14,40 @@ defineProps<{ title?: string; footer?: string }>()
 
 <style scoped>
 .section {
-  margin: var(--sp-8) 0 0;
+  margin: var(--sp-7) 0 0;
 }
 .section-header {
   font-size: var(--fs-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fog);
-  line-height: 1.2;
-  margin: 0 0 var(--sp-3) 0;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.3;
+  margin: 0 0 var(--sp-2) var(--sp-1);
 }
+/* grouped list on a graphite panel: rows keep their own hairlines, the last one drops it */
 .section-body {
+  background: var(--graphite);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 0 var(--sp-4);
+  overflow: hidden;
+}
+.section-body :deep(input:not([type='radio']):not([type='checkbox'])) {
   background: transparent;
+  border: 0;
   border-radius: 0;
-  overflow: visible;
+  padding-left: 0;
+  padding-right: 0;
 }
-.section-header + .section-body {
-  border-top: 1px solid var(--c-line);
+.section-body:empty {
+  display: none;
 }
-.section:not(:has(.section-header))
-  > .section-body:has(> :is(.cell, .occ-row, .rrow, .urow, .radio-row):first-child) {
-  border-top: 1px solid var(--c-line);
+.section-body > :last-child,
+.section-body > :last-child > :last-child {
+  border-bottom: 0 !important;
 }
 .section-footer {
-  color: var(--fog);
+  color: var(--muted);
   font-size: var(--fs-small);
-  margin: var(--sp-3) 0 0;
+  margin: var(--sp-2) var(--sp-1) 0;
 }
 </style>

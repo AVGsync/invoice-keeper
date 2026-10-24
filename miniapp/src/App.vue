@@ -24,7 +24,9 @@ onMounted(() => {
   }
 })
 
-const showTabBar = computed(() => session.phase === 'ready' && !!route.meta.tab)
+// Панель живёт всю сессию и уезжает вниз на экранах без вкладок — без пересоздания.
+const showTabBar = computed(() => session.phase === 'ready')
+const tabBarAway = computed(() => !route.meta.tab)
 const isFatal = computed(() =>
   ['no_telegram', 'expired', 'invalid', 'disabled', 'rate_limited', 'offline'].includes(
     session.phase,
@@ -39,8 +41,17 @@ const isFatal = computed(() =>
     <FatalScreen v-else-if="isFatal" />
     <template v-else>
       <InlineBack v-if="showInlineBack && !route.meta.tab" @back="goBack" />
-      <RouterView />
+      <RouterView v-slot="{ Component, route: r }">
+        <Transition name="page">
+          <component :is="Component" :key="r.path" />
+        </Transition>
+      </RouterView>
     </template>
   </div>
-  <TabBar v-if="showTabBar" />
+  <TabBar
+    v-if="showTabBar"
+    :class="{ 'docked-away': tabBarAway }"
+    :aria-hidden="tabBarAway || undefined"
+    :inert="tabBarAway || undefined"
+  />
 </template>

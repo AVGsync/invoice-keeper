@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import Skeleton from '../components/Skeleton.vue'
-import Prism from '../components/Prism.vue'
+import Horizon from '../components/Horizon.vue'
 </script>
 
 <template>
   <div class="boot">
-    <Prism size="hero" class="boot-prism" />
+    <Horizon size="hero" class="boot-horizon" />
     <h1 class="title boot-title">Invoice Keeper</h1>
     <Skeleton :rows="5" class="boot-sk" />
   </div>
@@ -20,11 +20,10 @@ import Prism from '../components/Prism.vue'
   justify-content: center;
   gap: var(--sp-6);
 }
-.boot-prism {
-  --prism-size: 160px;
+.boot-horizon {
+  --horizon-size: 112px;
 }
 .boot-title {
-  font-size: clamp(32px, 10vw, 40px);
   text-align: center;
   margin: 0;
 }

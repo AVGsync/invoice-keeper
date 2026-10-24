@@ -47,28 +47,30 @@ function pick(v: T): void {
   flex: 0 0 auto;
   min-height: 36px;
   padding: 8px 14px;
-  border: 1px solid var(--ash);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--fog);
+  color: var(--ash-text);
   font-size: var(--fs-small);
-  letter-spacing: 0.01em;
+  font-weight: 500;
   white-space: nowrap;
   transition:
+    background-color var(--dur-focus) var(--ease-press),
     border-color var(--dur-focus) var(--ease-press),
     color var(--dur-focus) var(--ease-press);
 }
+/* 44px hit area, 36px visual */
 .chip::after {
   content: '';
   position: absolute;
   inset: -4px 0;
 }
 .chip.active {
-  border-color: var(--bone);
-  color: var(--bone);
-  background: transparent;
+  border-color: var(--snow);
+  background: var(--snow);
+  color: var(--ink);
 }
-.chip:active {
+.chip:active:not(.active) {
   background: var(--press);
 }
 </style>
