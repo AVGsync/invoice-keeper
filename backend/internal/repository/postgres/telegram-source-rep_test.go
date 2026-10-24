@@ -93,7 +93,7 @@ func seedBFixtures(t *testing.T, db *sql.DB, fx remindertest.Fixtures) {
 		{fx.Other, "Пётр Сидоров"},
 		{fx.Admin, "Админ"},
 	} {
-		login := "fx_" + u.id[:8]
+		login := "fx_" + u.id[len(u.id)-12:] // хвост UUID уникален, начало у фикстур общее
 		if _, err := db.ExecContext(ctx, `
 			INSERT INTO users (id, full_name, login, password_hash, role)
 			VALUES ($1, $2, $3, 'x', 'user')

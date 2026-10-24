@@ -78,7 +78,7 @@ func seedPayerFixtures(t *testing.T, db *sql.DB, fx remindertest.Fixtures) {
 		if _, err := db.ExecContext(ctx, `
 			INSERT INTO users (id, full_name, login, password_hash, role)
 			VALUES ($1, $2, $3, 'x', 'user') ON CONFLICT (id) DO NOTHING`,
-			u.id, u.name, "fx_"+u.id[:8]); err != nil {
+			u.id, u.name, "fx_"+u.id[len(u.id)-12:]); err != nil { // хвост UUID уникален
 			t.Fatalf("insert user: %v", err)
 		}
 	}

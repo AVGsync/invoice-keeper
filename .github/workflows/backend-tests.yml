@@ -66,4 +66,4 @@ jobs:
             -path=/migrations -database "$TEST_DATABASE_URL" up
 
       - name: go test (integration)
-        run: go test -tags integration ./...
+        run: go test -tags integration -p 1 ./...  # пакеты делят фикстуры в одной БД — строго по очереди
