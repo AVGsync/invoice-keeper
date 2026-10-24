@@ -3,7 +3,6 @@
     <AppSidebar />
     <main class="main">
       <slot />
-      <AppFolio />
     </main>
     <AppToast />
   </div>

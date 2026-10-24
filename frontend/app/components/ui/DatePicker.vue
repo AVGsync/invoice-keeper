@@ -1,9 +1,14 @@
 <script setup lang="ts">
 // value is 'YYYY-MM-DD', the field shows 'DD.MM.YYYY'. the date can only be picked in the calendar, not typed
 const props = withDefaults(defineProps<{
-  // which day is "today" (demo screens live on 24.10.2026)
+  // which day is "today"
   today?: string
-}>(), { today: undefined })
+  // small grey word in front of the date, e.g. «С»
+  prefix?: string
+  placeholder?: string
+  // looks like a menu row instead of a field, for the filter menus
+  bare?: boolean
+}>(), { today: undefined, prefix: '', placeholder: 'ДД.ММ.ГГГГ', bare: false })
 
 const model = defineModel<string>({ default: '' })
 // set by a surrounding UiField so its label points here
@@ -24,7 +29,11 @@ function monthOf(iso: string) {
   return { year, month: month - 1 }
 }
 
+// which way the month went, so the days slide in from that side
+const way = ref<'next' | 'prev'>('next')
+
 function shift(step: number) {
+  way.value = step > 0 ? 'next' : 'prev'
   const date = new Date(view.value.year, view.value.month + step, 1)
   view.value = { year: date.getFullYear(), month: date.getMonth() }
 }
@@ -76,12 +85,13 @@ useClickOutside(root, () => { open.value = false }, open)
       :id="fieldId"
       type="button"
       class="input mono"
-      :class="{ open }"
+      :class="{ open, bare }"
       :aria-expanded="open"
       @click="toggle"
       @keydown.down.prevent="openCalendar"
     >
-      <span class="value" :class="{ muted: !model }">{{ model ? toRu(model) : 'ДД.ММ.ГГГГ' }}</span>
+      <span v-if="prefix" class="prefix">{{ prefix }}</span>
+      <span class="value" :class="{ muted: !model }">{{ model ? toRu(model) : placeholder }}</span>
       <UiIcon name="down" :size="14" class="caret" :class="{ flip: open }" />
     </button>
 
@@ -104,19 +114,21 @@ useClickOutside(root, () => { open.value = false }, open)
             <button type="button" class="arrow" aria-label="Следующий месяц" @click="shift(1)"><UiIcon name="right" :size="15" /></button>
           </div>
 
-          <div class="grid">
-            <span v-for="name in weekdays" :key="name" class="weekday mono">{{ name }}</span>
-            <button
-              v-for="cell in cells"
-              :key="cell.iso"
-              type="button"
-              class="day mono"
-              :class="{ other: !cell.inMonth, weekend: cell.weekend, today: cell.iso === today, selected: cell.iso === model }"
-              @click="pick(cell.iso)"
-            >
-              {{ cell.day }}
-            </button>
-          </div>
+          <Transition :name="`slide-${way}`" mode="out-in">
+            <div :key="`${view.year}-${view.month}`" class="grid">
+              <span v-for="name in weekdays" :key="name" class="weekday mono">{{ name }}</span>
+              <button
+                v-for="cell in cells"
+                :key="cell.iso"
+                type="button"
+                class="day mono"
+                :class="{ other: !cell.inMonth, weekend: cell.weekend, today: cell.iso === today, selected: cell.iso === model }"
+                @click="pick(cell.iso)"
+              >
+                {{ cell.day }}
+              </button>
+            </div>
+          </Transition>
         </template>
 
         <button type="button" class="today-link" @click="pick(today)">Сегодня, {{ toRu(today) }}</button>
@@ -144,12 +156,51 @@ useClickOutside(root, () => { open.value = false }, open)
   text-align: left;
   outline: none;
   user-select: none;
+  transition: border-color 0.2s ease, box-shadow 0.35s var(--ease-out);
+}
+
+.input:hover:not(:focus, .open) {
+  border-color: var(--ink-3);
 }
 
 .input:focus,
 .input.open {
   border-color: var(--ink-2);
   box-shadow: 0 0 0 3px var(--subtle);
+  animation: focus-ring 0.45s var(--ease-out);
+}
+
+.input.bare {
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  background: none;
+  border: 0;
+  font-size: 13px;
+  box-shadow: none;
+  animation: none;
+  transition: background-color 0.2s ease;
+}
+
+.input.bare:hover,
+.input.bare.open,
+.input.bare:focus-visible {
+  background: var(--subtle);
+}
+
+.prefix {
+  width: 22px;
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.input.bare .value {
+  margin-right: auto;
+}
+
+.input.bare .value.muted {
+  font-family: var(--sans);
 }
 
 .caret {

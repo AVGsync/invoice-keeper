@@ -58,7 +58,7 @@ async function personaSaved() {
 
 <template>
   <div>
-    <AppPageHeader title="Пользователи" subtitle="Обычные пользователи команды. Администратор задаётся в .env">
+    <AppPageHeader title="Пользователи">
       <template #actions>
         <UiButton variant="primary" class="new" @click="modal = 'newUser'">Новый пользователь</UiButton>
       </template>
@@ -90,14 +90,17 @@ async function personaSaved() {
 </template>
 
 <style scoped>
+/* when the window is narrow the positions card goes under the table, so the table keeps its full width */
 .layout {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 16px;
 }
 
 .layout > :first-child {
-  flex: 1;
+  flex: 1 1 790px;
+  min-width: 0;
 }
 
 .load-error {

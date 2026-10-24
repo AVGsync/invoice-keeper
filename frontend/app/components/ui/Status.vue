@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PeriodStatus } from '~/utils/demo'
+import type { PeriodStatus } from '~/utils/periods'
 
 const props = defineProps<{
   status: PeriodStatus | 'active'

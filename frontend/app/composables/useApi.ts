@@ -1,5 +1,17 @@
 import type {
+  AddReceiptLinkRequest,
+  Receipt,
+  ReceiptAccessResponse,
+  ReceiptListResponse,
   AssistantAnswerResponse,
+  AssistantHistoryResponse,
+  AuditActionsResponse,
+  AuditLogParams,
+  AuditLogResponse,
+  PaymentSearchParams,
+  PaymentSearchResponse,
+  RecurringSearchParams,
+  RecurringPaymentSearchResponse,
   AssistantAskRequest,
   AssistantStatusResponse,
   MiniAppAuthRequest,
@@ -61,6 +73,8 @@ export function useApi() {
     // templates: everyone reads, only the admin creates, edits and stops
     recurring: {
       list: () => api<RecurrentPayment[]>('/recurring-payments'),
+      // filtered, sorted and paged by the server
+      search: (query: RecurringSearchParams) => api<RecurringPaymentSearchResponse>('/recurring-payments/search', { query }),
       create: (body: CreateRecurrentPaymentRequest) =>
         api<{ id?: string }>('/recurring-payments', { method: 'POST', body }),
       update: (id: string, body: UpdateRecurrentPaymentRequest) =>
@@ -72,6 +86,8 @@ export function useApi() {
     // periods of the recurring payments. the assignee or the admin marks them paid
     occurrences: {
       list: (mine = false) => api<PaymentListResponse>('/payment-occurrences', { query: mine ? { assignee: 'me' } : undefined }),
+      // filtered, sorted and paged by the server
+      search: (query: PaymentSearchParams) => api<PaymentSearchResponse>('/payment-occurrences/search', { query }),
       get: (id: string) => api<PaymentOccurrence>(`/payment-occurrences/${encodeURIComponent(id)}`),
       patch: (id: string, body: PatchPaymentOccurrenceRequest) =>
         api(`/payment-occurrences/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
@@ -87,10 +103,39 @@ export function useApi() {
       replace: (body: UpdateUserNotificationSettingsRequest) => api('/notifications/settings', { method: 'PUT', body }),
       patch: (body: PatchUserNotificationSettingsRequest) => api('/notifications/settings', { method: 'PATCH', body }),
       remove: () => api('/notifications/settings', { method: 'DELETE' }),
+      // a code to the saved address, then the code back: the address is confirmed
+      sendCode: () => api('/notifications/email/code', { method: 'POST' }),
+      verify: (code: string) => api('/notifications/email/verify', { method: 'POST', body: { code } }),
+    },
+
+    // receipts of a payment period: files and links. the assignee and the admin can see and change them
+    receipts: {
+      list: (periodId: string) => api<ReceiptListResponse>(`/payment-occurrences/${encodeURIComponent(periodId)}/receipts`),
+      // multipart, the file goes in the `file` field
+      upload: (periodId: string, file: File, title = '') => {
+        const body = new FormData()
+        body.append('file', file)
+        return api<Receipt>(`/payment-occurrences/${encodeURIComponent(periodId)}/receipts`, { method: 'POST', body, query: title ? { title } : undefined })
+      },
+      addLink: (periodId: string, body: AddReceiptLinkRequest) =>
+        api<Receipt>(`/payment-occurrences/${encodeURIComponent(periodId)}/receipts/link`, { method: 'POST', body }),
+      // where to open it: the link itself, or a signed address of the file
+      access: (id: string) => api<ReceiptAccessResponse>(`/receipts/${encodeURIComponent(id)}/access`),
+      remove: (id: string) => api(`/receipts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    },
+
+    // who did what: the whole log for the admin, your own actions for everyone
+    audit: {
+      list: (query: AuditLogParams) => api<AuditLogResponse>('/audit-log', { query }),
+      mine: (query: AuditLogParams) => api<AuditLogResponse>('/me/activity', { query }),
+      actions: () => api<AuditActionsResponse>('/audit-log/actions'),
     },
 
     assistant: {
       status: () => api<AssistantStatusResponse>('/assistant/status'),
+      // your earlier questions and answers, kept on the server
+      history: (channel = 'web', limit = 20) => api<AssistantHistoryResponse>('/assistant/history', { query: { channel, limit } }),
+      clearHistory: (channel = 'web') => api('/assistant/history', { method: 'DELETE', query: { channel } }),
       ask: (body: AssistantAskRequest) => api<AssistantAnswerResponse>('/assistant/ask', { method: 'POST', body }),
       // server-sent events (step, block, text, done) — read with useAssistant
       askStream: (body: AssistantAskRequest, signal?: AbortSignal) =>

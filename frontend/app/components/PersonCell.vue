@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Person } from '~/utils/demo'
+import type { Person } from '~/utils/periods'
 
 const props = defineProps<{ person: Person }>()
 const { isAdmin } = useRole()

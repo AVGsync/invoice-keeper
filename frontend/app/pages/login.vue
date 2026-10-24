@@ -13,11 +13,7 @@ async function submit() {
     await navigateTo(home.value)
   }
   catch (e) {
-    const status = (e as { statusCode?: number }).statusCode
-    if (status === 401) error.value = 'Неверный логин или пароль'
-    // the server limits how often you can try to log in
-    else if (status === 429) error.value = 'Слишком много попыток входа. Попробуйте позже.'
-    else error.value = apiError(e)
+    error.value = apiError(e)
   }
   finally {
     busy.value = false
@@ -32,30 +28,35 @@ async function submit() {
 
       <form class="form" @submit.prevent="submit">
         <h1 class="title display">Вход <em class="italic">в ведомость</em></h1>
-        <p class="subtitle">Регулярные платежи команды:<br>что и когда оплатить, что уже оплачено.</p>
+        <p class="subtitle">Управление платежами вашей команды</p>
 
-        <UiField label="Логин">
+        <UiField label="Логин" class="inset">
           <UiInput v-model="form.login" autocomplete="username" maxlength="64" />
         </UiField>
-        <UiField label="Пароль">
+        <UiField label="Пароль" class="inset">
           <UiInput v-model="form.password" type="password" autocomplete="current-password" />
         </UiField>
 
         <UiButton variant="primary" size="lg" block class="submit" :disabled="busy">Войти</UiButton>
         <p v-if="error" class="error-text">{{ error }}</p>
-        <p class="hint">Учётные записи выдаёт администратор.</p>
       </form>
 
-      <p class="footer mono">v1.0 · Europe/Moscow</p>
+      <p class="footer mono">Europe/Moscow</p>
     </section>
 
     <section class="side">
-      <LoginReceipt />
+      <LoginBackdrop />
+      <LoginReceipt class="over-rings" />
     </section>
   </div>
 </template>
 
 <style scoped>
+/* «Логин» and «Пароль» start where the field's round end is over, in line with the text inside */
+.inset :deep(.top) {
+  padding-left: 16px;
+}
+
 .login {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -104,12 +105,6 @@ async function submit() {
   margin-top: 12px;
 }
 
-.hint {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--ink-3);
-}
-
 .footer {
   margin-top: auto;
   font-size: 12px;
@@ -117,10 +112,18 @@ async function submit() {
 }
 
 .side {
+  /* the rings behind the receipt go past the edges, the section cuts them off */
+  position: relative;
+  overflow: hidden;
   display: flex;
   justify-content: center;
   padding-top: 196px;
   background: var(--subtle);
   border-left: 1px solid var(--line);
+}
+
+/* above the rings */
+.over-rings {
+  position: relative;
 }
 </style>

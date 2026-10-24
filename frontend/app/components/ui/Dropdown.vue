@@ -8,7 +8,7 @@ export interface DropdownOption {
 const props = withDefaults(defineProps<{
   options: DropdownOption[]
   placeholder: string
-  // offer the placeholder as an option to pick "nothing" (e.g. «Без персоны»)
+  // offer the placeholder as an option to pick "nothing" (e.g. «Без должности»)
   clearable?: boolean
   // muted text before the value, e.g. «Ответственный:»
   prefix?: string
@@ -82,6 +82,12 @@ function pick(value: string) {
   border: 1px solid var(--line-strong);
   border-radius: 9999px;
   text-align: left;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.35s var(--ease-out);
+}
+
+.control:hover:not(.open) {
+  border-color: var(--ink-3);
 }
 
 /* one line only, a long value ends with … instead of wrapping */
@@ -115,9 +121,11 @@ function pick(value: string) {
   font-weight: 500;
 }
 
-.control.open {
+.control.open,
+.control:focus-visible {
   border-color: var(--ink-2);
   box-shadow: 0 0 0 3px var(--subtle);
+  animation: focus-ring 0.45s var(--ease-out);
 }
 
 /* at least as wide as the control, wider if an option needs it */

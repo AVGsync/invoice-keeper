@@ -46,7 +46,7 @@ async function submit() {
 <template>
   <UiModal
     title="Новый пользователь"
-    subtitle="Роль — всегда user. Администратор задаётся в .env."
+    subtitle="Роль всегда «Пользователь». Администратор в системе один."
     @close="$emit('close')"
   >
     <UiField label="ФИО">
@@ -64,10 +64,10 @@ async function submit() {
       <UiInput v-model="form.password" type="password" autocomplete="new-password" maxlength="72" />
     </UiField>
 
-    <UiField label="Персона">
-      <UiDropdown v-model="form.persona" :options="personaOptions" placeholder="Без персоны">
+    <UiField label="Должность">
+      <UiDropdown v-model="form.persona" :options="personaOptions" placeholder="Без должности">
         <template #footer>
-          <button type="button" class="new-persona" @click="$emit('newPersona')">+&nbsp; Новая персона</button>
+          <button type="button" class="new-persona" @click="$emit('newPersona')">+&nbsp; Новая должность</button>
         </template>
       </UiDropdown>
     </UiField>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Period } from '~/utils/demo'
+import type { Period } from '~/utils/periods'
 
 // canMark: false hides the button (somebody else's payment, for a user)
 // others: the rest of that day's payments, a click shows one of them here
@@ -46,6 +46,18 @@ defineEmits<{ mark: [], pick: [period: Period] }>()
 </template>
 
 <style scoped>
+/* the lines come up one after another when a payment is picked */
+.day > * {
+  animation: rise 0.5s var(--ease-out) backwards;
+}
+
+.day > :nth-child(2) { animation-delay: 40ms; }
+.day > :nth-child(3) { animation-delay: 80ms; }
+.day > :nth-child(4) { animation-delay: 120ms; }
+.day > :nth-child(5) { animation-delay: 160ms; }
+.day > :nth-child(6) { animation-delay: 200ms; }
+.day > :nth-child(n + 7) { animation-delay: 240ms; }
+
 .day {
   view-transition-name: day-panel;
   display: flex;

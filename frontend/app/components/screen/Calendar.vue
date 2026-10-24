@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Period } from '~/utils/demo'
+import type { Period } from '~/utils/periods'
 
 const { withTransition } = useViewTransition()
 
@@ -51,7 +51,7 @@ const weekday = computed(() => (selectedIso.value ? new Date(selectedIso.value).
 const monthPeriods = computed(() => payments.periods.value.filter(period => fromRu(period.due).startsWith(month.value)))
 const monthTotals = computed(() => totalsOn(lastDayOf(month.value), monthPeriods.value))
 
-// the margin note follows what's actually overdue
+// the badge under the totals counts what's overdue right now
 const overdueNow = computed(() => payments.periods.value.filter(period => period.status === 'overdue'))
 // the selected day's other payments, listed under the selected one
 const sameDay = computed(() => payments.periods.value.filter(period => period.due === selected.value?.due && period.id !== selected.value?.id))
@@ -60,11 +60,15 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
 
 <template>
   <div>
-    <AppPageHeader title="Календарь" subtitle="Сроки оплат по дням — с отметкой статуса" />
+    <AppPageHeader title="Календарь" />
 
     <div class="toolbar">
       <UiMonthPicker v-model="monthModel" variant="title" :current="thisMonth" />
-      <UiButton class="today" @click="goToday">Сегодня</UiButton>
+      <!-- back to the current month -->
+      <UiButton class="today" aria-label="Сегодня" title="К сегодняшнему месяцу" @click="goToday"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+          <!-- drawn around the middle of its box, so it sits centred in the round button -->
+          <path d="M8 2.5A5.5 5.5 0 1 1 3.24 5.25M9.9 0.9L8 2.5L9.9 4.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></UiButton>
       <span class="legend">
         <UiStatus status="pending" label="ожидает" />
         <UiStatus status="paid" label="оплачено" />
@@ -83,8 +87,10 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
       />
 
       <div class="side">
+        <!-- a new key for every payment, so its lines come up again -->
         <DayPanel
           v-if="selected"
+          :key="selected.id"
           :kicker="kicker"
           :title="`${day} ${monthNamesGenitive[shown.month]}`"
           :period="selected"
@@ -93,11 +99,8 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
           @mark="mark(selected)"
           @pick="period => (selected = period)"
         />
-        <MonthTotals :title="`Итоги ${monthNamesGenitive[shown.month]}`" :totals="monthTotals" />
+        <MonthTotals :title="`Итоги ${monthNamesGenitive[shown.month]}`" :totals="monthTotals" :loading="!payments.ready.value" />
         <div v-if="overdueNow.length" class="note">
-          <p class="italic margin">
-            Отметка на полях:<br>{{ overdueNow[0]!.title.toLowerCase() }} за {{ Number(overdueNow[0]!.due.slice(0, 2)) }}-е ещё не оплачена.
-          </p>
           <UiStatus status="overdue" :label="`${overdueNow.length} просрочен${overdueNow.length > 1 ? 'о' : ''}`" />
         </div>
       </div>
@@ -110,13 +113,20 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: -10px 0 18px;
+  margin-bottom: 18px;
 }
 
 .today {
+  display: grid;
+  place-items: center;
   height: 32px;
-  width: 84px;
+  width: 32px;
   padding: 0;
+  color: var(--ink-2);
+}
+
+.today:hover {
+  color: var(--ink);
 }
 
 .legend {
@@ -153,11 +163,5 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-}
-
-.margin {
-  font-size: 13px;
-  line-height: 18px;
-  color: var(--ink-2);
 }
 </style>

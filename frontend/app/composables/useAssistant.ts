@@ -10,6 +10,8 @@ export interface ChatMessage {
   step?: string
   error?: boolean
   followups?: string[]
+  // from an earlier visit (GET /assistant/history) and no longer remembered for the next question
+  forgotten?: boolean
 }
 
 // what the server's error codes mean for the person asking
@@ -21,22 +23,32 @@ const errorText: Record<string, string> = {
   timeout: 'Ассистент не успел ответить. Попробуйте спросить проще.',
   bad_request: 'Не получилось разобрать вопрос.',
 }
-const unavailable = 'Ассистент сейчас недоступен. Попробуйте позже или включите демо-режим в настройках.'
+const unavailable = 'Ассистент сейчас недоступен. Попробуйте позже.'
+
+// the answer being streamed right now, one for the whole panel
+let controller: AbortController | undefined
+
+// stops an answer that's still coming in (logout uses it too)
+export function stopAssistant() {
+  controller?.abort()
+  controller = undefined
+}
 
 // one chat for the whole panel: it stays when you change pages
 export function useAssistant() {
   const api = useApi()
-  const demo = useDemo()
   const { reduceMotion } = usePrefs()
 
   const messages = useState<ChatMessage[]>('chat-messages', () => [])
   const open = useState('chat-open', () => false)
   const status = useState<AssistantStatusResponse | null>('chat-status', () => null)
+  // the earlier dialogue is read from the server once, when the chat is first opened
+  const historyLoaded = useState('chat-history-loaded', () => false)
   const nextId = () => (messages.value.at(-1)?.id ?? 0) + 1
 
-  // hidden only when the server says the feature is off (and demo mode can't stand in)
-  const available = computed(() => demo.enabled.value || status.value?.enabled !== false)
-  const examples = computed(() => (demo.enabled.value ? demoExamples : status.value?.examples ?? []))
+  // hidden only when the server says the feature is off
+  const available = computed(() => status.value?.enabled !== false)
+  const examples = computed(() => status.value?.examples ?? [])
   const busy = computed(() => messages.value.some(message => message.pending || message.typing))
 
   async function loadStatus() {
@@ -44,7 +56,35 @@ export function useAssistant() {
     status.value = await api.assistant.status().catch(() => ({}))
   }
 
-  let controller: AbortController | undefined
+  // «помнит 4 последних вопроса», shown in the chat header
+  const memory = computed(() => {
+    const info = status.value?.memory
+    if (!info?.enabled || !info.context_turns) return ''
+    const n = info.context_turns
+    return `помнит ${n} ${plural(n, ['последний вопрос', 'последних вопроса', 'последних вопросов'])}`
+  })
+
+  async function loadHistory() {
+    if (historyLoaded.value) return
+    historyLoaded.value = true
+    const history = await api.assistant.history('web').catch(() => null)
+    // something was asked while it loaded: that chat is newer, leave it
+    if (!history?.items?.length || messages.value.length) return
+    let id = 0
+    messages.value = history.items.flatMap((item) => {
+      const failed = item.status === 'error'
+      return [
+        { id: ++id, from: 'me' as const, text: item.question ?? '', forgotten: !item.in_context },
+        {
+          id: ++id,
+          from: 'assistant' as const,
+          text: failed ? (item.error_code && errorText[item.error_code]) || unavailable : item.answer_text ?? '',
+          error: failed,
+          forgotten: !item.in_context,
+        },
+      ]
+    })
+  }
 
   // the answer appears a few letters at a time, so the window grows with it
   function typeOut(message: ChatMessage, text: string) {
@@ -109,15 +149,6 @@ export function useAssistant() {
     message.followups = envelope?.followups
   }
 
-  async function askDemo(question: string, message: ChatMessage) {
-    const answer = demoAnswer(question, demo.periods.value)
-    message.step = answer.step
-    // a short pause, like the real one looking things up
-    await new Promise(resolve => setTimeout(resolve, reduceMotion.value ? 0 : 600))
-    await typeOut(message, answer.text)
-    message.followups = demoExamples.filter(example => example !== question).slice(0, 2)
-  }
-
   async function ask(question: string) {
     question = question.trim()
     if (!question || busy.value) return
@@ -126,8 +157,6 @@ export function useAssistant() {
     messages.value.push({ id: nextId(), from: 'assistant', text: '', pending: true, step: 'Думаю' })
     // the reactive copy, so changes below redraw the chat
     const message = messages.value[messages.value.length - 1]!
-
-    if (demo.enabled.value) return askDemo(question, message)
 
     controller = new AbortController()
     try {
@@ -141,10 +170,13 @@ export function useAssistant() {
     }
   }
 
+  // a new chat: the server forgets the old one too, so it doesn't go with the next question.
+  // if that request fails, the old dialogue shows up again next time and can be cleared then
   function clear() {
-    controller?.abort()
+    stopAssistant()
     messages.value = []
+    api.assistant.clearHistory('web').catch(() => {})
   }
 
-  return { messages, open, available, examples, busy, loadStatus, ask, clear }
+  return { messages, open, available, examples, memory, busy, loadStatus, loadHistory, ask, clear }
 }

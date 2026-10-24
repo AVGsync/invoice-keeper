@@ -1,4 +1,4 @@
-<!-- month as 'YYYY-MM'. arrows step a month, clicking the month name opens a 12-month dropdown -->
+<!-- month as 'YYYY-MM'. clicking the month name opens a 12-month dropdown, the small control also has arrows -->
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
   // control = small box for filter rows, title = big month name like on Календарь
@@ -32,11 +32,9 @@ function step(by: number) {
       <button type="button" class="label title-label" :aria-expanded="open" @click="open = !open">
         <span class="display big">{{ monthNames[shown.month] }}</span>
         <span class="mono year">{{ shown.year }}</span>
+        <!-- the chevron says «this opens something», like on the dropdowns -->
+        <UiIcon name="down" :size="15" class="caret" :class="{ flip: open }" />
       </button>
-      <span class="arrows">
-        <button type="button" aria-label="Предыдущий месяц" @click="step(-1)"><UiIcon name="left" :size="15" /></button>
-        <button type="button" aria-label="Следующий месяц" @click="step(1)"><UiIcon name="right" :size="15" /></button>
-      </span>
     </template>
 
     <template v-else>
@@ -99,18 +97,38 @@ function step(by: number) {
   color: var(--ink-2);
 }
 
-/* big month name + year, then the arrows box */
-.title {
-  gap: 26px;
-}
-
+/* a ghost button: reads as the page's heading, a soft fill on hover and while open shows it's clickable.
+   the negative margin keeps the text where it was */
 .title-label {
   display: inline-flex;
   align-items: baseline;
   gap: 10px;
-  padding: 0;
+  margin-left: -12px;
+  padding: 2px 12px;
   background: none;
   border: 0;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+.title-label:hover,
+.title-label[aria-expanded="true"] {
+  background: var(--subtle);
+}
+
+.caret {
+  align-self: center;
+  margin-left: -4px;
+  color: var(--ink-3);
+  transition: transform 0.35s var(--ease-out), color 0.2s ease;
+}
+
+.title-label:hover .caret {
+  color: var(--ink);
+}
+
+.caret.flip {
+  transform: rotate(180deg);
 }
 
 .big {
@@ -123,34 +141,9 @@ function step(by: number) {
   color: var(--ink-3);
 }
 
-.arrows {
-  display: flex;
-  overflow: hidden;
-  height: 32px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 9999px;
-}
-
-.arrows button {
-  display: inline-grid;
-  place-items: center;
-  width: 46px;
-  transition: background-color 0.2s ease, color 0.2s ease;
-  background: none;
-  border: 0;
-  font-size: 15px;
-  color: var(--ink-2);
-}
-
-.arrows button:hover,
 .arrow:hover {
   background: var(--subtle);
   color: var(--ink);
-}
-
-.arrows button + button {
-  border-left: 1px solid var(--line);
 }
 
 .dropdown {

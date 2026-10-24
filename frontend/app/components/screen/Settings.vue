@@ -2,17 +2,16 @@
 import type { IconName } from '~/components/ui/Icon.vue'
 
 const { prefs } = usePrefs()
-const demo = useDemo()
 const api = useApi()
 const route = useRoute()
 
 // like settings on a phone: a list of sections, a click opens one, «Настройки» goes back.
 // the open section lives in the url (?section=), so the browser back button works too
-type Section = 'access' | 'mail' | 'demo' | 'about'
+type Section = 'access' | 'mail' | 'telegram' | 'about'
 const sections: { id: Section, title: string, icon: IconName }[] = [
   { id: 'access', title: 'Доступность', icon: 'access' },
   { id: 'mail', title: 'Напоминания на почту', icon: 'mail' },
-  { id: 'demo', title: 'Демо-режим', icon: 'demo' },
+  { id: 'telegram', title: 'Telegram', icon: 'send' },
   { id: 'about', title: 'О системе', icon: 'info' },
 ]
 const open = computed(() => sections.find(item => item.id === route.query.section))
@@ -22,19 +21,12 @@ function show(id?: Section) {
 }
 
 // short state next to each menu item
-const onOff = (on: boolean) => (on ? 'вкл' : 'выкл')
 const summary = computed<Record<Section, string>>(() => ({
   access: [prefs.value.lessMotion && 'меньше движения', prefs.value.readableFont && 'шрифт'].filter(Boolean).join(', ') || 'выкл',
   mail: '',
-  demo: onOff(prefs.value.demoMode),
+  telegram: '',
   about: serverText[server.value],
 }))
-
-const resetDone = ref(false)
-function resetDemo() {
-  demo.reset()
-  resetDone.value = true
-}
 
 // quick health check of what the panel talks to
 const server = ref<'checking' | 'ok' | 'down'>('checking')
@@ -59,7 +51,7 @@ const assistantText = { checking: 'проверяем…', ok: 'онлайн', d
 
 <template>
   <div>
-    <AppPageHeader title="Настройки" subtitle="Доступность и демо-режим хранятся в этом браузере, напоминания — на сервере" />
+    <AppPageHeader title="Настройки" />
 
     <div class="settings">
       <Transition name="drill" mode="out-in">
@@ -91,39 +83,18 @@ const assistantText = { checking: 'проверяем…', ok: 'онлайн', d
 
           <div v-if="open.id === 'access'" class="list">
             <div class="row">
-              <div>
-                <p>Меньше движения</p>
-                <p class="hint">Без анимаций и плавных переходов</p>
-              </div>
+              <p>Меньше движения</p>
               <UiSwitch v-model="prefs.lessMotion" aria-label="Меньше движения" />
             </div>
             <div class="row">
-              <div>
-                <p>Шрифт для дислексии</p>
-                <p class="hint">Andika: буквы проще различать</p>
-              </div>
+              <p>Шрифт для дислексии</p>
               <UiSwitch v-model="prefs.readableFont" aria-label="Шрифт для дислексии" />
             </div>
           </div>
 
           <NotificationSettings v-else-if="open.id === 'mail'" />
 
-          <div v-else-if="open.id === 'demo'" class="list">
-            <div class="row">
-              <div>
-                <p>Демо-режим</p>
-                <p class="hint">Пример данных вместо настоящих. Изменения остаются только в этом браузере</p>
-              </div>
-              <UiSwitch v-model="prefs.demoMode" aria-label="Демо-режим" />
-            </div>
-            <div class="row">
-              <div>
-                <p>Демо-данные</p>
-                <p class="hint">{{ resetDone ? 'Сброшены к исходным' : 'Вернуть платежи как были' }}</p>
-              </div>
-              <UiButton size="md" @click="resetDemo">Сбросить</UiButton>
-            </div>
-          </div>
+          <TelegramSettings v-else-if="open.id === 'telegram'" />
 
           <div v-else class="list">
             <div class="row">
@@ -152,10 +123,12 @@ const assistantText = { checking: 'проверяем…', ok: 'онлайн', d
   margin-right: -32px;
 }
 
-/* rows with hairlines between them, no boxes */
+/* rows with hairlines between them, no boxes.
+   pulled up so its top line lies right on the header's line instead of making a second one */
 .list {
   display: flex;
   flex-direction: column;
+  margin-top: -19px;
   border-top: 1px solid var(--line);
 }
 

@@ -16,6 +16,7 @@ defineEmits<{ retry: [] }>()
 
 <style scoped>
 .state {
+  animation: state-in 0.5s var(--ease-out) backwards;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -31,5 +32,29 @@ defineEmits<{ retry: [] }>()
 
 .error .text {
   color: var(--red);
+  animation: no 0.5s ease 0.15s;
+}
+
+/* comes up softly in place of the list */
+@keyframes state-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* an error: a small shake, like shaking the head */
+@keyframes no {
+  25% {
+    transform: translateX(-4px);
+  }
+
+  50% {
+    transform: translateX(4px);
+  }
+
+  75% {
+    transform: translateX(-2px);
+  }
 }
 </style>

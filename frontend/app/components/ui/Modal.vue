@@ -74,6 +74,29 @@ defineEmits<{ close: [] }>()
   font-size: 22px;
   line-height: 1;
   color: var(--ink-3);
+  transition: color 0.2s ease, transform 0.4s var(--ease-spring);
+}
+
+.close:hover {
+  color: var(--ink);
+  transform: rotate(90deg);
+}
+
+/* opening: the fields come up one after another after the window, the buttons last */
+.body > *,
+.foot {
+  animation: rise 0.5s var(--ease-out) backwards;
+  animation-delay: 80ms;
+}
+
+.body > :nth-child(2) { animation-delay: 120ms; }
+.body > :nth-child(3) { animation-delay: 160ms; }
+.body > :nth-child(4) { animation-delay: 200ms; }
+.body > :nth-child(5) { animation-delay: 240ms; }
+.body > :nth-child(n + 6) { animation-delay: 280ms; }
+
+.foot {
+  animation-delay: 300ms;
 }
 
 .body {

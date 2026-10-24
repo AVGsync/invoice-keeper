@@ -1,7 +1,7 @@
 // turns what the server sends (GET /payment-occurrences, GET /recurring-payments)
-// into the same rows the screens already draw for the demo data
+// into the rows the screens draw (utils/periods.ts)
 import type { PaymentOccurrence, RecurrentPayment } from '~/types/api'
-import type { Currency, Period, PeriodStatus, Person, Template } from './demo'
+import type { Currency, Period, PeriodStatus, Person, Template } from './periods'
 import { daysBetween, isoOf, monthNamesGenitive, toRu } from './date'
 import { formatMoney } from './money'
 import { initials } from './format'

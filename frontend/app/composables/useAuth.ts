@@ -4,6 +4,7 @@ export function useAuth() {
   const api = useApi()
   // undefined = not checked yet, null = not logged in
   const user = useState<User | null | undefined>('auth-user', () => undefined)
+  const resetSession = useSessionReset()
 
   async function load() {
     try {
@@ -16,6 +17,8 @@ export function useAuth() {
         user.value = await api.auth.me()
       }
       catch {
+        // the session is over: whatever the last person had loaded goes too
+        resetSession()
         user.value = null
       }
     }
@@ -23,12 +26,20 @@ export function useAuth() {
 
   async function login(body: LoginRequest) {
     await api.auth.login(body)
+    // the person logging in starts clean, even if the last one never pressed «Выйти»
+    resetSession()
     user.value = await api.auth.me()
   }
 
+  // cleared even if the request fails: the data must not stay for the next person
   async function logout() {
-    await api.auth.logout()
-    user.value = null
+    try {
+      await api.auth.logout()
+    }
+    finally {
+      resetSession()
+      user.value = null
+    }
   }
 
   const home = computed(() => (user.value?.role === 'admin' ? '/admin/overview' : '/user/overview'))
