@@ -178,33 +178,41 @@ useMainButton({
 </template>
 
 <style scoped>
-.title {
-  font-size: 22px;
-  margin: 16px 0 16px;
-}
 .field {
   display: block;
-  margin-bottom: 18px;
+  margin-bottom: var(--sp-6);
 }
 .lbl {
   display: block;
-  font-size: 13px;
-  color: var(--c-hint);
-  margin-bottom: 6px;
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fog);
+  margin-bottom: 4px;
+}
+.lbl ~ .section {
+  margin-top: var(--sp-2);
 }
 .counter {
   display: block;
   text-align: right;
   margin-top: 4px;
+  font-size: var(--fs-micro);
+  color: var(--fog);
+  font-variant-numeric: tabular-nums;
 }
 .err {
-  color: var(--c-destructive);
-  font-size: 13px;
+  display: block;
+  color: var(--bone);
+  font-size: var(--fs-small);
+  border-left: 2px solid var(--bone);
+  padding-left: 10px;
+  margin-top: 8px;
 }
 .interval {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   margin-top: 10px;
 }
 .int {
@@ -212,29 +220,48 @@ useMainButton({
   text-align: center;
 }
 .preview {
+  color: var(--fog);
+  font-size: var(--fs-small);
   margin: 8px 0 0;
 }
 .search {
-  margin-bottom: 8px;
+  margin-bottom: var(--sp-2);
 }
 .radio-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--c-secondary-bg);
+  gap: var(--sp-3);
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--c-line);
 }
-.radio-row:last-child {
-  border-bottom: none;
+.radio-row input[type='radio'] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid var(--fog);
+  border-radius: 50%;
+  background-clip: content-box;
 }
-.radio-row input {
-  width: auto;
+.radio-row input[type='radio']:checked {
+  border-color: var(--bone);
+  background-color: var(--bone);
 }
 .rname {
   flex: 1;
+  font-size: var(--fs-body-l);
+}
+.rlogin {
+  color: var(--fog);
 }
 .form-error {
-  color: var(--c-destructive);
+  display: block;
+  color: var(--bone);
+  font-size: var(--fs-small);
+  border-left: 2px solid var(--bone);
+  padding-left: 10px;
   margin-top: 8px;
 }
 </style>

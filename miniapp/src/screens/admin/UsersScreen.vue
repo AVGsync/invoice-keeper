@@ -46,16 +46,9 @@ useMainButton({
 </template>
 
 <style scoped>
-.title {
-  font-size: 22px;
-  margin: 16px 0 12px;
-}
 .urow {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--c-secondary-bg);
-}
-.urow:last-child {
-  border-bottom: none;
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--c-line);
 }
 .top {
   display: flex;
@@ -64,20 +57,29 @@ useMainButton({
   gap: 12px;
 }
 .name {
-  font-weight: 500;
+  font-size: var(--fs-body-l);
+  font-weight: 400;
 }
 .role {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--c-secondary-bg);
-  color: var(--c-hint);
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-left: 0;
+  color: var(--fog);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
 }
 .role.admin {
-  background: color-mix(in srgb, var(--c-primary) 15%, var(--c-bg));
-  color: var(--c-primary);
+  padding: 0 8px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  border-color: var(--bone);
+  color: var(--bone);
 }
 .sub {
-  margin-top: 2px;
+  font-size: var(--fs-small);
+  color: var(--fog);
+  margin-top: 4px;
 }
 </style>

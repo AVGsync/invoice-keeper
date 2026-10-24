@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { session, retryBoot } from '../stores/session'
 import { getWebApp } from '../telegram/webapp'
+import Prism from '../components/Prism.vue'
 
 const phase = computed(() => session.phase)
 // Закрыть — для терминальных фаз, где повтор не поможет.
@@ -17,11 +18,7 @@ function close(): void {
 
 <template>
   <div class="fatal">
-    <div class="emoji">
-      <span v-if="phase === 'offline'">📡</span>
-      <span v-else-if="phase === 'expired'">⏳</span>
-      <span v-else>🚫</span>
-    </div>
+    <Prism size="hero" class="fatal-prism" />
     <p class="msg">{{ session.fatalReason }}</p>
     <p v-if="showDevHint" class="hint">
       Dev: задайте токен бота в miniapp/.env.development.local
@@ -34,19 +31,26 @@ function close(): void {
 <style scoped>
 .fatal {
   text-align: center;
-  padding: 48px 16px;
+  padding: var(--sp-9) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
 }
-.emoji {
-  font-size: 48px;
-  margin-bottom: 16px;
+.fatal-prism {
+  --prism-size: 120px;
 }
 .msg {
-  font-size: 17px;
-  margin-bottom: 16px;
+  font-size: var(--fs-title);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  max-width: 28ch;
+  margin: 0;
 }
 .hint {
-  color: var(--c-hint);
-  font-size: 13px;
-  margin-bottom: 16px;
+  font-size: var(--fs-small);
+}
+.fatal .btn {
+  min-width: 200px;
 }
 </style>

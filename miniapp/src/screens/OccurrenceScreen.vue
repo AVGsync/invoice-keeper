@@ -264,60 +264,77 @@ onUnmounted(() => controller?.abort())
 
 <style scoped>
 .head {
-  padding: 16px 0 8px;
+  padding: var(--sp-6) 0 var(--sp-2);
 }
 .desc {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 8px;
+  font-size: var(--fs-title);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-weight: 400;
+  margin-bottom: var(--sp-4);
+  color: var(--fog);
 }
-.badge {
-  margin-top: 8px;
+.head > .badge {
+  margin-top: var(--sp-4);
 }
-.late {
-  color: var(--c-paid);
+.late:not(.badge) {
+  color: var(--bone);
 }
 .hint-pad {
-  padding: 14px;
+  padding: var(--sp-4) 0;
   margin: 0;
 }
 .date-row,
 .date-edit {
-  padding: 12px 14px;
+  padding: var(--sp-4) 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 .actions {
-  padding: 12px 14px;
+  padding: var(--sp-4) 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--sp-3);
+}
+.actions .btn,
+.date-edit .btn {
+  width: 100%;
 }
 .banner {
-  padding: 12px 14px;
-  color: var(--c-hint);
+  padding: var(--sp-4) 0;
+  color: var(--fog);
+  font-size: var(--fs-body);
 }
 .notfound {
   text-align: center;
-  padding: 48px 16px;
+  padding: var(--sp-9) 0;
 }
 .notfound p {
+  font-size: var(--fs-body-l);
   margin-bottom: 16px;
 }
 .hrow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: var(--sp-3);
+  row-gap: 6px;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  text-align: left;
   width: 100%;
   border: 0;
   background: transparent;
-  color: var(--c-text);
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--c-secondary-bg);
+  color: var(--bone);
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--c-line);
 }
-.hrow:last-child {
-  border-bottom: none;
+.hrow > :nth-child(2) {
+  grid-row: 2;
+  grid-column: 1;
+  justify-self: start;
+}
+.hrow > :nth-child(3) {
+  grid-row: 1;
+  grid-column: 2;
 }
 </style>

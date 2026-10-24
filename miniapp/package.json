@@ -13,17 +13,18 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource/golos-text": "5.3.0",
     "vue": "3.5.43",
     "vue-router": "4.6.4"
   },
   "devDependencies": {
-    "vite": "8.3.4",
+    "@playwright/test": "1.64.0",
+    "@types/node": "24.19.2",
     "@vitejs/plugin-vue": "6.0.9",
     "typescript": "6.0.3",
-    "vue-tsc": "3.3.12",
+    "vite": "8.3.4",
     "vitest": "5.0.3",
-    "@playwright/test": "1.64.0",
-    "@types/node": "24.19.2"
+    "vue-tsc": "3.3.12"
   },
   "engines": {
     "node": ">=22.12"

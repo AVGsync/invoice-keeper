@@ -117,41 +117,54 @@ useMainButton({
 </template>
 
 <style scoped>
-.title {
-  font-size: 22px;
-  margin: 16px 0 16px;
-}
 .field {
   display: block;
-  margin-bottom: 18px;
+  margin-bottom: var(--sp-6);
 }
 .lbl {
   display: block;
-  font-size: 13px;
-  color: var(--c-hint);
-  margin-bottom: 6px;
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fog);
+  margin-bottom: 4px;
 }
 .pw {
   position: relative;
 }
+.pw input {
+  padding-right: 84px;
+}
 .toggle {
   position: absolute;
-  right: 10px;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   border: 0;
   background: transparent;
-  color: var(--c-link);
-  font-size: 14px;
+  color: var(--bone);
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  min-height: 44px;
 }
 .err {
-  color: var(--c-destructive);
-  font-size: 13px;
+  display: block;
+  color: var(--bone);
+  font-size: var(--fs-small);
+  border-left: 2px solid var(--bone);
+  padding-left: 10px;
+  margin-top: 8px;
 }
 .note {
   margin: 0 0 8px;
 }
 .form-error {
-  color: var(--c-destructive);
+  display: block;
+  color: var(--bone);
+  font-size: var(--fs-small);
+  border-left: 2px solid var(--bone);
+  padding-left: 10px;
+  margin-top: 8px;
 }
 </style>

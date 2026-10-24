@@ -13,12 +13,6 @@ const emit = defineEmits<{ select: [string] }>()
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 const STATUS_ORDER: OccStatus[] = ['overdue', 'pending', 'paid', 'ended']
-const STATUS_VAR: Record<OccStatus, string> = {
-  overdue: '--c-overdue',
-  pending: '--c-pending',
-  paid: '--c-paid',
-  ended: '--c-ended',
-}
 
 const cells = computed(() => monthGrid(props.month))
 const todayStr = computed(() => today())
@@ -33,13 +27,11 @@ const byDate = computed(() => {
   return map
 })
 
-function dotsFor(date: string): string[] {
+function dotsFor(date: string): OccStatus[] {
   const list = byDate.value.get(date)
   if (!list) return []
   const present = new Set(list.map((i) => i.status))
-  return STATUS_ORDER.filter((s) => present.has(s))
-    .slice(0, 3)
-    .map((s) => STATUS_VAR[s])
+  return STATUS_ORDER.filter((s) => present.has(s)).slice(0, 3)
 }
 
 function inMonth(date: string): boolean {
@@ -68,14 +60,15 @@ function pick(date: string): void {
       >
         <span class="daynum">{{ Number(d.slice(8, 10)) }}</span>
         <span class="dots">
-          <span
-            v-for="(v, i) in dotsFor(d)"
-            :key="i"
-            class="dot"
-            :style="{ background: `var(${v})` }"
-          ></span>
+          <span v-for="s in dotsFor(d)" :key="s" class="mk" :class="'mk--' + s"></span>
         </span>
       </button>
+    </div>
+    <div class="legend">
+      <span class="lg"><span class="mk mk--overdue"></span>Просрочен</span>
+      <span class="lg"><span class="mk mk--pending"></span>Ожидает</span>
+      <span class="lg"><span class="mk mk--paid"></span>Оплачен</span>
+      <span class="lg"><span class="mk mk--ended"></span>Завершён</span>
     </div>
   </div>
 </template>
@@ -88,50 +81,83 @@ function pick(date: string): void {
 }
 .wd {
   text-align: center;
-  color: var(--c-hint);
-  font-size: 12px;
+  color: var(--fog);
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   padding: 4px 0;
 }
 .cell {
   aspect-ratio: 1;
   border: 0;
   background: transparent;
-  color: var(--c-text);
+  color: var(--bone);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  border-radius: 10px;
+  gap: 4px;
+  border-radius: 0;
   position: relative;
+  transition: background-color var(--dur-focus) var(--ease-press);
 }
 .cell.dim {
-  color: var(--c-hint);
-  opacity: 0.45;
+  color: var(--fog);
+  opacity: 1;
 }
-.cell.today .daynum {
-  outline: 2px solid var(--c-primary);
-  border-radius: 50%;
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.cell.today {
+  outline: 1px solid var(--bone);
+  outline-offset: -1px;
 }
 .cell.selected {
-  background: var(--c-secondary-bg);
+  background: var(--veil);
+}
+.cell:active {
+  background: var(--press);
 }
 .daynum {
-  font-size: 15px;
+  font-size: var(--fs-body-l);
+  font-variant-numeric: tabular-nums;
 }
 .dots {
   display: flex;
-  gap: 2px;
+  gap: 3px;
   height: 6px;
+  align-items: center;
 }
-.dot {
+.mk {
   width: 5px;
   height: 5px;
+}
+.mk--overdue {
+  background: var(--bone);
+}
+.mk--pending {
+  border: 1px solid var(--bone);
   border-radius: 50%;
+}
+.mk--paid {
+  background: var(--fog);
+  border-radius: 50%;
+}
+.mk--ended {
+  width: 6px;
+  height: 1px;
+  background: var(--fog);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: var(--sp-4);
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fog);
+}
+.lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 </style>

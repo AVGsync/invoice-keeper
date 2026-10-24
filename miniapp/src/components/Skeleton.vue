@@ -13,24 +13,22 @@ withDefaults(defineProps<{ rows?: number }>(), { rows: 4 })
   padding: 8px 0;
 }
 .sk-row {
-  height: 48px;
-  border-radius: 10px;
-  margin: 8px 0;
-  background: linear-gradient(
-    90deg,
-    var(--c-secondary-bg) 25%,
-    var(--c-section) 37%,
-    var(--c-secondary-bg) 63%
-  );
-  background-size: 400% 100%;
-  animation: sk 1.4s ease infinite;
+  height: 56px;
+  border-radius: 0;
+  margin: 0;
+  background: var(--veil-weak);
+  border-bottom: 1px solid var(--obsidian);
+  animation: sk 1.6s var(--ease) infinite alternate;
+}
+.sk-row:nth-child(2n) {
+  animation-delay: 0.2s;
 }
 @keyframes sk {
-  0% {
-    background-position: 100% 50%;
+  from {
+    opacity: 0.45;
   }
-  100% {
-    background-position: 0 50%;
+  to {
+    opacity: 1;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -14,11 +14,12 @@ defineEmits<{ action: [] }>()
 
 <style scoped>
 .empty {
-  text-align: center;
-  padding: 32px 16px;
-  color: var(--c-hint);
+  text-align: left;
+  padding: var(--sp-8) 0;
+  color: var(--fog);
 }
 .empty-text {
-  margin: 0 0 8px;
+  font-size: var(--fs-body-l);
+  margin: 0 0 var(--sp-3);
 }
 </style>

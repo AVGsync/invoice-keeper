@@ -12,8 +12,11 @@ defineEmits<{ back: [] }>()
 .inline-back {
   border: 0;
   background: transparent;
-  color: var(--c-link);
-  font-size: 16px;
-  padding: 10px 0;
+  color: var(--bone);
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  min-height: 44px;
+  padding: 0;
 }
 </style>

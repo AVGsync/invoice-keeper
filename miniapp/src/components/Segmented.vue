@@ -15,7 +15,14 @@ function pick(v: T): void {
 </script>
 
 <template>
-  <div class="segmented" role="tablist">
+  <div
+    class="segmented"
+    role="tablist"
+    :style="{
+      '--n': options.length,
+      '--i': Math.max(0, options.findIndex((o) => o.value === modelValue)),
+    }"
+  >
     <button
       v-for="opt in options"
       :key="opt.value"
@@ -31,27 +38,50 @@ function pick(v: T): void {
 
 <style scoped>
 .segmented {
+  position: relative;
   display: flex;
-  background: var(--c-secondary-bg);
-  border-radius: 10px;
-  padding: 2px;
-  gap: 2px;
+  border: 1px solid var(--ash);
+  border-radius: 0;
+  padding: 0;
+  gap: 0;
+  background: transparent;
+}
+.segmented::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: -1px;
+  width: calc((100% + 2px) / var(--n));
+  border: 1px solid var(--bone);
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform var(--dur) var(--ease);
+  pointer-events: none;
 }
 .seg {
   flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
   border: 0;
   background: transparent;
-  color: var(--c-text);
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 14px;
+  color: var(--fog);
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: 0;
+  transition: color var(--dur) var(--ease);
+}
+@media (max-width: 374px) {
+  .seg {
+    letter-spacing: 0.02em;
+  }
 }
 .seg.active {
-  background: var(--c-primary);
-  color: var(--c-primary-text);
+  color: var(--bone);
+  background: transparent;
 }
 .seg:active {
-  opacity: 0.85;
+  opacity: 0.6;
 }
 </style>

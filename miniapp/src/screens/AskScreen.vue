@@ -154,65 +154,88 @@ onUnmounted(() => controller?.abort())
 </template>
 
 <style scoped>
-.title {
-  font-size: 22px;
-  margin: 16px 0 12px;
-}
 .feed {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--sp-7);
   padding-bottom: 16px;
 }
 .exchange {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--sp-3);
 }
 .bubble.q {
   align-self: flex-end;
-  background: var(--c-primary);
-  color: var(--c-primary-text);
-  padding: 10px 14px;
-  border-radius: 16px 16px 4px 16px;
+  background: var(--veil);
+  color: var(--bone);
+  padding: 12px 16px;
+  border-radius: 15px 15px 0 15px;
   max-width: 85%;
+  font-size: var(--fs-body);
 }
 .steps {
   list-style: none;
   margin: 0;
-  padding: 0 4px;
-  color: var(--c-hint);
-  font-size: 14px;
+  padding: 0 0 0 var(--sp-3);
+  border-left: 1px solid var(--c-line);
+  color: var(--fog);
+  font-size: var(--fs-small);
 }
 .steps li {
   padding: 2px 0;
 }
 .steps li.spinner::after {
   content: ' …';
+  animation: blink 1.2s var(--ease) infinite alternate;
+}
+@keyframes blink {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .steps li.spinner::after {
+    animation: none;
+  }
 }
 .answer {
+  font-size: var(--fs-body-l);
+  line-height: 1.45;
   white-space: pre-wrap;
-  padding: 4px 4px;
+  padding: 0;
 }
 .err-card {
-  background: color-mix(in srgb, var(--c-destructive) 12%, var(--c-bg));
-  color: var(--c-destructive);
-  padding: 12px 14px;
+  background: transparent;
+  border: 1px solid var(--bone);
   border-radius: var(--radius);
+  color: var(--bone);
+  padding: var(--sp-4) var(--sp-5);
 }
 .meta {
-  color: var(--c-hint);
-  font-size: 12px;
-  padding: 0 4px;
+  color: var(--fog);
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
+  padding: 0;
 }
 .composer {
   position: sticky;
   bottom: 0;
-  background: var(--c-bg);
-  padding: 8px 0 4px;
+  background: var(--obsidian);
+  border-top: 1px solid var(--c-line);
+  padding: var(--sp-3) 0 var(--sp-2);
+  margin-top: var(--sp-4);
 }
 .counter {
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
   text-align: right;
   margin-top: 2px;
+}
+.ask :deep(.chip) {
+  color: var(--bone);
 }
 </style>

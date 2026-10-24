@@ -169,34 +169,43 @@ onMounted(() => void occurrences.load())
 </template>
 
 <style scoped>
-.title {
-  font-size: 22px;
-  margin: 16px 0 12px;
-}
 .filters {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.payments :deep(.section):first-of-type {
+  margin-top: var(--sp-6);
+}
+.payments :deep(.section + .section) {
+  margin-top: 0;
 }
 .wk-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
-  font-weight: 600;
-  background: var(--c-secondary-bg);
+  background: transparent;
+  padding: var(--sp-5) 0 var(--sp-3);
+  border-bottom: 1px solid var(--c-line);
+  font-weight: 400;
+}
+.wk-head > span:first-child {
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fog);
 }
 .wk-sum {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--fs-small);
+  color: var(--bone);
 }
 .earlier {
   width: 100%;
-  margin: 8px 0 24px;
+  margin: var(--sp-6) 0;
 }
 .empty-note {
-  padding: 16px 14px;
+  padding: var(--sp-4) 0;
   margin: 0;
 }
 </style>

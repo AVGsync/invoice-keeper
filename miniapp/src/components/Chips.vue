@@ -34,28 +34,41 @@ function pick(v: T): void {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 2px 0;
+  margin: 0 calc(-1 * var(--gutter));
+  padding: 2px var(--gutter);
+  scroll-padding-inline: var(--gutter);
   scrollbar-width: none;
 }
 .chips::-webkit-scrollbar {
   display: none;
 }
 .chip {
+  position: relative;
   flex: 0 0 auto;
-  border: 1px solid var(--c-secondary-bg);
-  background: var(--c-secondary-bg);
-  color: var(--c-text);
-  padding: 7px 14px;
-  border-radius: 999px;
-  font-size: 14px;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid var(--ash);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--fog);
+  font-size: var(--fs-small);
+  letter-spacing: 0.01em;
   white-space: nowrap;
+  transition:
+    border-color var(--dur-focus) var(--ease-press),
+    color var(--dur-focus) var(--ease-press);
+}
+.chip::after {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
 }
 .chip.active {
-  background: var(--c-primary);
-  color: var(--c-primary-text);
-  border-color: var(--c-primary);
+  border-color: var(--bone);
+  color: var(--bone);
+  background: transparent;
 }
 .chip:active {
-  opacity: 0.85;
+  background: var(--press);
 }
 </style>

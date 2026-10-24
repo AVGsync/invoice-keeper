@@ -14,23 +14,31 @@ defineProps<{ title?: string; footer?: string }>()
 
 <style scoped>
 .section {
-  margin: 16px 0;
+  margin: var(--sp-8) 0 0;
 }
 .section-header {
-  font-size: 13px;
+  font-size: var(--fs-caption);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: var(--c-section-header);
-  margin: 0 0 8px 4px;
+  letter-spacing: 0.06em;
+  color: var(--fog);
+  line-height: 1.2;
+  margin: 0 0 var(--sp-3) 0;
 }
 .section-body {
-  background: var(--c-section);
-  border-radius: var(--radius);
-  overflow: hidden;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+.section-header + .section-body {
+  border-top: 1px solid var(--c-line);
+}
+.section:not(:has(.section-header))
+  > .section-body:has(> :is(.cell, .occ-row, .rrow, .urow, .radio-row):first-child) {
+  border-top: 1px solid var(--c-line);
 }
 .section-footer {
-  color: var(--c-hint);
-  font-size: 13px;
-  margin: 8px 4px 0;
+  color: var(--fog);
+  font-size: var(--fs-small);
+  margin: var(--sp-3) 0 0;
 }
 </style>

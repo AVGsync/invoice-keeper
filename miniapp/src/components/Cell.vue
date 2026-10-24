@@ -21,33 +21,34 @@ defineProps<{ label?: string; value?: string; chevron?: boolean; clickable?: boo
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--c-secondary-bg);
-}
-.cell:last-child {
-  border-bottom: none;
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--c-line);
 }
 .cell-main {
   min-width: 0;
   flex: 1;
 }
 .cell-label {
-  color: var(--c-hint);
-  font-size: 13px;
-  margin-bottom: 2px;
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fog);
+  line-height: 1.2;
+  margin-bottom: 4px;
 }
 .cell-content {
+  font-size: var(--fs-body-l);
   word-break: break-word;
 }
 .cell-right {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--c-hint);
+  color: var(--fog);
   flex-shrink: 0;
 }
 .chevron {
-  color: var(--c-hint);
+  color: var(--fog);
   font-size: 20px;
 }
 </style>

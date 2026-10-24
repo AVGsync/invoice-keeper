@@ -75,6 +75,7 @@ export interface TgWebApp {
   disableClosingConfirmation(): void
   setHeaderColor(color: string): void
   setBackgroundColor(color: string): void
+  setBottomBarColor?(color: string): void
   onEvent(name: string, cb: () => void): void
   offEvent(name: string, cb: () => void): void
   safeAreaInset?: SafeAreaInset
@@ -147,27 +148,35 @@ export function setClosingConfirmation(on: boolean): void {
   else tg.disableClosingConfirmation()
 }
 
-// Тема: сам telegram-web-app.js пишет --tg-theme-* и safe-area переменные на <html>.
-// Обёртка только выставляет data-theme, цвет шапки и подписывается на события.
-function syncHeader(tg: TgWebApp): void {
-  const bg = tg.themeParams.bg_color
-  if (bg) {
-    try {
-      tg.setHeaderColor(bg)
-      tg.setBackgroundColor(bg)
-    } catch {
-      /* старые версии не поддерживают произвольный цвет */
-    }
+// Тема зафиксирована тёмной: дизайн dark-only, поэтому colorScheme и --tg-theme-*
+// намеренно не используются. Обёртка красит хром Telegram в #101010 и подписывается
+// на события (Telegram может сбросить цвета хрома при смене темы — переприменяем).
+export const CHROME_BG = '#101010'
+
+function syncChrome(tg: TgWebApp): void {
+  try {
+    if (supports('6.9')) tg.setHeaderColor(CHROME_BG)
+  } catch {
+    /* старые клиенты: поддерживают только keyword */
+  }
+  try {
+    if (supports('6.1')) tg.setBackgroundColor(CHROME_BG)
+  } catch {
+    /* noop */
+  }
+  try {
+    if (supports('7.10') && typeof tg.setBottomBarColor === 'function') tg.setBottomBarColor(CHROME_BG)
+  } catch {
+    /* noop */
   }
 }
 
 export function applyTheme(): void {
   const tg = getWebApp()
   if (!tg) return
-  document.documentElement.dataset.theme = tg.colorScheme
+  document.documentElement.dataset.theme = 'dark'
   tg.onEvent('themeChanged', () => {
-    document.documentElement.dataset.theme = tg.colorScheme
-    syncHeader(tg)
+    syncChrome(tg)
   })
   tg.onEvent('safeAreaChanged', () => {
     /* переменные обновляются самим SDK */
@@ -179,5 +188,5 @@ export function applyTheme(): void {
 
 export function initHeader(): void {
   const tg = getWebApp()
-  if (tg) syncHeader(tg)
+  if (tg) syncChrome(tg)
 }

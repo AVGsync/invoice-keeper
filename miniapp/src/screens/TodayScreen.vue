@@ -13,6 +13,7 @@ import CurrencyTotals from '../components/CurrencyTotals.vue'
 import Money from '../components/Money.vue'
 import Skeleton from '../components/Skeleton.vue'
 import ErrorState from '../components/ErrorState.vue'
+import Prism from '../components/Prism.vue'
 import { CURRENCY_ORDER } from '../lib/money'
 import type { Currency, PaymentResponse } from '../api/types'
 
@@ -64,7 +65,10 @@ onMounted(() => void occurrences.load())
 
 <template>
   <div class="today">
-    <h1 class="title">Сегодня</h1>
+    <div class="title-row">
+      <h1 class="title">Сегодня</h1>
+      <Prism class="mark" size="mark" />
+    </div>
     <Segmented
       :model-value="scope"
       :options="[
@@ -116,9 +120,17 @@ onMounted(() => void occurrences.load())
 </template>
 
 <style scoped>
-.title {
-  font-size: 22px;
-  margin: 16px 0 12px;
+.title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--sp-5);
+}
+.title-row .title {
+  margin: var(--sp-6) 0 0;
+}
+.mark {
+  margin-bottom: 6px;
 }
 .overdue-card {
   display: block;
@@ -126,44 +138,82 @@ onMounted(() => void occurrences.load())
   text-align: left;
   border: 0;
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--c-overdue) 12%, var(--c-bg));
-  color: var(--c-overdue);
-  padding: 14px;
-  margin: 16px 0;
+  background: var(--c-inverse-bg);
+  color: var(--c-inverse-text);
+  padding: var(--sp-5);
+  margin: var(--sp-6) 0 0;
+  position: relative;
+  transition: opacity var(--dur-press) var(--ease-press);
+}
+.overdue-card:active {
+  opacity: 0.85;
+}
+.overdue-card::after {
+  content: '→';
+  position: absolute;
+  top: var(--sp-5);
+  right: var(--sp-5);
+  font-size: var(--fs-body-l);
 }
 .ov-head {
-  font-weight: 700;
-  margin-bottom: 4px;
+  font-size: var(--fs-body);
+  font-weight: 400;
+  margin-bottom: var(--sp-3);
 }
 .ov-sum {
-  font-weight: 600;
+  font-size: var(--fs-amount-l);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 .empty-inline {
-  padding: 16px 14px;
-  color: var(--c-hint);
+  padding: var(--sp-4) 0;
+  color: var(--fog);
   margin: 0;
 }
 .month {
-  padding: 12px 14px;
+  padding: 0;
 }
 .mrow {
   display: flex;
-  gap: 12px;
-  padding: 6px 0;
+  gap: var(--sp-4);
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--c-line);
 }
 .cur {
-  font-weight: 600;
-  width: 44px;
+  width: 48px;
+  padding-top: 3px;
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fog);
 }
 .mvals {
   flex: 1;
-  font-size: 15px;
+  font-size: var(--fs-body-l);
 }
 .mvals > div {
-  margin: 1px 0;
+  margin: 2px 0;
+}
+.mvals > div :deep(.num) {
+  float: right;
 }
 .over {
-  color: var(--c-overdue);
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--bone);
+  font-size: var(--fs-small);
+}
+.over::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--bone);
+  flex: 0 0 6px;
+}
+.over :deep(.num) {
+  margin-left: auto;
 }
 </style>

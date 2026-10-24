@@ -116,28 +116,45 @@ onMounted(() => void occurrences.load())
 <style scoped>
 .month-head {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  margin: 16px 0 12px;
+  gap: var(--sp-3);
+  margin: var(--sp-6) 0 var(--sp-5);
 }
 .mtitle {
-  font-size: 20px;
+  font-size: clamp(28px, 9vw, 36px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  flex: 1;
+  margin: 0;
+  order: 1;
 }
 .nav {
-  border: 0;
-  background: var(--c-secondary-bg);
-  color: var(--c-text);
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--ash);
+  border-radius: 0;
+  background: transparent;
+  color: var(--bone);
   font-size: 20px;
 }
+.nav:active {
+  background: var(--press);
+}
+.nav:first-of-type {
+  order: 2;
+}
+.nav:last-of-type {
+  order: 3;
+}
 .empty-inline {
-  padding: 16px 14px;
-  color: var(--c-hint);
+  padding: var(--sp-4) 0;
+  color: var(--fog);
   margin: 0;
 }
 .totals-pad {
-  padding: 14px;
+  padding: var(--sp-4) 0;
+  font-size: var(--fs-title);
+  font-variant-numeric: tabular-nums;
 }
 </style>

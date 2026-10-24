@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import '@fontsource/golos-text/400.css'
 import './styles/base.css'
 import App from './App.vue'
 import { router } from './router'

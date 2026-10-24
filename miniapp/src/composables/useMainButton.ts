@@ -54,10 +54,13 @@ export function useMainButton(opts: MainButtonOptions): void {
     const tg = getWebApp()
     if (!tg || !isOwner) return
 
+    // Загрузка считается неактивным состоянием, но прогресс-спиннер Telegram
+    // использует text_color — поэтому во время загрузки держим bone/obsidian.
+    const dim = !enabled && !loading
     tg.MainButton.setParams({
       text,
-      color: '#2B3EF0',
-      text_color: '#FFFFFF',
+      color: dim ? '#2A2A2A' : '#FFFDF9',
+      text_color: dim ? '#6F879C' : '#101010',
       is_active: enabled && !loading,
       is_visible: visible,
     })

@@ -8,10 +8,7 @@ const info = computed(() => statusInfo({ status: props.status, paid_late: props.
 </script>
 
 <template>
-  <span class="badge" :style="{ color: `var(${info.colorVar})` }">
-    <span class="dot" :style="{ background: `var(${info.colorVar})` }"></span>
-    {{ info.label }}
-  </span>
+  <span class="badge" :class="['badge--' + status, { late: paidLate }]">{{ info.label }}</span>
 </template>
 
 <style scoped>
@@ -19,12 +16,39 @@ const info = computed(() => statusInfo({ status: props.status, paid_late: props.
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
-  font-weight: 600;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
 }
-.dot {
+.badge--overdue {
+  background: var(--bone);
+  color: var(--obsidian);
+}
+.badge--pending {
+  border-color: var(--bone);
+  color: var(--bone);
+}
+.badge--paid {
+  border: 0;
+  padding-left: 0;
+  color: var(--fog);
+}
+.badge--paid::before {
+  content: '';
   width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  height: 4px;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(-45deg);
+}
+.badge--ended {
+  border: 1px dashed var(--fog);
+  color: var(--fog);
 }
 </style>

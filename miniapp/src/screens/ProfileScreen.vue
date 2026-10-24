@@ -64,19 +64,22 @@ function go(path: string): void {
 </template>
 
 <style scoped>
-.title {
-  font-size: 22px;
-  margin: 16px 0 12px;
-}
 .warn {
-  color: var(--c-destructive);
-  font-size: 14px;
+  display: block;
+  color: var(--bone);
+  font-size: var(--fs-small);
+  border-left: 2px solid var(--bone);
+  padding-left: 10px;
+  margin-top: 8px;
 }
 .unlink-hint {
-  padding: 12px 14px;
+  padding: var(--sp-4) 0;
 }
 .version {
-  text-align: center;
-  margin: 24px 0;
+  text-align: left;
+  margin: var(--sp-8) 0;
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 </style>

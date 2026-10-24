@@ -19,21 +19,26 @@ defineProps<{ block: PeopleListBlock }>()
 
 <style scoped>
 .block {
-  background: var(--c-section);
+  background: var(--obsidian);
+  border: 1px solid var(--c-line);
   border-radius: var(--radius);
   overflow: hidden;
-  margin: 8px 0;
+  margin: 0;
 }
 .block-title {
-  padding: 10px 14px 4px;
-  color: var(--c-hint);
-  font-size: 13px;
+  padding: var(--sp-4) var(--sp-5) var(--sp-2);
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fog);
+  line-height: 1.2;
 }
 .prow {
-  padding: 10px 14px;
-  border-top: 1px solid var(--c-secondary-bg);
+  padding: 14px var(--sp-5);
+  border-top: 1px solid var(--c-line);
 }
 .name {
-  font-weight: 500;
+  font-size: var(--fs-body);
+  font-weight: 400;
 }
 </style>

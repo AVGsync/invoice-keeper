@@ -135,19 +135,15 @@ useMainButton({
 </template>
 
 <style scoped>
-.title {
-  font-size: 22px;
-  margin: 16px 0 12px;
-}
 .rrow {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--c-secondary-bg);
-}
-.rrow:last-child {
-  border-bottom: none;
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--c-line);
 }
 .rrow.focus {
-  background: color-mix(in srgb, var(--c-primary) 10%, transparent);
+  outline: 1px solid var(--bone);
+  outline-offset: -1px;
+  padding-left: var(--sp-3);
+  padding-right: var(--sp-3);
 }
 .top {
   display: flex;
@@ -156,13 +152,17 @@ useMainButton({
   margin-bottom: 4px;
 }
 .desc {
-  font-weight: 600;
+  font-size: var(--fs-body-l);
+  font-weight: 400;
 }
 .sub {
+  font-size: var(--fs-small);
+  color: var(--fog);
   margin: 1px 0;
 }
 .stop {
-  margin-top: 8px;
+  margin-top: var(--sp-2);
   padding-left: 0;
+  min-height: 44px;
 }
 </style>
