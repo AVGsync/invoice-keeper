@@ -245,4 +245,41 @@ const shownTotals = computed(() => totalsOn(lastDayOf(month.value), filtered.val
 .load-error {
   margin-bottom: 12px;
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .toolbar {
+    margin-bottom: 14px;
+  }
+
+  .filters {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .filters + .filters {
+    margin-top: 0;
+  }
+
+  /* the status switch can be wider than the screen: it scrolls sideways */
+  .filters > :first-child {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .assignee {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: none;
+    margin-left: 0;
+  }
+
+  .new {
+    width: auto;
+    flex: 1 1 auto;
+    height: 44px;
+  }
+}
 </style>

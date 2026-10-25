@@ -7,15 +7,16 @@ MIGRATION_DSN := postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/
 .PHONY: env run build up down logs ps migrate-create migrate-up migrate-down migrate-version test vet swagger
 
 env:
-	@for f in .env .env.backend .env.nlq; do [ -f $$f ] || cp $$f.example $$f; done
+	@./scripts/local-setup.sh
 
 run:	@cd backend && go run ./cmd/apiserver
 
 build:
 	@cd backend && go build ./cmd/apiserver
 
-up:
+up: env
 	@$(COMPOSE_LOCAL) up -d --build
+	@echo "Сайт: http://localhost:$${LOCAL_WEB_PORT:-8000}  (логин admin, пароль из .env.backend)"
 
 down:
 	@$(COMPOSE_LOCAL) down

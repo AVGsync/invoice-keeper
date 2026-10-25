@@ -34,4 +34,12 @@ defineProps<{ index?: string, title: string, hint?: string }>()
 .right-side {
   margin-left: auto;
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .section {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+}
 </style>

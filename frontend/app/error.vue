@@ -84,4 +84,42 @@ function goHome() {
   white-space: nowrap;
   color: var(--line-strong);
 }
+
+/* phones */
+@media (max-width: 820px) {
+  .error-page {
+    padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .body {
+    width: 100%;
+    margin: 40px 0 0;
+  }
+
+  .code {
+    font-size: 72px;
+  }
+
+  .title {
+    font-size: 22px;
+    line-height: 28px;
+    white-space: normal;
+  }
+
+  .dashes {
+    display: none;
+  }
+
+  .mascot {
+    position: static;
+    align-self: center;
+    margin: 32px 0 auto;
+    translate: none;
+  }
+
+  .folio {
+    margin-top: 24px;
+    text-align: center;
+  }
+}
 </style>

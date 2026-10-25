@@ -196,4 +196,22 @@ async function add() {
 .cancel {
   width: 110px;
 }
+
+/* phones */
+@media (max-width: 820px) {
+  .pair,
+  .pair.even {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .dates {
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
+
+  .cancel {
+    width: auto;
+  }
+}
 </style>

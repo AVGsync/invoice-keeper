@@ -98,4 +98,11 @@ function remove() {
 .cancel {
   width: 110px;
 }
+
+/* phones */
+@media (max-width: 820px) {
+  .cancel {
+    width: auto;
+  }
+}
 </style>

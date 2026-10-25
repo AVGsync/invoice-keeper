@@ -76,4 +76,20 @@ onBeforeUnmount(() => clearTimeout(timer))
   opacity: 0;
   transform: translateY(12px) scale(0.97);
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .toast {
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    left: 16px;
+    max-width: none;
+    border-radius: 20px;
+  }
+
+  .close {
+    padding: 0 8px;
+    font-size: 22px;
+  }
+}
 </style>

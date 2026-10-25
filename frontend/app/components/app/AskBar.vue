@@ -411,4 +411,28 @@ onBeforeUnmount(() => {
   color: var(--ink);
   border-color: var(--accent-ink);
 }
+
+/* phones: the bar is as wide as the screen, the chat opens under it at full width */
+@media (max-width: 1240px) {
+  .wrap {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .ask {
+    width: 100%;
+    height: 44px;
+  }
+
+  .input {
+    font-size: 16px;
+  }
+
+  .chat {
+    right: 0;
+    left: 0;
+    width: auto !important;
+    max-height: min(70dvh, 460px) !important;
+  }
+}
 </style>

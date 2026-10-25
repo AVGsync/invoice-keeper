@@ -352,4 +352,13 @@ async function sendTest() {
   color: var(--red);
   font-weight: 500;
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .row {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    padding: 12px 16px 12px 12px;
+  }
+}
 </style>

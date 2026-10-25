@@ -12,6 +12,8 @@ export default defineNuxtConfig({
     pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       htmlAttrs: { lang: 'ru' },
+      // viewport-fit=cover lets the top bar and the safe-area insets work on phones with a notch
+      meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' }],
       title: 'Invoice Keeper',
       link: [
         // browsers cache favicons hard: bump ?v= whenever public/favicon.ico changes

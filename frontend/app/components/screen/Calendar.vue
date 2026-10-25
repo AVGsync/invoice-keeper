@@ -56,6 +56,14 @@ const overdueNow = computed(() => payments.periods.value.filter(period => period
 // the selected day's other payments, listed under the selected one
 const sameDay = computed(() => payments.periods.value.filter(period => period.due === selected.value?.due && period.id !== selected.value?.id))
 const kicker = computed(() => [weekday.value, selected.value?.relative].filter(Boolean).join(' · '))
+
+// on a phone the details are under the grid: bring them into view after a tap on another day
+// (the automatic pick on load and on a month change has no previous value, so it doesn't scroll)
+watch(selectedId, async (id, before) => {
+  if (!id || !before || !window.matchMedia('(max-width: 1240px)').matches) return
+  await nextTick()
+  document.querySelector('.side')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+})
 </script>
 
 <template>
@@ -163,5 +171,30 @@ const kicker = computed(() => [weekday.value, selected.value?.relative].filter(B
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+}
+
+/* phones */
+@media (max-width: 1240px) {
+  .toolbar {
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .legend {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-left: 0;
+  }
+
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* the day's details go under the grid */
+  .side {
+    padding-left: 0;
+    border-left: 0;
+  }
 }
 </style>

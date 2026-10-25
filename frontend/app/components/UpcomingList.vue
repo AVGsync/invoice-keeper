@@ -131,4 +131,38 @@ const { visible, hasMore, sentinel } = useLazyList(() => props.items)
 .action .btn {
   width: 112px;
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .list {
+    margin: 0 -4px;
+  }
+
+  /* a row becomes a card: date tile on the left, title and amount, then who/status and the button */
+  .row {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'tile title amount'
+      'tile who status'
+      'tile rel action';
+    height: auto;
+    row-gap: 6px;
+    padding: 14px 8px;
+  }
+
+  .row > :nth-child(1) { grid-area: tile; align-self: start; }
+  .row > :nth-child(2) { grid-area: rel; padding-left: 0; align-self: center; }
+  .row > :nth-child(3) { grid-area: title; min-width: 0; }
+  .row > :nth-child(4) { grid-area: who; min-width: 0; }
+  .row > :nth-child(5) { grid-area: amount; align-self: start; }
+  .row > :nth-child(6) { display: none; }
+  .row > :nth-child(7) { grid-area: status; justify-self: end; }
+  .row > :nth-child(8) { grid-area: action; justify-self: end; }
+
+  .action .btn {
+    width: auto;
+    height: 38px;
+    padding: 0 20px;
+  }
+}
 </style>

@@ -273,4 +273,26 @@ const assistantText = { checking: 'проверяем…', ok: 'онлайн', d
 .drill-leave-to {
   opacity: 0;
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .settings {
+    margin-right: -16px;
+  }
+
+  .list {
+    margin-top: -14px;
+  }
+
+  .item,
+  .row {
+    min-height: 56px;
+    padding: 12px 16px 12px 12px;
+  }
+
+  .row {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+}
 </style>

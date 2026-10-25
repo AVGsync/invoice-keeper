@@ -41,4 +41,24 @@ withDefaults(defineProps<{ title: string, subtitle?: string }>(), { subtitle: ''
   display: flex;
   gap: 8px;
 }
+
+/* phones: the title on top, buttons and the question bar under it, full width */
+@media (max-width: 1240px) {
+  .header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 0 14px;
+    margin-bottom: 14px;
+  }
+
+  .title {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+}
 </style>

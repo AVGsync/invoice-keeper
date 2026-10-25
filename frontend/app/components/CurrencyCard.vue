@@ -118,4 +118,15 @@ withDefaults(defineProps<{ total: CurrencyTotal, label?: string, loading?: boole
 .overdue {
   color: var(--red);
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .currency {
+    padding: 16px;
+  }
+
+  .sum {
+    font-size: 24px;
+  }
+}
 </style>

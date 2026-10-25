@@ -320,4 +320,26 @@ async function save() {
 .off {
   color: var(--amber);
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .row {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    padding: 12px 16px 12px 12px;
+  }
+
+  /* the field goes under its label, as wide as the screen */
+  .field,
+  .field.wide {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .actions {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+}
 </style>

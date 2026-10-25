@@ -339,4 +339,49 @@ function reset() {
   line-height: 18px;
   color: var(--ink-2);
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  /* the menu is a sheet at the bottom edge: it never runs off the side of the screen */
+  .menu,
+  .right .menu {
+    position: fixed;
+    top: auto;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    z-index: 70;
+    width: auto;
+    min-width: 0;
+    max-height: 70dvh;
+    overflow-y: auto;
+    padding: 6px;
+    border-radius: 16px;
+  }
+
+  .option {
+    height: 44px;
+    padding: 0 14px;
+  }
+
+  .field-row {
+    padding-left: 14px;
+  }
+
+  .text,
+  .range-row {
+    width: 100%;
+  }
+
+  .field-row .text,
+  .range-input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .blocked {
+    max-width: none;
+  }
+}
 </style>

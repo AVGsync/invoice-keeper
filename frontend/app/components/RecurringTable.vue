@@ -71,7 +71,7 @@ const { visible, hasMore, sentinel } = useLazyList(sorted)
         <span class="small muted">{{ item.day }}</span>
       </span>
       <PersonCell :person="item.who" />
-      <span class="mono dim">{{ item.nextDue ?? '—' }}</span>
+      <span class="mono dim next-due">{{ item.nextDue ?? '—' }}</span>
       <span v-if="item.ended" class="muted">Прекращён</span>
       <UiStatus v-else status="active" />
       <!-- «История» waits for the backend -->
@@ -198,5 +198,56 @@ const { visible, hasMore, sentinel } = useLazyList(sorted)
 .action.confirm {
   color: var(--red);
   font-weight: 500;
+}
+
+/* phones */
+@media (max-width: 1240px) {
+  .table {
+    margin: 0 -4px;
+  }
+
+  .row.head {
+    display: none;
+  }
+
+  /* a row is a card: name and amount, who and status, how often and the next date, the action */
+  .row,
+  .admin .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'title amount'
+      'who status'
+      'freq next'
+      'action action';
+    height: auto;
+    row-gap: 8px;
+    padding: 14px 8px;
+    view-transition-name: none !important;
+  }
+
+  .row > :nth-child(1) { display: none; }
+  .row > :nth-child(2) { grid-area: title; }
+  .row > :nth-child(3) { grid-area: amount; font-size: 15px; }
+  .row > :nth-child(4) { display: none; }
+  .row > :nth-child(5) { grid-area: freq; }
+  .row > :nth-child(6) { grid-area: who; }
+  .row > :nth-child(7) { grid-area: next; justify-self: end; }
+  .row > :nth-child(8) { grid-area: status; justify-self: end; }
+  .row > :nth-child(9) { grid-area: action; }
+
+  .next-due::before {
+    content: 'Следующий срок ';
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+
+  .row > button.action {
+    justify-self: stretch;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 9999px;
+    text-align: center;
+  }
 }
 </style>

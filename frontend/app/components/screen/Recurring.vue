@@ -241,4 +241,36 @@ function stop(template: Template) {
 .state.alone {
   border-top: 1px solid var(--line);
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .filters {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .filters + .filters {
+    margin-top: 0;
+  }
+
+  .filters > :first-child {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .assignee {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: none;
+    margin-left: 0;
+  }
+
+  .new {
+    width: auto;
+    flex: 1 1 auto;
+    height: 44px;
+  }
+}
 </style>

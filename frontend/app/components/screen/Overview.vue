@@ -167,4 +167,27 @@ function mark(period: Period) {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .section {
+    margin: 24px 0 12px;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .as-of-picker {
+    width: 140px;
+  }
+}
+
+/* a tablet: the three currencies side by side again */
+@media (min-width: 700px) and (max-width: 1240px) {
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 </style>

@@ -98,8 +98,8 @@ const receiptCount = (period: Period) => receipts.byPeriod.value[period.id]?.len
       <span class="mono strong right">{{ period.amount }}</span>
       <span class="mono small muted currency">{{ period.currency }}</span>
       <UiStatus :status="period.status" />
-      <span class="mono" :class="{ muted: !period.paidAt }">{{ period.paidAt ?? '—' }}</span>
-      <span class="mono right" :class="period.status === 'overdue' ? 'red strong' : period.status === 'late' ? 'amber strong' : 'muted'">
+      <span class="mono paid-at" :class="{ muted: !period.paidAt }">{{ period.paidAt ?? '—' }}</span>
+      <span class="mono right late-days" :class="period.status === 'overdue' ? 'red strong' : period.status === 'late' ? 'amber strong' : 'muted'">
         {{ period.overdue ?? '—' }}
       </span>
       <span class="center">
@@ -341,5 +341,82 @@ const receiptCount = (period: Period) => receipts.byPeriod.value[period.id]?.len
 
 .right-skeleton {
   justify-self: end;
+}
+
+/* phones */
+@media (max-width: 1240px) {
+  .table {
+    margin: 0 -4px;
+  }
+
+  .row.head {
+    display: none;
+  }
+
+  /* a row is a card: name and amount, who and status, due date and receipts, then payment date and delay */
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'title amount'
+      'who status'
+      'due receipts'
+      'paid late';
+    height: auto;
+    row-gap: 8px;
+    padding: 14px 8px;
+    /* a named view transition would turn the row into the box a popover is placed in */
+    view-transition-name: none !important;
+  }
+
+  .row > :nth-child(1) { display: none; }
+  .row > :nth-child(2) { grid-area: title; }
+  .row > :nth-child(3) { grid-area: who; }
+  .row > :nth-child(4) { grid-area: due; display: flex; align-items: baseline; gap: 8px; }
+  .row > :nth-child(5) { grid-area: amount; font-size: 15px; }
+  .row > :nth-child(6) { display: none; }
+  .row > :nth-child(7) { grid-area: status; justify-self: end; }
+  .row > :nth-child(8) { grid-area: paid; }
+  .row > :nth-child(9) { grid-area: late; }
+  .row > :nth-child(10) { grid-area: receipts; justify-self: end; }
+
+  .row > :nth-child(4) .small {
+    display: inline;
+  }
+
+  .paid-at.muted,
+  .late-days.muted {
+    display: none;
+  }
+
+  .paid-at::before {
+    content: 'Оплата ';
+    font-family: var(--sans);
+    color: var(--ink-3);
+  }
+
+  .receipts {
+    height: 36px;
+    padding: 0 12px;
+  }
+
+  /* the popover opens under the tapped row, as wide as the row */
+  .popover {
+    right: 8px;
+    left: 8px !important;
+    top: calc(100% - 6px) !important;
+    width: auto !important;
+  }
+
+  .foot {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 12px 0;
+    padding: 14px 8px;
+  }
+
+  .foot > span:first-child,
+  .foot-total {
+    width: 100%;
+  }
 }
 </style>

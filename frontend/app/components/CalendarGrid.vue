@@ -329,4 +329,75 @@ const cells = computed(() => monthCells(props.year, props.month, weeks.value).ma
     transform: translateY(6px) scale(0.9);
   }
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  /* a small grid: the day number and a coloured dot per payment, the details are under the grid */
+  .grid {
+    grid-template-rows: 26px repeat(var(--weeks), 58px);
+  }
+
+  .weekday {
+    padding: 6px 0;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .cell {
+    align-items: center;
+    gap: 4px;
+    padding: 6px 2px 4px;
+  }
+
+  .day {
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
+    line-height: 24px;
+  }
+
+  .today {
+    margin: 0;
+    font-size: 0;
+  }
+
+  .circle {
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+  }
+
+  .payments {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    max-width: 100%;
+  }
+
+  .grid .payment {
+    width: 8px;
+    height: 8px;
+    min-height: 0;
+    padding: 0;
+    border-radius: 50%;
+    background: currentColor;
+    pointer-events: none;
+  }
+
+  .grid .payment .text {
+    display: none;
+  }
+
+  .cell:has(.payment.selected) {
+    background: var(--subtle);
+  }
+
+  .grid .payment.selected {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    animation: none;
+  }
+}
 </style>

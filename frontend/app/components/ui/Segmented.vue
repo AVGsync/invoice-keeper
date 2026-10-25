@@ -163,4 +163,12 @@ onBeforeUnmount(() => observer?.disconnect())
 .count.danger {
   color: var(--red);
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .item {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
 </style>

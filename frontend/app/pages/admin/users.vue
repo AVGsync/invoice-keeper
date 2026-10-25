@@ -110,4 +110,21 @@ async function personaSaved() {
 .new {
   width: 160px;
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .layout > :first-child {
+    flex-basis: 100%;
+  }
+
+  .layout > :last-child {
+    flex-basis: 100%;
+  }
+
+  .new {
+    width: auto;
+    flex: 1 1 auto;
+    height: 44px;
+  }
+}
 </style>

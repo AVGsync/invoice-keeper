@@ -79,4 +79,32 @@ defineEmits<{ mark: [] }>()
   font-size: 13px;
   font-weight: 500;
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .banner {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 12px 14px;
+    row-gap: 8px;
+    border-radius: 20px;
+  }
+
+  .text {
+    order: 3;
+    flex: 1 1 100%;
+    font-size: 13px;
+  }
+
+  .amount {
+    margin-right: 0;
+  }
+
+  /* the button gets its own full-width row */
+  .banner > :last-child:not(.amount) {
+    order: 4;
+    flex: 1 1 100%;
+    height: 40px;
+  }
+}
 </style>

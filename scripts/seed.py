@@ -6,7 +6,7 @@
 Повторный запуск безопасен: существующие персоны, логины и платежи (по описанию)
 пропускаются.
 
-    python3 scripts/seed.py                       # http://localhost:8080, admin/admin
+    python3 scripts/seed.py                       # http://localhost:8080, admin/admin123
     API_URL=https://<домен>/api/v1 ADMIN_LOGIN=admin ADMIN_PASSWORD=... python3 scripts/seed.py
 
 Пароль всех созданных сотрудников — SEED_PASSWORD (по умолчанию Demo12345).
@@ -25,7 +25,7 @@ from http.cookies import SimpleCookie
 
 API = os.environ.get("API_URL", "http://localhost:8080/api/v1").rstrip("/")
 ADMIN_LOGIN = os.environ.get("ADMIN_LOGIN", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
 SEED_PASSWORD = os.environ.get("SEED_PASSWORD", "Demo12345")
 # Самоподписанный сертификат на сервере: SEED_INSECURE=1.
 CTX = ssl._create_unverified_context() if os.environ.get("SEED_INSECURE") else None

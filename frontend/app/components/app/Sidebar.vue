@@ -42,6 +42,7 @@ const mascotPose = computed(() => {
   return poses[section as keyof typeof poses] ?? 'idea'
 })
 
+const { open: navOpen } = useNav()
 const { user: me, logout } = useAuth()
 
 async function signOut() {
@@ -67,7 +68,7 @@ function toggleTheme(e: MouseEvent) {
 </script>
 
 <template>
-  <aside ref="root" class="sidebar" :class="{ placed: marker && !markerOff }">
+  <aside ref="root" class="sidebar" :class="{ placed: marker && !markerOff, open: navOpen }">
     <AppLogo />
     <div class="rule" />
 
@@ -338,5 +339,40 @@ function toggleTheme(e: MouseEvent) {
 
 .logout:hover .logout-icon {
   transform: translateX(2px);
+}
+
+/* phones: the menu is a drawer over the page, the top bar opens it */
+@media (max-width: 1240px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    width: min(300px, 86vw);
+    height: 100dvh;
+    padding-top: calc(24px + env(safe-area-inset-top, 0px));
+    overflow-y: auto;
+    transform: translateX(-104%);
+    visibility: hidden;
+    transition: transform 0.3s var(--ease-out), visibility 0s linear 0.3s;
+  }
+
+  .sidebar.open {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.3s var(--ease-out);
+    box-shadow: var(--shadow-pop);
+  }
+
+  /* touch targets */
+  .item {
+    height: 44px;
+  }
+
+  .round {
+    width: 40px;
+    height: 40px;
+  }
 }
 </style>

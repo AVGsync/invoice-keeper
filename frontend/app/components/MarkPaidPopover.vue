@@ -105,4 +105,15 @@ function unmark() {
   grid-template-columns: 120px 1fr;
   gap: 8px;
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .popover {
+    width: 100%;
+  }
+
+  .buttons {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+}
 </style>

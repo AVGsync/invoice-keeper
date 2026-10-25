@@ -274,4 +274,58 @@ function showList(user: User, e: Event) {
   font-size: 13px;
   text-align: right;
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .row.head {
+    display: none;
+  }
+
+  /* a row is a card: name and role, position and responsibilities, Telegram and mail, date and action */
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'user role'
+      'persona count'
+      'tg tg'
+      'mail mail'
+      'created action';
+    height: auto;
+    row-gap: 8px;
+    padding: 14px 16px;
+    white-space: normal;
+  }
+
+  .row > :nth-child(1) { grid-area: user; }
+  .row > :nth-child(2) { grid-area: role; justify-self: end; }
+  .row > :nth-child(3) { grid-area: persona; }
+  .row > :nth-child(4) { grid-area: count; justify-self: end; }
+  .row > :nth-child(5) { grid-area: tg; }
+  .row > :nth-child(6) { grid-area: mail; }
+  .row > :nth-child(7) { grid-area: created; align-self: center; }
+  .row > :nth-child(8) { grid-area: action; justify-self: end; }
+
+  .row:not(.head) > :nth-child(3)::before,
+  .row:not(.head) > :nth-child(4)::before,
+  .row:not(.head) > :nth-child(5)::before,
+  .row:not(.head) > :nth-child(6)::before,
+  .row:not(.head) > :nth-child(7)::before {
+    margin-right: 6px;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+
+  .row:not(.head) > :nth-child(3)::before { content: 'Должность'; }
+  .row:not(.head) > :nth-child(4)::before { content: 'Отвечает за'; }
+  .row:not(.head) > :nth-child(5)::before { content: 'Telegram'; }
+  .row:not(.head) > :nth-child(6)::before { content: 'Почта'; }
+  .row:not(.head) > :nth-child(7)::before { content: 'Создан'; }
+
+  .action {
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 9999px;
+  }
+}
 </style>

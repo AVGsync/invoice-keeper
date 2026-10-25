@@ -351,4 +351,11 @@ const accept = '.pdf,.jpg,.jpeg,.png,.gif,.webp,.heic,.txt,.csv,.docx,.xlsx,.odt
   opacity: 0;
   transform: translateY(-6px);
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .popover {
+    width: 100%;
+  }
+}
 </style>

@@ -113,4 +113,49 @@ defineEmits<{ close: [] }>()
   padding: 16px 24px;
   border-top: 1px solid var(--line);
 }
+
+/* phones */
+@media (max-width: 820px) {
+  /* a sheet from the bottom edge, as wide as the screen */
+  .overlay {
+    align-items: flex-end;
+  }
+
+  .modal {
+    display: flex;
+    flex-direction: column;
+    width: 100% !important;
+    max-height: 92dvh;
+    border-bottom: 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .head {
+    padding: 18px 16px 0;
+  }
+
+  .close {
+    width: 44px;
+    height: 44px;
+    margin: -8px -10px 0 0;
+    font-size: 26px;
+  }
+
+  .body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 14px 16px 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .foot {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .foot > * {
+    flex: 1 1 0;
+    height: 44px;
+  }
+}
 </style>

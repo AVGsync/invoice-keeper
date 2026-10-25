@@ -206,18 +206,18 @@ const extra = (item: AuditLogItem) => Math.max(0, changeLines(item).length - 1)
       <template v-else>
         <template v-for="(item, i) in items" :key="item.id">
           <div class="row entry rise" :class="{ opened: open === item.id, fresh: fresh.has(item.id) }" :style="{ '--i': i % PAGE }" @click="toggle(item)">
-            <span class="mono soft nowrap">{{ when(item.created_at) }}</span>
-            <span v-if="!mine">
+            <span class="mono soft nowrap c-when">{{ when(item.created_at) }}</span>
+            <span v-if="!mine" class="c-who">
               <span class="name">{{ actorName(item) }}</span>
               <span v-if="item.actor?.role" class="small muted">{{ roleName(item.actor.role) }}</span>
             </span>
-            <span class="strong">{{ actionLabel(item.action_label, item.action) }}</span>
-            <span class="soft">{{ entityNames[item.entity_type ?? ''] ?? '—' }}</span>
+            <span class="strong c-act">{{ actionLabel(item.action_label, item.action) }}</span>
+            <span class="soft c-obj">{{ entityNames[item.entity_type ?? ''] ?? '—' }}</span>
             <span class="summary">
               <span class="ellipsis">{{ summary(item) || '—' }}</span>
               <span v-if="extra(item)" class="small muted">ещё {{ extra(item) }}</span>
             </span>
-            <span><span class="pill">{{ channelNames[item.channel ?? ''] ?? item.channel }}</span></span>
+            <span class="c-chan"><span class="pill">{{ channelNames[item.channel ?? ''] ?? item.channel }}</span></span>
             <span class="end">
               <span class="outcome" :class="item.outcome"><span class="dot" />{{ item.outcome === 'failure' ? 'Ошибка' : 'Успешно' }}</span>
             </span>
@@ -452,5 +452,43 @@ const extra = (item: AuditLogItem) => Math.max(0, changeLines(item).length - 1)
   font-size: 13px;
   font-weight: 500;
   color: var(--accent-ink);
+}
+
+/* phones */
+@media (max-width: 1240px) {
+  .filters {
+    margin-bottom: 12px;
+  }
+
+  .row.head {
+    display: none;
+  }
+
+  /* an entry is a card: action and result, who and when, what changed, object and source */
+  .row,
+  .mine .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'act end'
+      'who when'
+      'sum sum'
+      'obj chan';
+    row-gap: 8px;
+    padding: 14px 16px;
+  }
+
+  .row > .c-act { grid-area: act; }
+  .row > .end { grid-area: end; }
+  .row > .c-who { grid-area: who; }
+  .row > .c-when { grid-area: when; justify-self: end; font-size: 12px; }
+  .row > .summary { grid-area: sum; }
+  .row > .c-obj { grid-area: obj; }
+  .row > .c-chan { grid-area: chan; justify-self: end; }
+
+  .mine .row > .c-when { grid-area: who; justify-self: start; }
+
+  .details {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

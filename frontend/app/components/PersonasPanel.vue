@@ -132,4 +132,11 @@ const { visible, hasMore, sentinel } = useLazyList(() => props.items)
   font-weight: 500;
   color: var(--accent-ink);
 }
+
+/* phones */
+@media (max-width: 1240px) {
+  .table {
+    width: 100%;
+  }
+}
 </style>

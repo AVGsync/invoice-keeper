@@ -236,4 +236,51 @@ onBeforeUnmount(() => clearTimeout(tgTimer))
 .over-rings {
   position: relative;
 }
+
+/* phones */
+@media (max-width: 820px) {
+  .login {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 100dvh;
+  }
+
+  /* the receipt picture is only for wide screens */
+  .side {
+    display: none;
+  }
+
+  .left {
+    padding: calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mascot {
+    position: static;
+    display: block;
+    margin: 28px auto 0;
+  }
+
+  .form {
+    width: 100%;
+    max-width: 400px;
+    margin: 16px auto 0;
+  }
+
+  .title {
+    font-size: 36px;
+    line-height: 44px;
+  }
+
+  .title em {
+    font-size: 18px;
+  }
+
+  .submit {
+    height: 48px;
+  }
+
+  .footer {
+    padding-top: 24px;
+    text-align: center;
+  }
+}
 </style>

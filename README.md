@@ -9,11 +9,11 @@
 | Каталог | Что внутри |
 |---|---|
 | `backend/` | Go API (chi, PostgreSQL), миграции, Swagger в `backend/docs`, Telegram-бот и движок напоминаний |
-| `frontend/` | Веб-панель (Nuxt) |
+| `frontend/` | Веб-панель (Nuxt): тёмная и светлая тема, адаптирована под телефоны и планшеты (меню-шторка, таблицы-карточки, фильтры снизу), талисман проекта |
 | `miniapp/` | Telegram Mini App (Vue 3 + Vite), раздаётся по `/tg/` |
 | `nlq/` | Python: ассистент (агент с LLM через любой OpenAI-совместимый API и MCP-сервер только для чтения БД) |
-| `nginx/` | Образ nginx: TLS и прокси на backend, frontend и miniapp |
-| `scripts/` | `cert.sh` (сертификат Let's Encrypt), `seed.py` (демо-данные) |
+| `nginx/` | Образ nginx: TLS и прокси на backend, frontend и miniapp; `local.conf` — тот же прокси без TLS для локального compose |
+| `scripts/` | `local-setup.sh` (подготовка локального запуска), `split-env.sh` (разрезать старый `.env`), `cert.sh` (сертификат Let's Encrypt), `seed.py` (демо-данные) |
 
 ```
 Браузер / Telegram ──> nginx :443 ──┬─ /api/ ──> backend ──> PostgreSQL
@@ -35,23 +35,52 @@
 ## Локальный запуск
 
 ```bash
-cp .env.example .env && cp .env.backend.example .env.backend && cp .env.nlq.example .env.nlq   # в .env.backend смените JWT_* и ADMIN_PASSWORD
-docker compose -f docker-compose.local.yaml up -d --build
-curl http://localhost:8080/api/v1/ping        # pong
+make up
 ```
 
-Миграции накатывает сервис `migrate` перед стартом backend. Админ: `ADMIN_LOGIN` / `ADMIN_PASSWORD` из `.env`.
+`make up` делает два шага:
+
+1. `./scripts/local-setup.sh` готовит конфиги: создаёт `.env`, `.env.backend`, `.env.nlq` из примеров (старый единый `.env` разрезает), дописывает недостающие настройки, генерирует случайные `JWT_*` и пару ключей ассистента, ставит `ALLOWED_ORIGINS` под локальный nginx. Скрипт безопасен при повторном запуске: уже заданные значения не трогает.
+2. `docker compose -f docker-compose.local.yaml up -d --build` собирает и поднимает всё: postgres, миграции, backend, веб-панель, Mini App, nginx, ассистента (`nlq-db-init`, `nlq-mcp`, `nlq-agent`) и pgAdmin.
+
+Первая сборка занимает 5–10 минут, потом образы берутся из кэша. Когда `docker compose -f docker-compose.local.yaml ps` показывает `healthy` у backend, `nlq-mcp` и `nlq-agent`, можно открывать сайт.
 
 | Что | Адрес |
 |---|---|
-| API | `http://localhost:8080/api/v1/` |
+| **Сайт** (панель админа и сотрудника, адаптирован под телефон) | `http://localhost:8000` |
+| Mini App | `http://localhost:8000/tg/` |
+| API | `http://localhost:8000/api/v1/` или напрямую `http://localhost:8080/api/v1/` |
 | Swagger (при `DEBUG=true`) | `http://localhost:8080/api/v1/docs/index.html` |
-| pgAdmin | `http://localhost:5050` (`PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD`) |
+| pgAdmin | `http://localhost:5050` (`PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD`, по умолчанию `ad@ad.com` / `admin`) |
 | PostgreSQL | `localhost:5432` |
+| MCP Inspector / агент (отладка) | `127.0.0.1:8900`, `127.0.0.1:8090` |
 
-Полезное: `make up`, `make down`, `make logs`, `make ps`, `make run` (backend без Docker, нужен Postgres), `make test`, `make swagger` (перегенерировать `backend/docs`).
+Вход на сайт: `admin` и пароль из `ADMIN_PASSWORD` в `.env.backend` (скрипт ставит `admin123`, только для локальной работы). Демо-данные: `ADMIN_PASSWORD=admin123 python3 scripts/seed.py`.
 
-Mini App локально: `cd miniapp && npm ci && npm run dev` (http://localhost:5173/tg/). Запросы к `/api` идут на `DEV_API_TARGET` (по умолчанию `http://localhost:8080`). Для входа вне Telegram создайте `miniapp/.env.development.local` с `DEV_TG_BOT_TOKEN` (как у backend), `DEV_TG_USER_ID`, `DEV_TG_FIRST_NAME`.
+Что работает локально сразу, а что нужно включить:
+
+| Часть | Состояние |
+|---|---|
+| Сайт, API, база, миграции, чеки, журнал | работают |
+| Ассистент | работает в режиме `rules` без ключа; с `LLM_API_KEY` в `.env.nlq` отвечает через LLM (`mode: llm` в `/assistant/status`) |
+| Почта | выключена: пустой `SMTP_HOST` в `.env.backend`. Заполните `SMTP_*`, чтобы слать письма |
+| Telegram: вход через бота, напоминания, кнопка «Оплачено» | выключены (`TELEGRAM_MODE=off`). Для проверки поставьте `TELEGRAM_MODE=polling` и **отдельный** токен тестового бота в `TELEGRAM_BOT_TOKEN` и `TELEGRAM_BOT_USERNAME` |
+| Mini App внутри Telegram | нужен HTTPS-адрес (например, туннель ngrok или cloudflared на порт 8000) и `MINIAPP_URL` в `.env.backend`; в браузере страница `/tg/` откроется, но войти без Telegram нельзя |
+
+После правки `.env.backend` или `.env.nlq` перезапустите нужный сервис: `docker compose -f docker-compose.local.yaml up -d backend nlq-agent`.
+
+Остановка и сброс:
+
+```bash
+make down                                          # остановить, данные сохраняются
+docker compose -f docker-compose.local.yaml down -v   # остановить и стереть базу и чеки
+```
+
+Другие команды: `make logs` (логи backend), `make ps`, `make run` (backend без Docker, нужен Postgres), `make test`, `make swagger` (перегенерировать `backend/docs`).
+
+Разработка фронта с горячей перезагрузкой: `cd frontend && npm ci && npm run dev` (http://localhost:3000). Запросы к `/api/v1` проксируются на адрес из `nuxt.config.ts` (`nitro.devProxy`, сейчас боевой сервер). Чтобы работать с локальным backend, поменяйте `target` на `http://localhost:8080/api/v1` или пользуйтесь собранным сайтом на `:8000`.
+
+Mini App с горячей перезагрузкой: `cd miniapp && npm ci && npm run dev` (http://localhost:5173/tg/). Запросы к `/api` идут на `DEV_API_TARGET` (по умолчанию `http://localhost:8080`). Для входа вне Telegram создайте `miniapp/.env.development.local` с `DEV_TG_BOT_TOKEN` (как у backend), `DEV_TG_USER_ID`, `DEV_TG_FIRST_NAME`.
 
 ## Деплой на сервер
 
@@ -151,6 +180,8 @@ Mini App локально: `cd miniapp && npm ci && npm run dev` (http://localho
 
 Команды бота: `/today`, `/week`, `/overdue`, `/ask <вопрос>` (в личке можно писать вопрос без команды), `/new` (сбросить диалог с ассистентом), `/unlink`, `/help`.
 
+Вход на сайт через бота: на странице входа кнопка «Войти через Telegram» открывает бота по ссылке `t.me/<бот>?start=login_<код>`. Бот спрашивает «Войти как …?» с кнопками «Войти» и «Это не я», сайт тем временем опрашивает `POST /api/v1/auth/telegram/poll` и после подтверждения получает те же куки, что при входе по паролю. Так входят только те, кто уже привязал Telegram; запрос живёт 5 минут и одноразовый. Нужны включённый бот и миграция `000017`.
+
 Как работают напоминания:
 - Каждые 30 секунд движок ставит в очередь неоплаченные платежи со сроком в ближайшие `REMINDER_LEAD_DAYS` дней (по умолчанию 3) и просроченные не больше 3 дней назад. Повторов нет: один платёж на один срок и вид получает одно сообщение.
 - В сообщении кнопки «Оплачено» и «Открыть» (Mini App на карточке платежа). Оплату отмечает ответственный или админ, сообщение обновляется.
@@ -201,7 +232,7 @@ Mini App локально: `cd miniapp && npm ci && npm run dev` (http://localho
 ## Демо-данные
 
 ```bash
-python3 scripts/seed.py                    # локально: http://localhost:8080, admin/admin
+python3 scripts/seed.py                    # локально: http://localhost:8080, admin/admin123
 API_URL=https://<DOMAIN>/api/v1 ADMIN_LOGIN=<логин> ADMIN_PASSWORD=<пароль> python3 scripts/seed.py
 ```
 
@@ -249,7 +280,7 @@ make migrate-create seq=add_something
 | `NLQ_DB_PASSWORD` | пароль read-only роли `nlq_reader`, под которой ассистент читает базу |
 | `NLQ_USER_SCOPE` | что видит обычный сотрудник в ассистенте: `team` (все платежи) или `own` (только свои) |
 | `NLQ_TODAY`, `NLQ_DEV_SCHEMA` | отладка: подменить «сегодня» и тестовая схема; в проде оставьте пустыми |
-| `LOCAL_*`, `PGADMIN_*` | только `docker-compose.local.yaml`: порты и вход в pgAdmin |
+| `LOCAL_WEB_PORT`, `LOCAL_API_PORT`, `LOCAL_POSTGRES_PORT`, `LOCAL_PGADMIN_PORT`, `PGADMIN_*` | только `docker-compose.local.yaml`: порты (сайт `8000`, API `8080`, база `5432`, pgAdmin `5050`) и вход в pgAdmin |
 
 ### `.env.backend`: backend
 
@@ -329,6 +360,10 @@ make migrate-create seq=add_something
 | Симптом | Что делать |
 |---|---|
 | 404 на `/tg/` или `/api/` после обновления | `docker compose restart nginx` |
+| Локально `make up` падает на `.env.backend` | запустите `./scripts/local-setup.sh`: он создаст файл и сгенерирует секреты |
+| Локально порт 8000, 8080, 5432 или 5050 занят | поменяйте `LOCAL_WEB_PORT`, `LOCAL_API_PORT`, `LOCAL_POSTGRES_PORT`, `LOCAL_PGADMIN_PORT` в `.env` |
+| Локально вход на сайте не держится в Safari | куки `Secure` на `http://` Safari не принимает: откройте сайт в Chrome или Firefox |
+| Кнопка «Войти через Telegram» отвечает «недоступен» | бот выключен: `TELEGRAM_MODE` и токен в `.env.backend`; войти так может только тот, кто уже привязал Telegram в профиле |
 | Бот молчит, в логах `409 Conflict` | на токене уже стоит webhook или запущен второй поллер; используйте отдельный токен для локали |
 | Напоминания не приходят | нет командного чата (`/bind`), `TELEGRAM_MODE=off`, пустой токен или `REMINDER_SOURCE=stub` |
 | Ассистент отвечает 503 | `NLQ_ENABLED=false`, не поднят `nlq-agent`, не совпадают ключи в `.env` или устаревший образ: `docker compose pull && docker compose up -d` |
